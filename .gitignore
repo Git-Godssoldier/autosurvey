@@ -1,0 +1,26 @@
+# Client/source data
+data/
+source-data/
+outputs/
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+*.tsv
+*.parquet
+*.sav
+*.zip
+*.key
+*.pdf
+*.html
+
+# Local/runtime noise
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.env.*
+.serena/
+node_modules/
+.venv/
+venv/

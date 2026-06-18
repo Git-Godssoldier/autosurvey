@@ -1,0 +1,33 @@
+{
+  "name": "autoresearch-survey-quality-skillset",
+  "created_for": "Reusable survey quality cleaning workflows for unannotated market research exports",
+  "created_on": "2026-06-17",
+  "skills": [
+    {
+      "path": "cleaning-survey-quality",
+      "purpose": "Run auditable survey quality scoring, produce respondent-level evidence, and add Opulent-generated semantic annotations."
+    },
+    {
+      "path": "evolving-survey-rubrics",
+      "purpose": "Compare candidate annotations to PM adjudication and propose evidence-backed rubric changes."
+    },
+    {
+      "path": "reporting-survey-quality",
+      "purpose": "Create PM-facing and client-facing quality reports, publication-style Recharts dashboards, agent semantic analysis, trust rationales, and survey-improvement synthesis."
+    }
+  ],
+  "narrative_artifact": "docs/self-improving-survey-quality-agents.md",
+  "source_research": [
+    "https://www.alphaxiv.org/abs/2505.23695",
+    "https://arxiv.org/abs/2505.23695",
+    "https://www.alphaxiv.org/abs/2601.20048",
+    "https://arxiv.org/abs/2601.20048",
+    "https://www.databricks.com/blog/multi-agent-approach-audience-intelligence",
+    "https://www.alphaxiv.org/abs/2605.23204",
+    "https://arxiv.org/abs/2605.23204",
+    "https://github.com/letta-ai/letta-code/tree/main/src/skills/builtin/creating-skills",
+    "https://github.com/nexu-io/open-design",
+    "https://recharts.org/",
+    "https://mktgdocs.cbre.com/2299/12439527-d1a2-46eb-b485-4fd377f0d618-223048296/European_Data_Centres_Figures_.pdf"
+  ]
+}
