@@ -201,6 +201,8 @@ python3 scripts/build_visual_dashboard.py \
 - Apply plain-writing rules to all narrative explanations: use everyday words, write complete sentences, avoid filler, avoid jargon unless it is explained, and state exactly why a row was discarded or kept.
 - Cite every important claim. Use local artifact citations for run-specific claims, such as respondent counts, criteria support, discoveries, semantic judgments, and kept-row synthesis. Use external citations for design, charting, and writing-method guidance.
 - The final citation list must include at least the respondent review table, generated criteria catalog, discovery profile, criterion evidence table, agent judgment table, kept review synthesis, visual design reference, plain-writing reference, and charting reference.
+- Before the final assistant response, preview the main artifacts. Inspect the findings essay, escalation packet, internal signal bank, dashboard, visual findings report, discard set, agent judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
+- The final assistant response must include a clear narrative of core discoveries, core discard recommendations with respondent keys and row or cell-level citations when available, key statistics from the run, brief descriptions of important artifacts, a verified-artifact statement, and next-pass signals. Do not only say that scripts ran.
 
 ## When To Read References
 

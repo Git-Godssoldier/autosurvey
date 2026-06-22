@@ -71,6 +71,9 @@ folder contains:
 - `question_chain_map.csv`
 - `agent_review_judgment_table.csv`
 - `agent_discard_set.csv`
+- `agent_findings_essay.md`
+- `agent_escalation_packet.md`
+- `internal_quality_signal_bank.md`
 - `agent_kept_review_synthesis_table.csv`
 - `full_chain_analyst_readout.md`
 - `full_chain_best_worst_examples.csv`
@@ -79,6 +82,19 @@ folder contains:
 - `deep_semantic_review_sample.md`
 - `independent_full_response_audit.md`
 - `deep_findings_analysis.md`
+- `agent_final_review_dashboard.html`
+- `agent_final_visual_findings_report.md`
+
+Before the final assistant response, preview the main artifacts so the user can follow the work. At minimum, inspect the findings essay, escalation packet, internal signal bank, dashboard, visual findings report, discard set, agent judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
+
+The final assistant response must include:
+
+- a clear narrative of the core discoveries
+- core discard recommendations with respondent keys and row or cell-level citations when source coordinates are available
+- key statistical analysis from the run, including totals, review rate, discard rate, top review themes, supplier or source patterns, timing findings, and demographic context
+- brief natural-language descriptions of the important artifacts and where to open them
+- a statement that every required artifact was verified, or a precise list of missing or inconclusive items
+- a short note on what should feed the next first-pass analysis
 
 Use `next_pass_signal_inventory.csv` and `next_pass_first_pass_config.json`
 before the next scoring run. These files record which signals should be scored,
