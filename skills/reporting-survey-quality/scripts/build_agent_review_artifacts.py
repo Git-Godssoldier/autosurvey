@@ -103,7 +103,9 @@ def review_theme(key: str, audit_row: pd.Series, review_row: pd.Series) -> str:
     return "general review signal kept for PM calibration"
 
 
-def final_decision(audit_row: pd.Series, review_row: pd.Series) -> str:
+def final_decision(audit_row: pd.Series, review_row: pd.Series, full_chain: str) -> str:
+    if not full_chain:
+        raise ValueError("Final agent review requires full_response_chain from the independent audit.")
     if text(audit_row.get("independent_suggested_action")) == "review_for_possible_discard":
         return "discard"
     if text(review_row.get("second_pass_decision")) == "discard_candidate":
@@ -111,22 +113,23 @@ def final_decision(audit_row: pd.Series, review_row: pd.Series) -> str:
     return "keep_with_review_note"
 
 
-def semantic_judgment(key: str, decision: str, theme: str, raw_text: str, audit_row: pd.Series) -> str:
+def semantic_judgment(key: str, decision: str, theme: str, raw_text: str, full_chain: str, audit_row: pd.Series) -> str:
     narrative = text(audit_row.get("narrative_quality"), "not_classified")
     risks = text(audit_row.get("independent_risk_factors"), "none")
+    chain_note = f" Full response chain reviewed: {full_chain[:900]}"
     if decision == "discard":
         return (
             f"Respondent {key} should stay in the discard queue. The full response does not give a usable answer for the field role. "
-            f"Narrative class: {narrative}. Risk factors: {risks}. Raw text reviewed: {raw_text}"
+            f"Narrative class: {narrative}. Risk factors: {risks}. Raw text reviewed: {raw_text}.{chain_note}"
         )
     if narrative in {"topic_relevant", "substantive_narrative", "product_relevant"}:
         return (
             f"Keep respondent {key} with a review note. The row was routed by a candidate signal, but the full answer is usable in context. "
-            f"The next pass should treat this pattern as a routing signal unless another quality issue appears. Raw text reviewed: {raw_text}"
+            f"The next pass should treat this pattern as a routing signal unless another quality issue appears. Raw text reviewed: {raw_text}.{chain_note}"
         )
     return (
         f"Keep respondent {key} with a PM calibration note. The answer is weak, unclear, short, or generic, but it is not enough by itself for discard. "
-        f"Narrative class: {narrative}. Raw text reviewed: {raw_text}"
+        f"Narrative class: {narrative}. Raw text reviewed: {raw_text}.{chain_note}"
     )
 
 
@@ -200,6 +203,8 @@ def build(run_dir: Path) -> None:
         raise SystemExit(f"No respondent_review_table.csv found in {run_dir}")
     if audit.empty:
         raise SystemExit(f"No independent_full_response_audit.csv found in {run_dir}")
+    if "full_response_chain" not in audit.columns:
+        raise SystemExit("No full_response_chain column found. Rerun build_independent_full_response_audit.py before building final agent review artifacts.")
 
     workbook = source_workbook(run_dir)
     source = pd.read_excel(workbook, sheet_name=source_sheet(run_dir))
@@ -218,7 +223,8 @@ def build(run_dir: Path) -> None:
         rr = row_from(review_index, key)
         ar = row_from(audit_index, key)
         raw_text = text(ar.get("narrative_text")) or text(rr.get("observed_evidence"))
-        decision = final_decision(ar, rr)
+        full_chain = text(ar.get("full_response_chain"))
+        decision = final_decision(ar, rr, full_chain)
         theme = review_theme(key, ar, rr)
         observed = text(rr.get("observed_evidence")) or f"{text(ar.get('narrative_column'), 'narrative')}: {raw_text}"
         rows.append(
@@ -240,9 +246,11 @@ def build(run_dir: Path) -> None:
                 "source_columns": text(rr.get("source_columns")) or text(ar.get("narrative_column")) or "full_row_audit",
                 "observed_evidence": observed,
                 "raw_open_end_text": raw_text,
-                "agent_semantic_judgment": semantic_judgment(key, decision, theme, raw_text, ar),
+                "response_chain_field_count": ar.get("response_chain_field_count", ""),
+                "full_response_chain": full_chain,
+                "agent_semantic_judgment": semantic_judgment(key, decision, theme, raw_text, full_chain, ar),
                 "agent_linguistic_fluency_assessment": language_assessment(decision, raw_text),
-                "agent_trust_rationale": f"The decision uses the full source row, field role, timing, and independent audit classification. Theme: {theme}.",
+                "agent_trust_rationale": f"The decision uses the stitched full response chain, field role, timing, and independent audit classification. Theme: {theme}.",
                 "agent_recommended_next_step": next_step(decision, theme),
                 "agent_discard_rationale": "The row has converging evidence for exclusion review." if decision == "discard" else "",
                 "independent_narrative_quality": text(ar.get("narrative_quality")),
@@ -315,7 +323,8 @@ def build(run_dir: Path) -> None:
         "",
         "## Workflow notes",
         "",
-        "The workflow explored field roles before final judgment. The agent kept weak, short, speed-only, and keyword-mismatch rows unless another strong signal supported escalation.",
+        "The workflow explored field roles and stitched each respondent's full response chain before final judgment.",
+        "The agent kept weak, short, speed-only, and keyword-mismatch rows unless another strong signal supported escalation.",
         "The kept rows are converted into next-pass recommendations so the next first pass has better context before scoring.",
         "",
     ]

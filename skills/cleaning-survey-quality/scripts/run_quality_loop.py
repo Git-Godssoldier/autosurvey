@@ -32,6 +32,12 @@ REVIEW_HELPER_COLUMNS = {
     "outro_Topic_Relevance",
 }
 
+TECHNICAL_RESPONSE_FIELD_RE = re.compile(
+    r"(^rd_|token|uuid|rid|session|url|useragent|browser|mobile|device|ipaddress|dcua|camp|intcode|"
+    r"status|markers|scrutiny|qualityterm|quality_flag|qualityscore|quality_score)",
+    re.I,
+)
+
 
 METHODOLOGY_CONFIG: dict[str, Any] = {
     "version": "discovery-methodology-2026-06-17",
@@ -162,6 +168,112 @@ def choose_main_sheet(path: Path, preferred_sheet: str | None) -> str:
 def load_workbook(path: Path, sheet: str | None) -> tuple[pd.DataFrame, str]:
     sheet_name = choose_main_sheet(path, sheet)
     return pd.read_excel(path, sheet_name=sheet_name), sheet_name
+
+
+def clean_chain_text(value: Any, limit: int = 600) -> str:
+    raw = norm(value)
+    raw = re.sub(r"\s+", " ", raw)
+    if len(raw) > limit:
+        return raw[: limit - 3] + "..."
+    return raw
+
+
+def question_prompt_map(path: Path, source_sheet: str, source_columns: set[str]) -> dict[str, str]:
+    prompts: dict[str, str] = {}
+    try:
+        xl = pd.ExcelFile(path)
+    except Exception:
+        return prompts
+    candidate_sheets = [sheet for sheet in xl.sheet_names if sheet != source_sheet]
+    ordered_sheets = sorted(
+        candidate_sheets,
+        key=lambda item: 0 if re.search(r"map|codebook|dictionary|schema|question", item, re.I) else 1,
+    )
+    variable_terms = re.compile(r"variable|varname|field|column|qname|name", re.I)
+    prompt_terms = re.compile(r"question|prompt|text|label|title|description", re.I)
+    for sheet in ordered_sheets:
+        try:
+            frame = pd.read_excel(path, sheet_name=sheet, dtype=str, nrows=5000)
+        except Exception:
+            continue
+        if frame.empty:
+            continue
+        headers = [str(col).strip() for col in frame.columns]
+        variable_cols = [col for col in headers if variable_terms.search(col)]
+        prompt_cols = [col for col in headers if prompt_terms.search(col) and col not in variable_cols]
+        if not variable_cols or not prompt_cols:
+            continue
+        for _, row in frame.iterrows():
+            for variable_col in variable_cols:
+                field = norm(row.get(variable_col))
+                if field not in source_columns:
+                    continue
+                prompt = ""
+                for prompt_col in prompt_cols:
+                    candidate = clean_chain_text(row.get(prompt_col))
+                    if candidate and candidate.lower() != field.lower():
+                        prompt = candidate
+                        break
+                if prompt and field not in prompts:
+                    prompts[field] = prompt
+    return prompts
+
+
+def field_role(column: str, profile: dict[str, Any]) -> str:
+    lower = column.lower()
+    matrix_columns = {item for cols in profile.get("matrix_groups", {}).values() for item in cols}
+    if column in REVIEW_HELPER_COLUMNS or column.endswith("_AI_Likelihood") or "rd_review" in lower:
+        return "review_helper"
+    if column in KEY_CANDIDATES or lower in {"record", "uuid", "rid", "session"}:
+        return "respondent_identifier"
+    if column in profile.get("qtime_columns", []) or re.search(r"time|duration|elapsed", lower):
+        return "timing_field"
+    if column in profile.get("ip_columns", []) or re.search(r"ip|device|browser|useragent", lower):
+        return "ip_or_device_field"
+    if re.search(r"supname|supplier|source|vendor", lower):
+        return "supplier_or_source_field"
+    if column in matrix_columns:
+        return "matrix_grid"
+    if re.search(r"qcoe1|qindustry|qtrade|classify|occupation|job|role", lower):
+        return "job_role_screener"
+    if column in profile.get("brand_consistency_candidate_columns", []) or re.search(r"brand|aware|prefer|consider|recommend|purchase", lower):
+        return "brand_list_or_brand_logic"
+    if re.search(r"other|specify", lower):
+        return "other_specify"
+    if re.search(r"survey.?feedback|feedback|outro", lower):
+        return "survey_feedback_or_outro"
+    if column in profile.get("open_end_columns", []):
+        return "narrative_open_end"
+    if TECHNICAL_RESPONSE_FIELD_RE.search(column):
+        return "technical_or_hidden_field"
+    return "respondent_answer"
+
+
+def question_chain_map(source_name: str, workbook: Path, sheet_name: str, df: pd.DataFrame, profile: dict[str, Any]) -> pd.DataFrame:
+    prompts = question_prompt_map(workbook, sheet_name, set(str(col) for col in df.columns))
+    rows: list[dict[str, Any]] = []
+    for position, col in enumerate((str(item) for item in df.columns), start=1):
+        role = field_role(col, profile)
+        rows.append(
+            {
+                "source_workbook": source_name,
+                "sheet": sheet_name,
+                "position": position,
+                "source_column": col,
+                "field_role": role,
+                "question_text": prompts.get(col, col),
+                "include_in_full_response_chain": role
+                not in {
+                    "respondent_identifier",
+                    "timing_field",
+                    "ip_or_device_field",
+                    "supplier_or_source_field",
+                    "review_helper",
+                    "technical_or_hidden_field",
+                },
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 def derive_feedback_config(feedback_file: Path | None) -> dict[str, Any]:
@@ -1403,6 +1515,7 @@ def write_report(
         [
             "",
             "## Review Tables",
+            "- `question_chain_map.csv`: ordered source-field map with field roles, prompt text when a Datamap or codebook is available, and the fields included in full response-chain review.",
             "- `generated_criteria_catalog.csv`: all generated criteria, tags, source columns, rationale, generated weights, and support.",
             "- `respondent_review_table.csv`: one row per respondent with metadata, triggered criteria, explanations, second-pass disposition, agent semantic analysis, linguistic fluency assessment, trust rationale, survivor rationale, discard rationale, and survey-question recommendations.",
             "- `response_criteria_evidence_table.csv`: one row per respondent criterion with observed value, source column, generated points, explanation, second-pass disposition, agent semantic analysis, survivor/discard rationale, and weight rationale.",
@@ -1582,6 +1695,7 @@ def main() -> None:
     respondent_tables: list[pd.DataFrame] = []
     evidence_tables: list[pd.DataFrame] = []
     catalog_tables: list[pd.DataFrame] = []
+    question_chain_tables: list[pd.DataFrame] = []
     loaded: dict[Path, pd.DataFrame] = {}
     discovery_profiles: dict[str, Any] = {}
     generated_models: dict[str, Any] = {}
@@ -1593,6 +1707,9 @@ def main() -> None:
         loaded[path] = df
         profile = discover_profile(df, topic_keywords, feedback_config)
         discovery_profiles[path.name] = profile
+        chain_map = question_chain_map(path.name, path, sheet_name, df, profile)
+        chain_map.to_csv(output_dir / f"{path.stem}.question_chain_map.csv", index=False)
+        question_chain_tables.append(chain_map)
         scoring_model = generate_scoring_model(df, profile, METHODOLOGY_CONFIG)
         generated_models[path.name] = scoring_model
         scored = score_dataframe(df, scoring_model, profile)
@@ -1627,6 +1744,8 @@ def main() -> None:
         write_agent_annotation_table(output_dir, combined_respondents)
     if evidence_tables:
         pd.concat(evidence_tables, ignore_index=True).to_csv(output_dir / "response_criteria_evidence_table.csv", index=False)
+    if question_chain_tables:
+        pd.concat(question_chain_tables, ignore_index=True).to_csv(output_dir / "question_chain_map.csv", index=False)
 
     (output_dir / "discovery_profiles.json").write_text(json.dumps(discovery_profiles, indent=2, ensure_ascii=True), encoding="utf-8")
     primary_model = next(iter(generated_models.values()))

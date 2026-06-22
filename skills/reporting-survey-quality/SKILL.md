@@ -42,7 +42,7 @@ Produce three report layers:
    - response analysis criteria section showing which criteria actually fired, how many rows they touched, and how to read each criterion
    - dataset observations section with a cited list of semantic patterns, trend findings, supplier/source patterns, and survey-design implications
    - structured discard table with agent rationale and source evidence
-   - full semantic decision table for all rows the agent investigated
+   - full semantic decision table for all rows the agent investigated, including the number of fields reviewed from the stitched full response chain
    - kept-review synthesis table with survey-question and parameter recommendations
    - next-pass signal inventory that states what should change before the next first-pass scoring run
    - deep semantic review sample that shows a subset of reviewed rows with the full reasoning and next-pass learning
@@ -58,6 +58,7 @@ Use outputs from `run_quality_loop.py`:
 - `quality_report.md`
 - `quality_summary.json`
 - `row_scores.csv`
+- `question_chain_map.csv`
 - `discovery_profiles.json`
 - `generated_scoring_models.json`
 - `methodology_config.json`
@@ -128,6 +129,7 @@ python3 scripts/build_visual_dashboard.py \
 - Explain that criteria and provisional weights were generated from discovery, trial evidence, findings, and feedback.
 - Include justifications for each scoring criterion.
 - Include respondent metadata in review tables wherever source fields are available.
+- Include the stitched question chain and full response chain before final semantic review. The final agent judgment table must carry `response_chain_field_count` and `full_response_chain`, and the final discard decision must be based on that chain plus the surfaced evidence.
 - Include one row per triggered criterion in the evidence table so PMs can audit all criteria, observations, explanations, second-pass disposition, agent semantic analysis, survivor/discard rationale, and rationales.
 - Treat annotation text as an Opulent semantic-judgment layer, not a deterministic score explanation. Reports should show what the response pattern means and why the recommendation is trustworthy.
 - For raw-data runs, include discovery notes from `discovery_profiles.json`.
@@ -141,6 +143,7 @@ python3 scripts/build_visual_dashboard.py \
 - Always include these kept-row patterns in the next-pass workflow when they appear: weak or unclear narrative answers, speed-only plausible answers, short factor-list answers, semantic keyword false positives, and survey-feedback wording. Each pattern must produce both a survey-question or parameter recommendation and a suggested quality parameter.
 - Return a subset of reviewed rows with deeper semantic analysis. Include the final decision, raw evidence, language assessment, trust basis, next action, and the learning that should change the next pass.
 - Independently audit all source rows before final delivery. Compare the full-row audit against the scorer and agent review outputs. If the audit finds a missed possible discard, update the agent judgment artifacts and explain the fix.
+- Do not finalize `agent_review_judgment_table.csv` from an audit that lacks `full_response_chain`. Rerun the independent full-response audit first.
 - Put the highest-severity rows before lower-priority review examples.
 - Do not expose raw open-end responses externally unless approved.
 - Do not claim respondents are fraudulent solely because of AI-likelihood scores.

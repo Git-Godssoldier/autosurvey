@@ -73,6 +73,19 @@ def text(value: object, default: str = "") -> str:
     return str(value).strip()
 
 
+def chain_text(value: object, limit: int = 900) -> str:
+    raw = re.sub(r"\s+", " ", text(value))
+    if len(raw) > limit:
+        return raw[: limit - 3] + "..."
+    return raw
+
+
+def truthy(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    return text(value).lower() not in {"false", "0", "no", "n", ""}
+
+
 def read_csv(path: Path) -> pd.DataFrame:
     return pd.read_csv(path) if path.exists() else pd.DataFrame()
 
@@ -103,6 +116,93 @@ def topic_pattern(summary: dict) -> re.Pattern[str] | None:
     if not keywords:
         return None
     return re.compile("|".join(re.escape(item) for item in keywords), re.I)
+
+
+def fallback_field_role(column: str, summary: dict) -> str:
+    lower = column.lower()
+    open_end_cols = set(open_end_columns_from_summary(summary))
+    matrix_cols = {
+        item
+        for profile in summary.get("discovery_profiles", {}).values()
+        for cols in profile.get("matrix_groups", {}).values()
+        for item in cols
+    }
+    brand_cols = {
+        item
+        for profile in summary.get("discovery_profiles", {}).values()
+        for item in profile.get("brand_consistency_candidate_columns", [])
+    }
+    if re.search(r"uuid|^record$|^rid$|session", lower):
+        return "respondent_identifier"
+    if re.search(r"qtime|duration|elapsed|time", lower):
+        return "timing_field"
+    if re.search(r"ipaddress|ip_|device|browser|useragent", lower):
+        return "ip_or_device_field"
+    if re.search(r"supname|supplier|source|vendor", lower):
+        return "supplier_or_source_field"
+    if TECHNICAL_TEXT_FIELD_TERMS.search(column):
+        return "technical_or_hidden_field"
+    if column in matrix_cols:
+        return "matrix_grid"
+    if re.search(r"qcoe1|qindustry|qtrade|classify|occupation|job|role", lower):
+        return "job_role_screener"
+    if column in brand_cols or re.search(r"brand|aware|prefer|consider|recommend|purchase", lower):
+        return "brand_list_or_brand_logic"
+    if re.search(r"other|specify", lower):
+        return "other_specify"
+    if re.search(r"feedback|outro", lower):
+        return "survey_feedback_or_outro"
+    if column in open_end_cols:
+        return "narrative_open_end"
+    return "respondent_answer"
+
+
+def load_question_chain_map(run_dir: Path, source: pd.DataFrame, workbook_name: str, sheet_name: str, summary: dict) -> pd.DataFrame:
+    path = run_dir / "question_chain_map.csv"
+    if path.exists():
+        chain = pd.read_csv(path)
+        if "source_workbook" in chain.columns:
+            scoped = chain[chain["source_workbook"].astype(str).eq(workbook_name)].copy()
+            if not scoped.empty:
+                return scoped
+        if not chain.empty:
+            return chain.copy()
+
+    rows: list[dict[str, object]] = []
+    for position, column in enumerate((str(item) for item in source.columns), start=1):
+        role = fallback_field_role(column, summary)
+        rows.append(
+            {
+                "source_workbook": workbook_name,
+                "sheet": sheet_name,
+                "position": position,
+                "source_column": column,
+                "field_role": role,
+                "question_text": column,
+                "include_in_full_response_chain": role not in CHAIN_EXCLUDED_ROLES,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def full_response_chain(row: pd.Series, question_chain: pd.DataFrame) -> tuple[str, int]:
+    pieces: list[str] = []
+    for _, field in question_chain.sort_values("position").iterrows():
+        if not truthy(field.get("include_in_full_response_chain", True)):
+            continue
+        column = text(field.get("source_column"))
+        if column not in row.index:
+            continue
+        answer = chain_text(row.get(column))
+        if not answer:
+            continue
+        role = text(field.get("field_role"), "respondent_answer")
+        prompt = chain_text(field.get("question_text")) or column
+        if prompt == column:
+            pieces.append(f"{column} [{role}]: {answer}")
+        else:
+            pieces.append(f"{column} [{role}] {prompt}: {answer}")
+    return " || ".join(pieces), len(pieces)
 
 
 def role_class(value: object) -> str:
@@ -180,6 +280,14 @@ TECHNICAL_TEXT_FIELD_TERMS = re.compile(
     r"(^rd_|token|uuid|rid|session|url|useragent|browser|mobile|device|ipaddress|dcua|camp|source|supname|intcode)",
     re.I,
 )
+CHAIN_EXCLUDED_ROLES = {
+    "respondent_identifier",
+    "timing_field",
+    "ip_or_device_field",
+    "supplier_or_source_field",
+    "review_helper",
+    "technical_or_hidden_field",
+}
 
 
 def open_end_columns_from_summary(summary: dict) -> list[str]:
@@ -337,7 +445,8 @@ def write_markdown(run_dir: Path, audit: pd.DataFrame, judgments: pd.DataFrame) 
         "",
         f"Rows audited: {len(audit)}.",
         "This audit starts from the raw workbook, not from the autosurvey review queue.",
-        "It classifies every response for role fit, brand-list quality, duplicate IP, timing, and whether autosurvey reviewed the row.",
+        "It stitches the ordered question chain and each respondent's full response chain before classifying the row.",
+        "It classifies every response for role fit, brand-list quality, duplicate IP, timing, full-chain answer context, and whether autosurvey reviewed the row.",
         "",
         "## Independent classifications",
         "",
@@ -417,6 +526,9 @@ def main() -> None:
     summary = run_summary(run_dir)
     workbook = source_workbook(run_dir)
     source = pd.read_excel(workbook, sheet_name=args.sheet)
+    question_chain = load_question_chain_map(run_dir, source, workbook.name, args.sheet, summary)
+    if not (run_dir / "question_chain_map.csv").exists():
+        question_chain.to_csv(run_dir / "question_chain_map.csv", index=False)
     respondent = read_csv(run_dir / "respondent_review_table.csv")
     judgments = read_csv(run_dir / "agent_review_judgment_table.csv")
 
@@ -445,6 +557,7 @@ def main() -> None:
         duplicate_count = int(cluster.get("rows", 0))
         duplicate_type = text(cluster.get("cluster_type")) if duplicate_count > 1 else "single"
         action, risks = suggested_action(role, brand, narrative, qtime, duplicate_type)
+        response_chain, response_chain_fields = full_response_chain(row, question_chain)
         rows.append(
             {
                 "respondent_key": key,
@@ -465,6 +578,8 @@ def main() -> None:
                 "narrative_column": narrative_col or "",
                 "narrative_quality": narrative,
                 "narrative_text": text(row.get(narrative_col))[:240] if narrative_col else "",
+                "response_chain_field_count": response_chain_fields,
+                "full_response_chain": response_chain,
                 "independent_risk_factors": risks,
                 "independent_suggested_action": action,
                 "autosurvey_reviewed": key in reviewed_keys,

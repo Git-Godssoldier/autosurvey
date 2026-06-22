@@ -17,6 +17,8 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - Read the sheet names, row count, column count, and Datamap or codebook when present.
    - Inspect representative raw rows and nonempty examples from every open-ended field family.
    - Map field roles before scoring. At minimum, separate job-role screeners, brand-list fields, narrative open ends, other-specify fields, survey-feedback fields, timing fields, supplier/source fields, respondent identifiers, IP/device fields, and review/helper fields.
+   - Stitch the full question chain before scoring. Use the Datamap or codebook prompt text when available. Fall back to ordered source columns when prompt text is not available.
+   - Stitch each respondent's full response chain from all nonempty respondent-answer fields before final semantic review. The final discard decision must review this chain, not just the field that triggered a flag.
    - Decide which fields can be scored in the first pass, which fields need PM mapping, and which fields should only produce review notes.
    - Do not run topic mismatch or low-effort scoring until the field role is clear. A job-role screener should not be scored like a product-topic open end. An unaided brand-list field should not penalize short valid brand names.
 2. Profile the workbook:
@@ -39,6 +41,7 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    ```
 4. Review the generated `quality_report.md`, `row_scores.csv`, and `quality_summary.json`.
 5. Review the generated table artifacts:
+   - `question_chain_map.csv`: ordered source-field map with field roles, prompt text when available, and the fields used for full response-chain review.
    - `generated_criteria_catalog.csv`: all generated criteria, tags, source columns, rationale, generated weights, and support.
    - `respondent_review_table.csv`: one row per respondent with metadata, triggered criteria, explanations, second-pass disposition, agent semantic analysis, linguistic fluency assessment, trust rationale, survivor rationale, discard rationale, and escalation routing.
    - `response_criteria_evidence_table.csv`: one row per respondent criterion with observed value, source column, generated points, explanation, weight rationale, second-pass disposition, and agent annotation context.
@@ -66,6 +69,7 @@ Do not provide fixed weights or closed criteria ahead of time. The methodology d
 Each run must produce:
 
 - generated candidate criteria with tags, source columns, and rationale
+- question-chain and response-chain context for final semantic review
 - provisional weights with support counts and rationale
 - generated action thresholds
 - second-pass disposition and discard-only escalation routing
@@ -115,7 +119,7 @@ Semantic relevance and linguistic-quality calls must be made by the Opulent agen
 
 Before finalizing any text-driven discard:
 
-1. Read the full open-ended response and nearby respondent evidence.
+1. Read the stitched full response chain, including the prompt context for each answered field when available.
 2. Decide whether a reasonable PM would treat the answer as substantively off-topic or merely awkward/variant phrasing.
 3. Check whether the text concern independently strengthens another quality signal, such as straightlining or speed.
 4. Downgrade rows where semantic evidence is plausible or only weakly ambiguous; keep them with a survey-question recommendation instead.

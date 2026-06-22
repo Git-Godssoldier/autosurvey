@@ -25,6 +25,12 @@ scoring until you know whether a field is a job-role screener, brand list,
 narrative open end, other-specify field, survey-feedback field, timing field,
 supplier/source field, identifier field, or review/helper field.
 
+The run must also build question and response chains. First stitch the ordered
+question chain from the Datamap or codebook when it is present. If prompt text is
+not available, use the ordered source columns. Then stitch each respondent's full
+response chain from all nonempty answer fields. The final agent semantic review
+must review that full chain before it writes a structured discard decision.
+
 ```bash
 python3 skills/cleaning-survey-quality/scripts/run_quality_loop.py \
   --input-file /path/to/unannotated_export.xlsx \
@@ -53,6 +59,7 @@ python3 skills/reporting-survey-quality/scripts/build_visual_dashboard.py \
 The run is not complete until an agent has reviewed the flagged rows and the output
 folder contains:
 
+- `question_chain_map.csv`
 - `agent_review_judgment_table.csv`
 - `agent_discard_set.csv`
 - `agent_kept_review_synthesis_table.csv`
