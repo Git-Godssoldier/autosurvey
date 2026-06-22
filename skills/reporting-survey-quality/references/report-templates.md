@@ -212,26 +212,22 @@ Sections:
 - callouts where the workflow should challenge or revise itself
 - workflow learning for the next pass
 
-`agent_dashboard_editorial_review.md` should be written by the agent after reading the run artifacts. It should include:
+`agent_findings_essay.md` should be written by the agent after reading the run artifacts. It is the main reasoning artifact, not a structured export. It should be a natural prose essay with citations to the local run materials.
 
-- an executive interpretation that states the real quality conclusion, not just the counts
-- the field-role mapping implications that made the run trustworthy or limited it
-- the strongest semantic patterns found in the full chains
-- the best retained rows and why they improve confidence in the data
-- the weakest retained rows and why they are calibration cases rather than discards
-- any true discard logic, including the benign alternative the agent considered before recommending removal
-- demographic and aggregate context that affects survey interpretation, while keeping it separate from row-level discard evidence
-- next-pass improvements that explain what should change before the next first-pass scoring run
-- a self-critique of the workflow, including any places where static checks were too broad, too narrow, or too dependent on missing field-role mapping
+The essay should do the following in whatever structure best serves the dataset:
 
-`agent_dashboard_row_annotations.csv` should be written by the agent for rows shown in dashboard cards. It should include:
+- state the real quality conclusion, not just the counts
+- explain what the agent discovered during data exploration and field-role mapping
+- explain how the Datamap and stitched response chains changed the final read
+- interpret the strongest semantic patterns found in the full chains
+- describe the best retained rows and why they improve confidence in the data
+- describe the weakest retained rows and why they are calibration cases rather than discards
+- explain any true discard logic, including the benign alternative the agent considered before recommending removal
+- include demographic and aggregate context that affects survey interpretation, while keeping it separate from row-level discard evidence
+- explain next-pass improvements and why they matter before the next first-pass scoring run
+- critique the workflow itself, including places where static checks were too broad, too narrow, or too dependent on missing field-role mapping
 
-- `respondent_key`
-- `agent_editorial_summary`: a short, decision-first analyst note
-- `chain_interpretation`: a readable explanation of the response chain, not a raw chain dump
-- `quality_judgment`: why the row is a discard, a keep, or a PM calibration case
-- `workflow_learning`: what this row teaches the next pass
-- `next_step`: the concrete PM or workflow action
+Do not turn this essay into a list of required fields. The point is to let the agent reason in prose after reading the evidence. Tables can support the essay, but they are not the analysis.
 
 `full_chain_best_worst_examples.csv` should include:
 
@@ -339,14 +335,15 @@ Sections:
 - kept-review synthesis
 - next-pass signal inventory
 - deep semantic review sample
+- cited agent findings essay
 - citations for all run-specific and method-specific claims
 - clear artifact index for content review
 
 Dashboard rules:
 
-- The dashboard is a research publication, not a table export. It must include agent-authored editorial prose from `agent_dashboard_editorial_review.md`.
+- The dashboard is a research publication, not a table export. It must include or link to agent-authored prose from `agent_findings_essay.md`.
 - Long explanations must not appear in wide tables. Use prose sections, cards, or linked Markdown artifacts for reasoning. Use tables only as compact ledgers.
-- Row cards must use `agent_dashboard_row_annotations.csv` when available. The card should read as a human analyst note, not as stitched field text.
+- Selected row examples should read as analyst prose. They can be written directly in the essay or in any companion artifact the agent chooses. Do not require a rigid row-note schema.
 - Raw full response chains belong in CSV or audit artifacts. Dashboard-visible chain content must be summarized into short readable observations.
 - Any dashboard that wraps prose into one-character columns, overlaps sections, or requires the reviewer to infer meaning from flags is not deliverable.
 

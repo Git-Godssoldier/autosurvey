@@ -126,8 +126,8 @@ def artifact_links(run_dir: Path) -> list[tuple[str, str]]:
         "agent_final_visual_findings_report.md",
         "agent_review_judgment_table.csv",
         "agent_review_judgment_summary.md",
+        "agent_findings_essay.md",
         "agent_dashboard_editorial_review.md",
-        "agent_dashboard_row_annotations.csv",
         "agent_verified_quality_brief.md",
         "agent_discard_set.csv",
         "agent_kept_review_synthesis.md",
@@ -224,8 +224,15 @@ def simple_markdown_html(markdown: str) -> str:
     return "".join(blocks)
 
 
+def agent_findings_markdown(run_dir: Path) -> str:
+    return (
+        read_text(run_dir / "agent_findings_essay.md").strip()
+        or read_text(run_dir / "agent_dashboard_editorial_review.md").strip()
+    )
+
+
 def editorial_review_html(run_dir: Path) -> str:
-    markdown = read_text(run_dir / "agent_dashboard_editorial_review.md").strip()
+    markdown = agent_findings_markdown(run_dir)
     if not markdown:
         return ""
     return f"<section class='panel editorial'><div class='prose'>{simple_markdown_html(markdown)}</div></section>"
@@ -550,23 +557,6 @@ def analyst_read(row: pd.Series) -> str:
     )
 
 
-def annotation_map(frame: pd.DataFrame) -> dict[str, pd.Series]:
-    if frame.empty or "respondent_key" not in frame.columns:
-        return {}
-    result: dict[str, pd.Series] = {}
-    for _, row in frame.iterrows():
-        key = text(row.get("respondent_key")).strip()
-        if key:
-            result[key] = row
-    return result
-
-
-def annotation_text(annotation: pd.Series | None, field: str) -> str:
-    if annotation is None or field not in annotation.index:
-        return ""
-    return plain_text(annotation.get(field))
-
-
 def ledger_html(df: pd.DataFrame, limit: int = 40) -> str:
     columns = [
         "respondent_key",
@@ -582,30 +572,14 @@ def ledger_html(df: pd.DataFrame, limit: int = 40) -> str:
     return table_html(df, columns, limit)
 
 
-def semantic_card_html(row: pd.Series, annotations: dict[str, pd.Series] | None = None) -> str:
+def semantic_card_html(row: pd.Series) -> str:
     decision = text(row.get("agent_final_decision"))
     cls = "discard" if decision == "discard" else "keep"
     title = f"{text(row.get('respondent_key'))} | {text(row.get('supplier'))}"
-    annotation = (annotations or {}).get(text(row.get("respondent_key")).strip())
-    editorial_summary = annotation_text(annotation, "agent_editorial_summary") or analyst_read(row)
-    quality_judgment = annotation_text(annotation, "quality_judgment")
-    workflow_learning = annotation_text(annotation, "workflow_learning")
-    next_step_text = annotation_text(annotation, "next_step") or plain_truncate(row.get("agent_recommended_next_step"), 260)
+    editorial_summary = analyst_read(row)
+    next_step_text = plain_truncate(row.get("agent_recommended_next_step"), 260)
     chain_notes = focused_chain_read(row.get("semantic_review_chain") or row.get("full_response_chain"))
-    chain_interpretation = annotation_text(annotation, "chain_interpretation")
-    if chain_interpretation:
-        chain_notes = [chain_interpretation, *chain_notes[:4]]
     chain_html = "".join(f"<li>{html.escape(note)}</li>" for note in chain_notes)
-    learning_html = (
-        f"<p><strong>Workflow learning.</strong> {html.escape(workflow_learning)}</p>"
-        if workflow_learning
-        else ""
-    )
-    quality_html = (
-        f"<p><strong>Quality judgment.</strong> {html.escape(quality_judgment)}</p>"
-        if quality_judgment
-        else f"<p><strong>Language quality.</strong> {html.escape(plain_truncate(row.get('agent_linguistic_fluency_assessment'), 260))}</p>"
-    )
     return (
         f"<article class='memo {cls}'>"
         f"<h3>{html.escape(title)}</h3>"
@@ -614,8 +588,7 @@ def semantic_card_html(row: pd.Series, annotations: dict[str, pd.Series] | None 
         f"<p><strong>Agent read.</strong> {html.escape(editorial_summary)}</p>"
         f"<ul class='chain-read'>{chain_html}</ul>"
         f"<p><strong>Review depth.</strong> The agent checked {html.escape(text(row.get('semantic_review_chain_field_count')))} focused fields and {html.escape(text(row.get('response_chain_field_count')))} total answer fields.</p>"
-        f"{quality_html}"
-        f"{learning_html}"
+        f"<p><strong>Language quality.</strong> {html.escape(plain_truncate(row.get('agent_linguistic_fluency_assessment'), 260))}</p>"
         f"<p><strong>Next step.</strong> {html.escape(next_step_text)}</p>"
         "</article>"
     )
@@ -632,8 +605,6 @@ def main() -> None:
     criteria = read_csv(run_dir / "generated_criteria_catalog.csv")
     evidence = read_csv(run_dir / "response_criteria_evidence_table.csv")
     demographics = read_csv(run_dir / "demographic_summary.csv")
-    dashboard_annotation_table = read_csv(run_dir / "agent_dashboard_row_annotations.csv")
-    dashboard_annotations = annotation_map(dashboard_annotation_table)
     discovery = read_json(run_dir / "discovery_profiles.json")
 
     total = int(len(respondent))
@@ -657,7 +628,7 @@ def main() -> None:
     response_criteria = response_analysis_table(evidence)
     observation_notes = observations(respondent, judgments, criteria, kept_synthesis)
     editorial_html = editorial_review_html(run_dir)
-    editorial_markdown = read_text(run_dir / "agent_dashboard_editorial_review.md").strip()
+    editorial_markdown = agent_findings_markdown(run_dir)
 
     chart_payload = {
         "actions": chart_records(action_counts),
@@ -818,8 +789,8 @@ def main() -> None:
     }}
     window.addEventListener('load', renderCharts);
     """
-    discard_cards = "".join(semantic_card_html(row, dashboard_annotations) for _, row in semantic[semantic.get("agent_final_decision", pd.Series(dtype=str)).eq("discard")].iterrows())
-    keep_cards = "".join(semantic_card_html(row, dashboard_annotations) for _, row in semantic[semantic.get("agent_final_decision", pd.Series(dtype=str)).ne("discard")].head(6).iterrows())
+    discard_cards = "".join(semantic_card_html(row) for _, row in semantic[semantic.get("agent_final_decision", pd.Series(dtype=str)).eq("discard")].iterrows())
+    keep_cards = "".join(semantic_card_html(row) for _, row in semantic[semantic.get("agent_final_decision", pd.Series(dtype=str)).ne("discard")].head(6).iterrows())
     html_doc = [
         "<!doctype html><html><head><meta charset='utf-8'><title>Survey Quality Dashboard</title>",
         "<meta name='viewport' content='width=device-width, initial-scale=1'>",
@@ -871,8 +842,8 @@ def main() -> None:
         "<section class='panel'><h2>Observed semantic and scoring patterns</h2><ul class='observation-list'>",
         "".join(f"<li>{html.escape(note)}</li>" for note in observation_notes),
         "</ul></section>",
-        "<h2 class='section-title'>Agent editorial interpretation</h2>",
-        editorial_html or "<section class='panel editorial'><p>The required agent dashboard editorial review was not found. The run should be completed by writing <code>agent_dashboard_editorial_review.md</code> from the exploration, field-role mapping, full-chain review, and final semantic judgments before client delivery.</p></section>",
+        "<h2 class='section-title'>Agent findings essay</h2>",
+        editorial_html or "<section class='panel editorial'><p>The required agent findings essay was not found. The run should be completed by writing <code>agent_findings_essay.md</code> from the exploration, field-role mapping, full-chain review, final semantic judgments, demographic context, and next-pass learning before client delivery.</p></section>",
         "<h2 class='section-title'>Agent semantic reasoning</h2>",
         "<section class='memo-grid'>",
         discard_cards or "<p>No discard rows were found.</p>",
@@ -963,17 +934,14 @@ def main() -> None:
         "## Dataset observations",
         *[f"- {note}" for note in observation_notes],
         "",
-        "## Agent editorial interpretation",
-        editorial_markdown or "The required agent dashboard editorial review was not found. Write `agent_dashboard_editorial_review.md` before delivery.",
+        "## Agent findings essay",
+        editorial_markdown or "The required agent findings essay was not found. Write `agent_findings_essay.md` before delivery.",
         "",
         "## Agent review decisions",
         *[f"- {idx}: {int(val)} ({pct(int(val), review_total)})" for idx, val in agent_counts.items()],
         "",
         "## Agent discard set",
         *markdown_table(discard, ["respondent_key", "agent_discard_rationale", "observed_evidence", "supplier", "qtime", "agent_semantic_judgment", "agent_trust_rationale"], 10),
-        "",
-        "## Dashboard row annotations",
-        *markdown_table(dashboard_annotation_table, ["respondent_key", "agent_editorial_summary", "chain_interpretation", "quality_judgment", "workflow_learning", "next_step"], 12),
         "",
         "## All semantic decisions",
         *markdown_table(semantic, ["respondent_key", "agent_final_decision", "review_theme", "supplier", "qtime", "computed_score", "programmatic_discard_recommendation", "response_chain_field_count", "semantic_review_chain_field_count", "agent_recommended_next_step"], 30),
