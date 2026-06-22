@@ -130,6 +130,7 @@ def artifact_links(run_dir: Path) -> list[tuple[str, str]]:
         "next_pass_first_pass_config.json",
         "deep_semantic_review_sample.md",
         "deep_semantic_review_sample.csv",
+        "deep_findings_analysis.md",
         "workflow_improvement_log.md",
         "respondent_review_table.csv",
         "response_criteria_evidence_table.csv",

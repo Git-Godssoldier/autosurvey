@@ -36,6 +36,56 @@ def read_csv(path: Path) -> pd.DataFrame:
 
 def theme_rule(theme: str) -> dict[str, str]:
     lower = theme.lower()
+    if "job-role keyword false positive" in lower:
+        return {
+            "signal_id": "job_role_relevance_classifier_needed",
+            "critical_signal": "A job-role screener field was treated like a generic topic field.",
+            "first_pass_change": "Classify job-role relevance before topic scoring. Trade, construction, maintenance, repair, and tool-buying roles should not need brand keywords to pass relevance.",
+            "analysis_factor": "Separate audience eligibility fields from narrative topic fields.",
+            "evidence_needed": "Question prompt, qcoe1 text, qIndustry, qTrade, CLASSIFY, and PM examples of qualified and unqualified roles.",
+            "default_status": "scorable_after_pm_role_map",
+            "escalation_rule": "Escalate only when the role is clearly outside the qualified audience and another quality signal is present, or when PM rules say the role is disqualifying.",
+        }
+    if "non-trade job-role mismatch" in lower or "duplicate plus non-trade qualification mismatch" in lower:
+        return {
+            "signal_id": "job_role_qualification_risk",
+            "critical_signal": "Some respondents described roles outside the target contractor or trade audience.",
+            "first_pass_change": "Add a job-role qualification risk analysis that compares qcoe1 against screener fields before scoring.",
+            "analysis_factor": "Track non-trade, gig-only, service, software, retail, HR, IT, and generic management roles separately from respondent-quality failures.",
+            "evidence_needed": "qcoe1 text, qIndustry, qTrade, CLASSIFY, qc flags, PM qualification rules, and respondent source.",
+            "default_status": "review_only_until_pm_rules",
+            "escalation_rule": "Escalate when a non-trade role is paired with duplicate evidence, direct non-cooperation, or PM-confirmed disqualification.",
+        }
+    if "ambiguous job-role" in lower:
+        return {
+            "signal_id": "job_role_pm_calibration_examples",
+            "critical_signal": "Manager, owner, property, operations, and real estate role text needs PM interpretation.",
+            "first_pass_change": "Collect PM-labeled role examples and use them in the next project context before scoring qcoe1 harder.",
+            "analysis_factor": "Create qualified, maybe-qualified, and unqualified role groups.",
+            "evidence_needed": "Representative qcoe1 examples, PM labels, qIndustry, qTrade, and survey qualification rules.",
+            "default_status": "needs_feedback",
+            "escalation_rule": "Keep ambiguous job-role answers until PM labels define the boundary.",
+        }
+    if "brand or tool category answer" in lower or "brand answer plausible" in lower or "thin brand" in lower:
+        return {
+            "signal_id": "brand_list_field_normalization",
+            "critical_signal": "Short brand and tool-category answers were mistaken for low-effort open ends.",
+            "first_pass_change": "Classify unaided brand-list fields before low-effort scoring. Normalize valid short brand names and tool categories.",
+            "analysis_factor": "Use a brand dictionary and tool-category dictionary for qcoe2 and related brand-list fields.",
+            "evidence_needed": "Field prompt, qcoe2 values, known brand list, spelling variants, and PM-approved category terms.",
+            "default_status": "scorable_after_brand_dictionary",
+            "escalation_rule": "Escalate only when brand-list answers are nonsense, hostile, repeated gibberish, or paired with another strong quality signal.",
+        }
+    if "direct non-cooperation" in lower or "abusive" in lower:
+        return {
+            "signal_id": "direct_non_cooperation_open_end",
+            "critical_signal": "A respondent gave hostile or directly non-cooperative open-end content.",
+            "first_pass_change": "Add direct refusal, profanity, and hostile-content detection as a high-priority review signal.",
+            "analysis_factor": "Separate hostile refusal from ordinary short brand answers.",
+            "evidence_needed": "Raw open-end text, source field, nearby brand answers, and PM removal policy.",
+            "default_status": "review_for_discard",
+            "escalation_rule": "Escalate direct refusal or hostile content when it appears in a required open-end field.",
+        }
     if "keyword false positive" in lower:
         return {
             "signal_id": "semantic_topic_relevance_replace_keyword_miss",

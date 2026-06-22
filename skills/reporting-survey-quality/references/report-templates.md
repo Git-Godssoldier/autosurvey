@@ -84,6 +84,7 @@ Sections:
    - next-pass signal inventory
    - next-pass first-pass config
    - deep semantic review sample
+   - deep findings analysis
    - PM-facing Markdown sample
 13. Final visual review package
    - KPI cards: total responses, review-tagged rows, agent discard rows, kept review rows
@@ -92,6 +93,7 @@ Sections:
    - kept-review synthesis table with survey-question and parameter recommendations
    - next-pass signals to feed into the next first-pass analysis
    - deep semantic sample with row-level reasoning and learning for the next pass
+   - deep findings memo with final interpretation and workflow audit
    - final guidance on what to discard, what to keep, and what to improve in the survey instrument
 
 ## Required Table Fields
@@ -198,6 +200,17 @@ Sections:
 - trust basis
 - next action
 - learning for the next pass
+
+`deep_findings_analysis.md` should include:
+
+- executive readout
+- final row decisions
+- review themes
+- discard recommendations
+- critical next-pass signals
+- what the run teaches about the survey
+- deep semantic sample
+- flow audit
 
 `agent_final_review_dashboard.html` and `agent_final_visual_findings_report.md` should include:
 

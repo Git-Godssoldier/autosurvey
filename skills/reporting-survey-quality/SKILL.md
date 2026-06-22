@@ -46,6 +46,7 @@ Produce three report layers:
    - kept-review synthesis table with survey-question and parameter recommendations
    - next-pass signal inventory that states what should change before the next first-pass scoring run
    - deep semantic review sample that shows a subset of reviewed rows with the full reasoning and next-pass learning
+   - deep findings memo that states the main findings, limits, discard recommendations, and workflow changes
    - editorial figure captions, source notes, callouts, and artifact navigation for fast content review
    - artifact index linking the CSV, Markdown, and dashboard outputs
 
@@ -72,6 +73,7 @@ Use outputs from `run_quality_loop.py`:
 - `next_pass_first_pass_config.json`
 - `deep_semantic_review_sample.csv`
 - `deep_semantic_review_sample.md`
+- `deep_findings_analysis.md`
 - `workflow_improvement_log.md`
 - `respondent_review_table.md`
 
@@ -86,6 +88,13 @@ Build next-pass learning artifacts:
 
 ```bash
 python3 scripts/build_next_pass_review_artifacts.py \
+  --run-dir /path/to/outputs/rubric-evolution-seed
+```
+
+Build the deep findings memo:
+
+```bash
+python3 scripts/build_deep_findings_analysis.py \
   --run-dir /path/to/outputs/rubric-evolution-seed
 ```
 

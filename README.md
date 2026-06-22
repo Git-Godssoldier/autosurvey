@@ -30,6 +30,9 @@ python3 skills/reporting-survey-quality/scripts/build_quality_brief.py \
 python3 skills/reporting-survey-quality/scripts/build_next_pass_review_artifacts.py \
   --run-dir /path/to/private_outputs/run
 
+python3 skills/reporting-survey-quality/scripts/build_deep_findings_analysis.py \
+  --run-dir /path/to/private_outputs/run
+
 python3 skills/reporting-survey-quality/scripts/build_visual_dashboard.py \
   --run-dir /path/to/private_outputs/run
 ```
@@ -43,6 +46,7 @@ folder contains:
 - `next_pass_signal_inventory.csv`
 - `next_pass_first_pass_config.json`
 - `deep_semantic_review_sample.md`
+- `deep_findings_analysis.md`
 
 Use `next_pass_signal_inventory.csv` and `next_pass_first_pass_config.json`
 before the next scoring run. These files record which signals should be scored,
