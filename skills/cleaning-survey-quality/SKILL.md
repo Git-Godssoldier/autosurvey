@@ -13,12 +13,18 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
 
 ## Workflow
 
-1. Profile the workbook:
+1. Explore the workbook before writing or running scoring scripts:
+   - Read the sheet names, row count, column count, and Datamap or codebook when present.
+   - Inspect representative raw rows and nonempty examples from every open-ended field family.
+   - Map field roles before scoring. At minimum, separate job-role screeners, brand-list fields, narrative open ends, other-specify fields, survey-feedback fields, timing fields, supplier/source fields, respondent identifiers, IP/device fields, and review/helper fields.
+   - Decide which fields can be scored in the first pass, which fields need PM mapping, and which fields should only produce review notes.
+   - Do not run topic mismatch or low-effort scoring until the field role is clear. A job-role screener should not be scored like a product-topic open end. An unaided brand-list field should not penalize short valid brand names.
+2. Profile the workbook:
    - Identify the main respondent sheet, usually `A1`.
    - Confirm respondent key columns such as `uuid`, `record`, or `RID`.
    - Discover raw quality signals: qtime/duration, IP address, matrix grids, open-ended columns, brand/preference/recommendation candidates, and AI-likelihood columns when present.
    - Detect and ignore graded/review helper columns when building the raw-data discovery profile.
-2. Run the scoring loop:
+3. Run the scoring loop:
    ```bash
    python3 scripts/run_quality_loop.py \
      --data-dir /path/to/source-data \
@@ -31,18 +37,18 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
      --topic-keywords "construction,contractor,building,gas,c-store" \
      --output-dir /path/to/outputs/raw-quality-pass
    ```
-3. Review the generated `quality_report.md`, `row_scores.csv`, and `quality_summary.json`.
-4. Review the generated table artifacts:
+4. Review the generated `quality_report.md`, `row_scores.csv`, and `quality_summary.json`.
+5. Review the generated table artifacts:
    - `generated_criteria_catalog.csv`: all generated criteria, tags, source columns, rationale, generated weights, and support.
    - `respondent_review_table.csv`: one row per respondent with metadata, triggered criteria, explanations, second-pass disposition, agent semantic analysis, linguistic fluency assessment, trust rationale, survivor rationale, discard rationale, and escalation routing.
    - `response_criteria_evidence_table.csv`: one row per respondent criterion with observed value, source column, generated points, explanation, weight rationale, second-pass disposition, and agent annotation context.
    - `agent_annotation_table.csv`: focused Opulent annotation surface for semantic analysis, linguistic fluency assessment, trust rationale, and next steps.
    - `respondent_review_table.md`: PM-facing Markdown sample sorted by severity/score.
-5. Review `discovery_profiles.json` to confirm detected qtime, IP, matrix, open-end, brand-consistency, and AI-authenticity candidate analyses.
-6. Route rows using `second_pass_decision` first, then `severity_level`, `escalation_owner`, and `escalation_reason`.
+6. Review `discovery_profiles.json` to confirm detected qtime, IP, matrix, open-end, brand-consistency, and AI-authenticity candidate analyses.
+7. Route rows using `second_pass_decision` first, then `severity_level`, `escalation_owner`, and `escalation_reason`.
    - Escalate only rows marked `discard_candidate` after the extra pass.
    - Keep rows marked `keep_with_recommendation` or `keep_no_issue`; aggregate their survivor rationales and survey-question recommendations.
-7. After the agent has investigated review-tagged rows, generate a final visual review package through `reporting-survey-quality`:
+8. After the agent has investigated review-tagged rows, generate a final visual review package through `reporting-survey-quality`:
    - `agent_review_judgment_table.csv`: all review-tagged rows with agent decisions.
    - `agent_discard_set.csv`: only rows the agent judged should be escalated for removal.
    - `agent_kept_review_synthesis.md` and `.csv`: synthesis of kept review-flagged candidates into survey-question and parameter improvements.
@@ -50,7 +56,7 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - `next_pass_first_pass_config.json`: proposed next-pass rules, evidence needs, and escalation guardrails.
    - `deep_semantic_review_sample.md`: a small set of reviewed rows with deeper semantic reasoning and next-pass learning.
    - `agent_final_review_dashboard.html` and `agent_final_visual_findings_report.md`: final dashboard, charts, tables, findings, and artifact index for content review.
-8. Before starting the next run, read `next_pass_signal_inventory.csv` and decide which signals can be added to the first-pass context, which signals need PM examples, and which signals should remain review-only.
+9. Before starting the next run, read `next_pass_signal_inventory.csv` and decide which signals can be added to the first-pass context, which signals need PM examples, and which signals should remain review-only.
 
 ## Generated Criteria And Scoring Policy
 

@@ -18,6 +18,13 @@ Use `skills/cleaning-survey-quality/references/project-context-template.md` for 
 
 ## Basic Flow
 
+Before running the scoring script, explore the workbook. Read the sheet names,
+row count, column count, Datamap or codebook, and examples from each open-ended
+field family. Map field roles first. Do not run topic mismatch or low-effort
+scoring until you know whether a field is a job-role screener, brand list,
+narrative open end, other-specify field, survey-feedback field, timing field,
+supplier/source field, identifier field, or review/helper field.
+
 ```bash
 python3 skills/cleaning-survey-quality/scripts/run_quality_loop.py \
   --input-file /path/to/unannotated_export.xlsx \
