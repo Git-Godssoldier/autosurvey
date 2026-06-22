@@ -91,6 +91,7 @@ def main() -> None:
     discard = read_csv(run_dir / "agent_discard_set.csv")
     signals = read_csv(run_dir / "next_pass_signal_inventory.csv")
     sample = read_csv(run_dir / "deep_semantic_review_sample.csv")
+    audit = read_csv(run_dir / "independent_full_response_audit.csv")
 
     if judgments.empty:
         raise SystemExit(f"No agent_review_judgment_table.csv found in {run_dir}")
@@ -165,6 +166,32 @@ def main() -> None:
     for index, lesson in enumerate(what_this_run_teaches(signals), start=1):
         lines.append(f"{index}. {lesson}")
         lines.append("")
+
+    if not audit.empty:
+        audit_candidates = audit[audit["independent_suggested_action"].astype(str).ne("keep_no_issue_from_independent_audit")]
+        missed_candidates = audit_candidates[~audit_candidates["autosurvey_reviewed"].astype(bool)]
+        safe_reviewed = audit[
+            audit["autosurvey_reviewed"].astype(bool)
+            & audit["independent_suggested_action"].astype(str).eq("keep_no_issue_from_independent_audit")
+        ]
+        possible_missed = audit[
+            audit["independent_suggested_action"].astype(str).eq("review_for_possible_discard")
+            & ~audit["autosurvey_agent_discard"].astype(bool)
+        ]
+        lines.extend(
+            [
+                "## Independent full-response audit",
+                "",
+                f"The independent audit reviewed all {len(audit)} source rows.",
+                f"It found {len(audit_candidates)} rows that needed review or PM calibration.",
+                f"It found {len(missed_candidates)} rows that autosurvey did not review.",
+                f"It found {len(safe_reviewed)} autosurvey-reviewed rows that the independent audit would have kept without review.",
+                f"It found {len(possible_missed)} possible discard or escalation rows that were not in the final discard set.",
+                "",
+                "Use this section to decide whether the first pass needs better field mapping, or whether the agent review layer missed full-row evidence.",
+                "",
+            ]
+        )
 
     lines.extend(["## Deep semantic sample", ""])
     if sample.empty:

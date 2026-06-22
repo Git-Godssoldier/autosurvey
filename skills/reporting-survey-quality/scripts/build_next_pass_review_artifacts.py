@@ -168,11 +168,9 @@ def theme_rule(theme: str) -> dict[str, str]:
 
 
 def build_signal_inventory(judgments: pd.DataFrame, synthesis: pd.DataFrame) -> pd.DataFrame:
-    if synthesis.empty:
-        return pd.DataFrame()
     rows: list[dict[str, object]] = []
     total_reviewed = max(1, len(judgments))
-    for _, item in synthesis.iterrows():
+    for _, item in (synthesis.iterrows() if not synthesis.empty else []):
         theme = text(item.get("theme"))
         rule = theme_rule(theme)
         support = int(item.get("kept_review_rows", 0))
@@ -189,6 +187,28 @@ def build_signal_inventory(judgments: pd.DataFrame, synthesis: pd.DataFrame) -> 
                 "issue_pattern": text(item.get("issue_pattern")),
             }
         )
+    if not judgments.empty and {"agent_final_decision", "review_theme"} <= set(judgments.columns):
+        discard_themes = judgments[judgments["agent_final_decision"].astype(str).eq("discard")].groupby("review_theme", dropna=False)
+        for theme, group in discard_themes:
+            theme_text = text(theme)
+            if any(row.get("theme") == theme_text for row in rows):
+                continue
+            rule = theme_rule(theme_text)
+            rows.append(
+                {
+                    "theme": theme_text,
+                    "support_rows": int(len(group)),
+                    "support_rate_among_reviewed": pct(int(len(group)), total_reviewed),
+                    "example_respondent_keys": ", ".join(group["respondent_key"].astype(str).head(8)),
+                    **rule,
+                    "why_kept": "Not kept. These rows remained in the discard queue after semantic review.",
+                    "survey_question_or_parameter_recommendation": rule["first_pass_change"],
+                    "suggested_quality_parameter": rule["default_status"],
+                    "issue_pattern": rule["critical_signal"],
+                }
+            )
+    if not rows:
+        return pd.DataFrame()
     raw = pd.DataFrame(rows)
     grouped_rows: list[dict[str, object]] = []
     for signal_id, group in raw.groupby("signal_id", sort=False):

@@ -84,6 +84,7 @@ Sections:
    - next-pass signal inventory
    - next-pass first-pass config
    - deep semantic review sample
+   - independent full-response audit
    - deep findings analysis
    - PM-facing Markdown sample
 13. Final visual review package
@@ -93,6 +94,7 @@ Sections:
    - kept-review synthesis table with survey-question and parameter recommendations
    - next-pass signals to feed into the next first-pass analysis
    - deep semantic sample with row-level reasoning and learning for the next pass
+   - independent full-response audit comparing all source rows to autosurvey decisions
    - deep findings memo with final interpretation and workflow audit
    - final guidance on what to discard, what to keep, and what to improve in the survey instrument
 
@@ -200,6 +202,27 @@ Sections:
 - trust basis
 - next action
 - learning for the next pass
+
+`independent_full_response_audit.csv` should include:
+
+- respondent key
+- role class
+- brand answer quality
+- duplicate IP count
+- timing risk
+- independent risk factors
+- independent suggested action
+- whether autosurvey reviewed the row
+- whether autosurvey left the row in the discard set
+
+`independent_full_response_audit.md` should include:
+
+- all-row audit scope
+- independent classification counts
+- comparison to autosurvey reviewed rows
+- missed review candidates
+- possible missed discard or escalation rows
+- audit conclusion
 
 `deep_findings_analysis.md` should include:
 

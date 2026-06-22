@@ -46,6 +46,7 @@ Produce three report layers:
    - kept-review synthesis table with survey-question and parameter recommendations
    - next-pass signal inventory that states what should change before the next first-pass scoring run
    - deep semantic review sample that shows a subset of reviewed rows with the full reasoning and next-pass learning
+   - independent full-response audit that checks every row, not just rows surfaced by the scorer
    - deep findings memo that states the main findings, limits, discard recommendations, and workflow changes
    - editorial figure captions, source notes, callouts, and artifact navigation for fast content review
    - artifact index linking the CSV, Markdown, and dashboard outputs
@@ -73,6 +74,8 @@ Use outputs from `run_quality_loop.py`:
 - `next_pass_first_pass_config.json`
 - `deep_semantic_review_sample.csv`
 - `deep_semantic_review_sample.md`
+- `independent_full_response_audit.csv`
+- `independent_full_response_audit.md`
 - `deep_findings_analysis.md`
 - `workflow_improvement_log.md`
 - `respondent_review_table.md`
@@ -92,6 +95,13 @@ python3 scripts/build_next_pass_review_artifacts.py \
 ```
 
 Build the deep findings memo:
+
+```bash
+python3 scripts/build_independent_full_response_audit.py \
+  --run-dir /path/to/outputs/rubric-evolution-seed
+```
+
+Then:
 
 ```bash
 python3 scripts/build_deep_findings_analysis.py \
@@ -122,6 +132,7 @@ python3 scripts/build_visual_dashboard.py \
 - For rows that survive the extra pass, include why they were kept and aggregate recommendations for strengthening survey questions so vague or gameable answers are forced into a clearer framework.
 - For every run, convert kept review rows into critical next-pass signals. Say which signals should be added to first-pass scoring, which signals need project mapping, and which signals must stay review-only.
 - Return a subset of reviewed rows with deeper semantic analysis. Include the final decision, raw evidence, language assessment, trust basis, next action, and the learning that should change the next pass.
+- Independently audit all source rows before final delivery. Compare the full-row audit against the scorer and agent review outputs. If the audit finds a missed possible discard, update the agent judgment artifacts and explain the fix.
 - Put the highest-severity rows before lower-priority review examples.
 - Do not expose raw open-end responses externally unless approved.
 - Do not claim respondents are fraudulent solely because of AI-likelihood scores.
