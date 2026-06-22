@@ -115,7 +115,7 @@ METHODOLOGY_CONFIG: dict[str, Any] = {
         "duplicate_ip": {
             "family": "duplicate",
             "evidence_type": "transparent_deterministic",
-            "justification": "The same IP address appears for more than one respondent.",
+            "justification": "The same IP address appears across more than one independent session, source, or supplier.",
         },
         "low_effort_open_end": {
             "family": "open_end_authenticity",
@@ -407,16 +407,17 @@ def second_pass_disposition(score: int, evidence: list[Evidence], rubric: dict[s
     has_technical_duplicate = "duplicate_ip" in evidence_ids
     has_straightline = "matrix_straightline" in evidence_ids or "q32_straightline" in evidence_ids
     has_speed = "raw_qtime_under_4_minutes" in evidence_ids or "qtime_under_4_minutes" in evidence_ids
-    has_bad_open_end = bool({"low_effort_open_end", "open_end_topic_mismatch", "outro_off_topic"} & evidence_ids)
+    has_low_effort_open_end = "low_effort_open_end" in evidence_ids
+    has_topic_mismatch = bool({"open_end_topic_mismatch", "outro_off_topic"} & evidence_ids)
     has_authenticity = bool({"moderate_ai_open_end", "high_ai_open_end"} & evidence_ids)
     decisive_discard = (
-        has_technical_duplicate and (has_straightline or has_speed or has_bad_open_end)
+        has_technical_duplicate and (has_straightline or has_speed or has_low_effort_open_end)
     ) or (
-        has_straightline and has_bad_open_end
+        has_straightline and has_low_effort_open_end
     ) or (
         has_straightline and has_speed
     ) or (
-        has_bad_open_end and has_authenticity and len(evidence_ids) >= 2
+        has_topic_mismatch and has_authenticity and len(evidence_ids) >= 2
     )
 
     if decisive_discard:
@@ -470,6 +471,33 @@ def ai_columns(df: pd.DataFrame) -> list[str]:
     return [str(c) for c in df.columns if str(c).endswith("_AI_Likelihood")]
 
 
+def duplicate_cluster_stats(df: pd.DataFrame, ip_col: str) -> dict[str, dict[str, Any]]:
+    stats: dict[str, dict[str, Any]] = {}
+    if ip_col not in df.columns:
+        return stats
+    key_cols = [col for col in ["uuid", "record", "RID", "session", "SUPNAME", "source"] if col in df.columns]
+    for value, group in df[df[ip_col].map(lambda item: bool(norm(item)))].groupby(ip_col, dropna=False):
+        ip_value = norm(value)
+        if not ip_value:
+            continue
+        row: dict[str, Any] = {"rows": int(len(group))}
+        for col in key_cols:
+            nonempty = group[col].dropna().astype(str).str.strip()
+            nonempty = nonempty[nonempty.ne("")]
+            row[f"{col}_n"] = int(nonempty.nunique())
+        session_n = int(row.get("session_n", 0))
+        supplier_n = int(row.get("SUPNAME_n", 0))
+        source_n = int(row.get("source_n", 0))
+        if row["rows"] <= 1:
+            row["cluster_type"] = "single"
+        elif session_n <= 1 and supplier_n <= 1 and source_n <= 1:
+            row["cluster_type"] = "shared_response_chain"
+        else:
+            row["cluster_type"] = "independent_duplicate_cluster"
+        stats[ip_value] = row
+    return stats
+
+
 def discover_profile(df: pd.DataFrame, topic_keywords: list[str], feedback_config: dict[str, Any] | None = None) -> dict[str, Any]:
     columns = [str(c) for c in df.columns]
     raw_columns = [c for c in columns if c not in REVIEW_HELPER_COLUMNS and not c.endswith("_AI_Likelihood")]
@@ -477,9 +505,15 @@ def discover_profile(df: pd.DataFrame, topic_keywords: list[str], feedback_confi
 
     ip_columns = [c for c in raw_columns if re.search(r"(^|_)ip(address)?$|ipaddress|ip_address", c, re.I)]
     duplicate_values: dict[str, dict[str, int]] = {}
+    duplicate_cluster_values: dict[str, dict[str, dict[str, Any]]] = {}
     for col in ip_columns:
         counts = Counter(norm(v) for v in df[col] if norm(v))
         duplicate_values[col] = {value: count for value, count in counts.items() if count > 1}
+        duplicate_cluster_values[col] = {
+            value: stats
+            for value, stats in duplicate_cluster_stats(df, col).items()
+            if int(stats.get("rows", 0)) > 1
+        }
 
     matrix_groups: dict[str, list[str]] = {}
     for col in raw_columns:
@@ -629,6 +663,7 @@ def discover_profile(df: pd.DataFrame, topic_keywords: list[str], feedback_confi
         "qtime_columns": qtime_columns,
         "ip_columns": ip_columns,
         "duplicate_ip_values": duplicate_values,
+        "duplicate_ip_cluster_stats": duplicate_cluster_values,
         "matrix_groups": matrix_groups,
         "open_end_columns": open_end_columns,
         "brand_consistency_candidate_columns": brand_columns,
@@ -869,9 +904,16 @@ def evaluate_discovered_signals(
         rule = discovered["duplicate_ip"]
         for col in profile["ip_columns"]:
             value = norm(row[col])
-            duplicate_count = profile["duplicate_ip_values"].get(col, {}).get(value, 0)
-            if value and duplicate_count > 1:
-                observed = f"{value} appears {duplicate_count} times"
+            cluster_stats = profile.get("duplicate_ip_cluster_stats", {}).get(col, {}).get(value, {})
+            duplicate_count = int(cluster_stats.get("rows", profile["duplicate_ip_values"].get(col, {}).get(value, 0)))
+            cluster_type = str(cluster_stats.get("cluster_type", ""))
+            if value and duplicate_count > 1 and cluster_type == "independent_duplicate_cluster":
+                observed = (
+                    f"{value} appears {duplicate_count} times across "
+                    f"{int(cluster_stats.get('session_n', 0))} sessions, "
+                    f"{int(cluster_stats.get('SUPNAME_n', 0))} suppliers, and "
+                    f"{int(cluster_stats.get('RID_n', 0))} respondent IDs"
+                )
                 evidence.append(Evidence("duplicate_ip", col, observed, int(rubric["weights"].get("duplicate_ip", 0)), rule["justification"]))
                 triggered_families.add("duplicate")
                 break

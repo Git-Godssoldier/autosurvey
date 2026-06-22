@@ -44,16 +44,25 @@ def review_theme(key: str, audit_row: pd.Series, review_row: pd.Series) -> str:
     narrative = text(audit_row.get("narrative_quality"))
     risks = text(audit_row.get("independent_risk_factors"))
     action = text(audit_row.get("independent_suggested_action"))
+    second_pass = text(review_row.get("second_pass_decision"))
 
-    if action == "review_for_possible_discard":
+    if action == "review_for_possible_discard" or second_pass == "discard_candidate":
         if narrative == "nonsensical_or_repetitive":
             return "repetitive or nonsensical narrative discard candidate"
         if "narrative_quality_risk" in risks and "speed_risk" in risks:
             return "speed plus weak or evasive narrative discard candidate"
+        if "duplicate_ip" in criteria and "matrix_straightline" in criteria:
+            return "independent duplicate cluster plus straightline discard candidate"
+        if "duplicate_ip" in criteria and "raw_qtime_under_4_minutes" in criteria:
+            return "independent duplicate cluster plus speed discard candidate"
+        if "matrix_straightline" in criteria:
+            return "straightline plus weak evidence discard candidate"
         if "role_fit_risk" in risks:
             return "role-fit risk discard candidate"
         if "brand_answer_risk" in risks:
             return "brand answer risk discard candidate"
+        if "duplicate_ip_risk" in risks:
+            return "independent duplicate cluster discard candidate"
         return "non-cooperative or evasive narrative discard candidate"
 
     if "raw_qtime_under_4_minutes" in criteria and narrative in {"topic_relevant", "substantive_narrative", "product_relevant"}:

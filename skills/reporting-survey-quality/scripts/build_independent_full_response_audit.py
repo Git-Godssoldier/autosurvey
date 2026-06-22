@@ -261,7 +261,32 @@ def narrative_quality(value: object, topic_re: re.Pattern[str] | None = None) ->
     return "unclear_product_answer"
 
 
-def suggested_action(role: str, brand: str, narrative: str, qtime: float | None, duplicate_count: int) -> tuple[str, str]:
+def duplicate_cluster_stats(source: pd.DataFrame) -> dict[str, dict[str, object]]:
+    if "ipAddress" not in source.columns:
+        return {}
+    key_cols = [col for col in ["uuid", "record", "RID", "session", "SUPNAME", "source"] if col in source.columns]
+    stats: dict[str, dict[str, object]] = {}
+    for value, group in source[source["ipAddress"].map(lambda item: bool(text(item)))].groupby("ipAddress", dropna=False):
+        ip_value = text(value)
+        row: dict[str, object] = {"rows": int(len(group))}
+        for col in key_cols:
+            nonempty = group[col].dropna().astype(str).str.strip()
+            nonempty = nonempty[nonempty.ne("")]
+            row[f"{col}_n"] = int(nonempty.nunique())
+        session_n = int(row.get("session_n", 0))
+        supplier_n = int(row.get("SUPNAME_n", 0))
+        source_n = int(row.get("source_n", 0))
+        if row["rows"] <= 1:
+            row["cluster_type"] = "single"
+        elif session_n <= 1 and supplier_n <= 1 and source_n <= 1:
+            row["cluster_type"] = "shared_response_chain"
+        else:
+            row["cluster_type"] = "independent_duplicate_cluster"
+        stats[ip_value] = row
+    return stats
+
+
+def suggested_action(role: str, brand: str, narrative: str, qtime: float | None, duplicate_type: str) -> tuple[str, str]:
     risks: list[str] = []
     if role in {"likely_non_trade", "non_cooperative"}:
         risks.append("role_fit_risk")
@@ -275,7 +300,7 @@ def suggested_action(role: str, brand: str, narrative: str, qtime: float | None,
         risks.append("narrative_quality_risk")
     if qtime is not None and qtime < 240:
         risks.append("speed_risk")
-    if duplicate_count > 1:
+    if duplicate_type == "independent_duplicate_cluster":
         risks.append("duplicate_ip_risk")
 
     role_ok = role in {"trade_relevant", "not_applicable_no_role_field"}
@@ -291,7 +316,7 @@ def suggested_action(role: str, brand: str, narrative: str, qtime: float | None,
         return "review_for_possible_discard", "; ".join(risks)
     if "role_fit_risk" in risks and ("duplicate_ip_risk" in risks or "brand_answer_risk" in risks or "speed_risk" in risks):
         return "review_for_possible_discard", "; ".join(risks)
-    if "narrative_quality_risk" in risks and ("duplicate_ip_risk" in risks or "speed_risk" in risks):
+    if "narrative_quality_risk" in risks and "speed_risk" in risks:
         return "review_for_possible_discard", "; ".join(risks)
     if risks:
         return "review_or_pm_calibration", "; ".join(risks)
@@ -400,7 +425,7 @@ def main() -> None:
     brand_cols = [col for col in source.columns if re.match(r"qcoe2r\d+$", str(col))]
     narrative_col = detect_narrative_col(source, summary)
     topic_re = topic_pattern(summary)
-    ip_counts = source["ipAddress"].fillna("").astype(str).value_counts().to_dict() if "ipAddress" in source else {}
+    duplicate_stats = duplicate_cluster_stats(source)
     agent_reviewed_keys = set(judgments.get("respondent_key", pd.Series(dtype=str)).astype(str))
     reviewed_keys: set[str] = set()
     if not respondent.empty and "second_pass_decision" in respondent:
@@ -416,8 +441,10 @@ def main() -> None:
         narrative = narrative_quality(row.get(narrative_col), topic_re) if narrative_col else "not_applicable_no_narrative_field"
         qtime_value = pd.to_numeric(pd.Series([row.get("qtime")]), errors="coerce").iloc[0] if "qtime" in source.columns else None
         qtime = None if pd.isna(qtime_value) else float(qtime_value)
-        duplicate_count = int(ip_counts.get(text(row.get("ipAddress")), 0))
-        action, risks = suggested_action(role, brand, narrative, qtime, duplicate_count)
+        cluster = duplicate_stats.get(text(row.get("ipAddress")), {})
+        duplicate_count = int(cluster.get("rows", 0))
+        duplicate_type = text(cluster.get("cluster_type")) if duplicate_count > 1 else "single"
+        action, risks = suggested_action(role, brand, narrative, qtime, duplicate_type)
         rows.append(
             {
                 "respondent_key": key,
@@ -425,6 +452,10 @@ def main() -> None:
                 "supplier": text(row.get("SUPNAME")) or text(row.get("source")) or "missing",
                 "ipAddress": text(row.get("ipAddress")),
                 "duplicate_ip_count": duplicate_count,
+                "duplicate_cluster_type": duplicate_type,
+                "duplicate_session_count": int(cluster.get("session_n", 0)) if cluster else 0,
+                "duplicate_supplier_count": int(cluster.get("SUPNAME_n", 0)) if cluster else 0,
+                "duplicate_rid_count": int(cluster.get("RID_n", 0)) if cluster else 0,
                 "qtime": qtime,
                 "qcoe1": text(row.get(role_col)) if role_col else "",
                 "role_class": role,
