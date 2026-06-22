@@ -212,6 +212,27 @@ Sections:
 - callouts where the workflow should challenge or revise itself
 - workflow learning for the next pass
 
+`agent_dashboard_editorial_review.md` should be written by the agent after reading the run artifacts. It should include:
+
+- an executive interpretation that states the real quality conclusion, not just the counts
+- the field-role mapping implications that made the run trustworthy or limited it
+- the strongest semantic patterns found in the full chains
+- the best retained rows and why they improve confidence in the data
+- the weakest retained rows and why they are calibration cases rather than discards
+- any true discard logic, including the benign alternative the agent considered before recommending removal
+- demographic and aggregate context that affects survey interpretation, while keeping it separate from row-level discard evidence
+- next-pass improvements that explain what should change before the next first-pass scoring run
+- a self-critique of the workflow, including any places where static checks were too broad, too narrow, or too dependent on missing field-role mapping
+
+`agent_dashboard_row_annotations.csv` should be written by the agent for rows shown in dashboard cards. It should include:
+
+- `respondent_key`
+- `agent_editorial_summary`: a short, decision-first analyst note
+- `chain_interpretation`: a readable explanation of the response chain, not a raw chain dump
+- `quality_judgment`: why the row is a discard, a keep, or a PM calibration case
+- `workflow_learning`: what this row teaches the next pass
+- `next_step`: the concrete PM or workflow action
+
 `full_chain_best_worst_examples.csv` should include:
 
 - respondent key
@@ -320,6 +341,14 @@ Sections:
 - deep semantic review sample
 - citations for all run-specific and method-specific claims
 - clear artifact index for content review
+
+Dashboard rules:
+
+- The dashboard is a research publication, not a table export. It must include agent-authored editorial prose from `agent_dashboard_editorial_review.md`.
+- Long explanations must not appear in wide tables. Use prose sections, cards, or linked Markdown artifacts for reasoning. Use tables only as compact ledgers.
+- Row cards must use `agent_dashboard_row_annotations.csv` when available. The card should read as a human analyst note, not as stitched field text.
+- Raw full response chains belong in CSV or audit artifacts. Dashboard-visible chain content must be summarized into short readable observations.
+- Any dashboard that wraps prose into one-character columns, overlaps sections, or requires the reviewer to infer meaning from flags is not deliverable.
 
 ## Client-Facing Summary
 

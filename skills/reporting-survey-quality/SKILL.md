@@ -74,6 +74,8 @@ Use outputs from `run_quality_loop.py`:
 - `agent_annotation_table.csv`
 - `agent_review_judgment_table.csv`
 - `agent_discard_set.csv`
+- `agent_dashboard_editorial_review.md`
+- `agent_dashboard_row_annotations.csv`
 - `agent_kept_review_synthesis.md`
 - `agent_kept_review_synthesis_table.csv`
 - `full_chain_analyst_readout.md`
@@ -124,6 +126,13 @@ python3 scripts/build_full_chain_analyst_readout.py \
   --run-dir /path/to/outputs/rubric-evolution-seed
 ```
 
+Then do the agent editorial pass before the dashboard is built. This is not a rote script step. The agent must read the Datamap field-role mapping, discovery profile, demographic summary, scorer criteria, independent full-response audit, full-chain analyst readout, deep semantic sample, agent judgment table, kept review synthesis, and next-pass signal inventory. The agent must then write:
+
+- `agent_dashboard_editorial_review.md`: a readable report-level interpretation of what happened in the run, what the agent learned, which rows or patterns matter, what should change in the survey, and where the workflow should challenge itself next.
+- `agent_dashboard_row_annotations.csv`: respondent-level prose for the rows shown in the dashboard cards. Required columns are `respondent_key`, `agent_editorial_summary`, `chain_interpretation`, `quality_judgment`, `workflow_learning`, and `next_step`.
+
+Scripts may carry this prose into HTML. Scripts must not be treated as the author of the reasoning. If this editorial pass is missing, the run is not ready for client or PM review.
+
 Then:
 
 ```bash
@@ -150,9 +159,14 @@ python3 scripts/build_visual_dashboard.py \
 - Treat client-annotated Excel review files as the minimum audit surface. The report should match their practical columns and counts where relevant, then go further with prose analysis, chain-level semantic judgment, verifier counterevidence, kept-row learning, and next-pass signal updates.
 - Always report fielding start/date/timestamp discoveries when the source file contains them. Odd-hour starts and start bursts are fielding-context findings unless corroborating evidence or project rules make them row-level evidence.
 - Treat scoring criteria as the initial case file. The final agent layer must act as a critic and verifier that can supersede static checks when the full chain gives a meaningful semantic explanation.
+- Treat the dashboard and final report as agent-authored research products, not formatted log output. The agent must personally synthesize the exploration, field-role mapping, response chains, programmatic signals, counterevidence, demographics, and next-pass learning into clear prose before publishing.
+- Do not let scripted string assembly substitute for analysis. A script can assemble charts, ledgers, and HTML, but the deciding prose must come from an agent editorial pass that explains what the evidence means.
 - Show verifier counterevidence and semantic discard basis for final decisions. A row should not be discarded only because a programmatic check fired.
 - Produce readable prose analysis for the best and worst full response chains. The prose must explain what the agent saw, why strong rows are strong, why bad rows remain bad after full-chain review, and where the workflow should challenge itself.
 - Do not treat generated tables, charts, or flags as the final communication layer. They support analysis, but the report must include agent-written interpretation for the human reviewer.
+- Keep long reasoning out of wide tables. Tables may summarize identifiers, decisions, themes, scores, and next action. Full explanations, response-chain interpretation, and workflow learning must appear as prose sections, row cards, or linked Markdown artifacts.
+- Never dump a raw stitched response chain into a dashboard card or visible wide table. Convert it into a focused chain read, then explain why those answers support discard, retention, calibration, or a next-pass rule.
+- The dashboard must remain readable at desktop and mobile widths. If a section contains long prose, use publication prose blocks or cards with stable widths, not narrow table cells that force one-character wrapping.
 - Include one row per triggered criterion in the evidence table so PMs can audit all criteria, observations, explanations, second-pass disposition, agent semantic analysis, survivor/discard rationale, and rationales.
 - Treat annotation text as an Opulent semantic-judgment layer, not a deterministic score explanation. Reports should show what the response pattern means and why the recommendation is trustworthy.
 - For raw-data runs, include discovery notes from `discovery_profiles.json`.

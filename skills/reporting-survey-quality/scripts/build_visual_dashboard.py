@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -19,6 +20,10 @@ def read_json(path: Path) -> dict:
     if not path.exists():
         return {}
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8") if path.exists() else ""
 
 
 def count_series(df: pd.DataFrame, column: str) -> pd.Series:
@@ -98,7 +103,7 @@ def table_html(df: pd.DataFrame, columns: list[str], limit: int = 12) -> str:
     for _, row in subset.iterrows():
         cells = "".join(f"<td>{html.escape(str(row[col]))}</td>" for col in available)
         body.append(f"<tr>{cells}</tr>")
-    return f"<table><thead><tr>{header}</tr></thead><tbody>{''.join(body)}</tbody></table>"
+    return f"<div class='table-scroll'><table><thead><tr>{header}</tr></thead><tbody>{''.join(body)}</tbody></table></div>"
 
 
 def markdown_table(df: pd.DataFrame, columns: list[str], limit: int = 12) -> list[str]:
@@ -121,6 +126,8 @@ def artifact_links(run_dir: Path) -> list[tuple[str, str]]:
         "agent_final_visual_findings_report.md",
         "agent_review_judgment_table.csv",
         "agent_review_judgment_summary.md",
+        "agent_dashboard_editorial_review.md",
+        "agent_dashboard_row_annotations.csv",
         "agent_verified_quality_brief.md",
         "agent_discard_set.csv",
         "agent_kept_review_synthesis.md",
@@ -175,7 +182,53 @@ def citations_html(citations: list[tuple[str, str, str]]) -> str:
         else:
             source_html = escaped
         rows.append(f"<tr><td>{html.escape(key)}</td><td>{html.escape(label)}</td><td>{source_html}</td></tr>")
-    return "<table><thead><tr><th>Citation</th><th>Source</th><th>Location</th></tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
+    return (
+        "<div class='table-scroll'><table><thead><tr><th>Citation</th><th>Source</th><th>Location</th></tr></thead><tbody>"
+        + "".join(rows)
+        + "</tbody></table></div>"
+    )
+
+
+def simple_markdown_html(markdown: str) -> str:
+    blocks: list[str] = []
+    list_items: list[str] = []
+
+    def flush_list() -> None:
+        if list_items:
+            blocks.append("<ul>" + "".join(list_items) + "</ul>")
+            list_items.clear()
+
+    for raw_line in markdown.splitlines():
+        line = raw_line.strip()
+        if not line:
+            flush_list()
+            continue
+        if line.startswith("# "):
+            flush_list()
+            blocks.append(f"<h2>{html.escape(line[2:].strip())}</h2>")
+            continue
+        if line.startswith("## "):
+            flush_list()
+            blocks.append(f"<h3>{html.escape(line[3:].strip())}</h3>")
+            continue
+        if line.startswith("### "):
+            flush_list()
+            blocks.append(f"<h4>{html.escape(line[4:].strip())}</h4>")
+            continue
+        if line.startswith("- "):
+            list_items.append(f"<li>{html.escape(line[2:].strip())}</li>")
+            continue
+        flush_list()
+        blocks.append(f"<p>{html.escape(line)}</p>")
+    flush_list()
+    return "".join(blocks)
+
+
+def editorial_review_html(run_dir: Path) -> str:
+    markdown = read_text(run_dir / "agent_dashboard_editorial_review.md").strip()
+    if not markdown:
+        return ""
+    return f"<section class='panel editorial'><div class='prose'>{simple_markdown_html(markdown)}</div></section>"
 
 
 def discovery_summary(discovery: dict) -> dict[str, object]:
@@ -225,9 +278,9 @@ def discovery_html(summary: dict[str, object]) -> str:
         f"<div><strong>Brand mapping candidates</strong><span>{html.escape(str(len(summary.get('brand_columns', []))))}</span></div>"
         f"<div><strong>AI helper fields</strong><span>{html.escape(', '.join(summary.get('ai_columns', [])) or 'none found')}</span></div>"
         "</div>"
-        "<table><thead><tr><th>Analysis</th><th>Status</th><th>Candidate fields</th><th>Why it matters</th><th>Cite</th></tr></thead><tbody>"
+        "<div class='table-scroll'><table><thead><tr><th>Analysis</th><th>Status</th><th>Candidate fields</th><th>Why it matters</th><th>Cite</th></tr></thead><tbody>"
         + "".join(rows)
-        + "</tbody></table>"
+        + "</tbody></table></div>"
     )
 
 
@@ -422,24 +475,148 @@ def semantic_rows(judgments: pd.DataFrame) -> pd.DataFrame:
     return judgments[available].copy()
 
 
-def semantic_card_html(row: pd.Series) -> str:
+def chain_segments(chain: object) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for piece in text(chain).split(" || "):
+        piece = piece.strip()
+        if not piece:
+            continue
+        match = re.match(r"([^[]+)\s+\[([^\]]+)\]\s*(.*):\s*(.*)$", piece)
+        if match:
+            rows.append(
+                {
+                    "column": match.group(1).strip(),
+                    "role": match.group(2).strip(),
+                    "prompt": match.group(3).strip(),
+                    "answer": match.group(4).strip(),
+                }
+            )
+            continue
+        rows.append({"column": "", "role": "", "prompt": "", "answer": piece})
+    return rows
+
+
+def first_matching_segment(segments: list[dict[str, str]], pattern: str) -> dict[str, str] | None:
+    regex = re.compile(pattern, re.I)
+    for segment in segments:
+        if regex.search(segment["column"]):
+            return segment
+    return None
+
+
+def q32_summary(segments: list[dict[str, str]]) -> str:
+    q32 = [segment["answer"] for segment in segments if re.match(r"q32", segment["column"], re.I) and segment["answer"]]
+    if not q32:
+        return ""
+    counts = pd.Series(q32).value_counts().head(3)
+    summary = ", ".join(f"{index}: {int(value)}" for index, value in counts.items())
+    return f"Q32 matrix has {len(q32)} nonempty priority answers. Most common values are {summary}."
+
+
+def focused_chain_read(chain: object) -> list[str]:
+    segments = chain_segments(chain)
+    if not segments:
+        return ["No focused response chain was available."]
+    notes: list[str] = []
+    for label, pattern in [
+        ("Service experience", r"^qcoe1$"),
+        ("Preferred store", r"^(q9|q9r10oe|PIPEINTOQ10)$"),
+        ("Reason for preference", r"^q10$"),
+        ("Purchase behavior", r"^q43"),
+        ("Survey recap", r"^outro$"),
+    ]:
+        segment = first_matching_segment(segments, pattern)
+        if segment and segment["answer"]:
+            notes.append(f"{label}: {plain_truncate(segment['answer'], 180)}")
+    q32 = q32_summary(segments)
+    if q32:
+        notes.append(q32)
+    return notes[:6] or ["The focused chain had fields, but no readable answers were available."]
+
+
+def analyst_read(row: pd.Series) -> str:
+    decision = text(row.get("agent_final_decision"))
+    theme = text(row.get("review_theme"))
+    counter = plain_truncate(row.get("verifier_counterevidence"), 260)
+    basis = plain_truncate(row.get("semantic_discard_basis"), 260)
+    if decision == "discard":
+        return (
+            f"Escalate this row for removal review. The final concern is {theme}. "
+            f"The verifier found this basis after reading the focused chain: {basis}"
+        )
+    return (
+        f"Keep this row with a review note. The review theme is {theme}. "
+        f"The focused chain gave enough context to avoid discard. {counter}"
+    )
+
+
+def annotation_map(frame: pd.DataFrame) -> dict[str, pd.Series]:
+    if frame.empty or "respondent_key" not in frame.columns:
+        return {}
+    result: dict[str, pd.Series] = {}
+    for _, row in frame.iterrows():
+        key = text(row.get("respondent_key")).strip()
+        if key:
+            result[key] = row
+    return result
+
+
+def annotation_text(annotation: pd.Series | None, field: str) -> str:
+    if annotation is None or field not in annotation.index:
+        return ""
+    return plain_text(annotation.get(field))
+
+
+def ledger_html(df: pd.DataFrame, limit: int = 40) -> str:
+    columns = [
+        "respondent_key",
+        "agent_final_decision",
+        "review_theme",
+        "supplier",
+        "qtime",
+        "computed_score",
+        "response_chain_field_count",
+        "semantic_review_chain_field_count",
+        "agent_recommended_next_step",
+    ]
+    return table_html(df, columns, limit)
+
+
+def semantic_card_html(row: pd.Series, annotations: dict[str, pd.Series] | None = None) -> str:
     decision = text(row.get("agent_final_decision"))
     cls = "discard" if decision == "discard" else "keep"
     title = f"{text(row.get('respondent_key'))} | {text(row.get('supplier'))}"
+    annotation = (annotations or {}).get(text(row.get("respondent_key")).strip())
+    editorial_summary = annotation_text(annotation, "agent_editorial_summary") or analyst_read(row)
+    quality_judgment = annotation_text(annotation, "quality_judgment")
+    workflow_learning = annotation_text(annotation, "workflow_learning")
+    next_step_text = annotation_text(annotation, "next_step") or plain_truncate(row.get("agent_recommended_next_step"), 260)
+    chain_notes = focused_chain_read(row.get("semantic_review_chain") or row.get("full_response_chain"))
+    chain_interpretation = annotation_text(annotation, "chain_interpretation")
+    if chain_interpretation:
+        chain_notes = [chain_interpretation, *chain_notes[:4]]
+    chain_html = "".join(f"<li>{html.escape(note)}</li>" for note in chain_notes)
+    learning_html = (
+        f"<p><strong>Workflow learning.</strong> {html.escape(workflow_learning)}</p>"
+        if workflow_learning
+        else ""
+    )
+    quality_html = (
+        f"<p><strong>Quality judgment.</strong> {html.escape(quality_judgment)}</p>"
+        if quality_judgment
+        else f"<p><strong>Language quality.</strong> {html.escape(plain_truncate(row.get('agent_linguistic_fluency_assessment'), 260))}</p>"
+    )
     return (
         f"<article class='memo {cls}'>"
         f"<h3>{html.escape(title)}</h3>"
         f"<div class='memo-meta'>{html.escape(decision)} | score {html.escape(text(row.get('computed_score')))} | qtime {html.escape(text(row.get('qtime')))}</div>"
         f"<p><strong>Theme.</strong> {html.escape(text(row.get('review_theme')))}</p>"
-        f"<p><strong>Full chain fields.</strong> {html.escape(text(row.get('response_chain_field_count')))}</p>"
-        f"<p><strong>Focused semantic fields.</strong> {html.escape(text(row.get('semantic_review_chain_field_count')))}</p>"
-        f"<p><strong>Verifier counterevidence.</strong> {html.escape(plain_truncate(row.get('verifier_counterevidence'), 360))}</p>"
-        f"<p><strong>Semantic discard basis.</strong> {html.escape(plain_truncate(row.get('semantic_discard_basis'), 360))}</p>"
-        f"<p><strong>Focused response chain preview.</strong> {html.escape(plain_truncate(row.get('semantic_review_chain') or row.get('full_response_chain'), 520))}</p>"
-        f"<p><strong>Semantic judgment.</strong> {html.escape(plain_truncate(row.get('agent_semantic_judgment'), 520))}</p>"
-        f"<p><strong>Language quality.</strong> {html.escape(plain_truncate(row.get('agent_linguistic_fluency_assessment'), 360))}</p>"
-        f"<p><strong>Trust basis.</strong> {html.escape(plain_truncate(row.get('agent_trust_rationale'), 420))}</p>"
-        f"<p><strong>Next step.</strong> {html.escape(plain_truncate(row.get('agent_recommended_next_step'), 260))}</p>"
+        f"<p><strong>Agent read.</strong> {html.escape(editorial_summary)}</p>"
+        f"<ul class='chain-read'>{chain_html}</ul>"
+        f"<p><strong>Review depth.</strong> The agent checked {html.escape(text(row.get('semantic_review_chain_field_count')))} focused fields and {html.escape(text(row.get('response_chain_field_count')))} total answer fields.</p>"
+        f"{quality_html}"
+        f"{learning_html}"
+        f"<p><strong>Next step.</strong> {html.escape(next_step_text)}</p>"
         "</article>"
     )
 
@@ -455,6 +632,8 @@ def main() -> None:
     criteria = read_csv(run_dir / "generated_criteria_catalog.csv")
     evidence = read_csv(run_dir / "response_criteria_evidence_table.csv")
     demographics = read_csv(run_dir / "demographic_summary.csv")
+    dashboard_annotation_table = read_csv(run_dir / "agent_dashboard_row_annotations.csv")
+    dashboard_annotations = annotation_map(dashboard_annotation_table)
     discovery = read_json(run_dir / "discovery_profiles.json")
 
     total = int(len(respondent))
@@ -477,6 +656,8 @@ def main() -> None:
     criteria_expanded = criteria_shape(criteria)
     response_criteria = response_analysis_table(evidence)
     observation_notes = observations(respondent, judgments, criteria, kept_synthesis)
+    editorial_html = editorial_review_html(run_dir)
+    editorial_markdown = read_text(run_dir / "agent_dashboard_editorial_review.md").strip()
 
     chart_payload = {
         "actions": chart_records(action_counts),
@@ -520,10 +701,11 @@ def main() -> None:
     .text-box strong{display:block;margin-bottom:8px;color:var(--forest)}.panel p{font-size:15px;line-height:1.45;color:var(--charcoal);margin:0 0 14px;text-wrap:pretty}
     .fact-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:8px 0 20px}.fact-grid div{background:#f7faf9;border-top:1px solid var(--rule);padding:14px}.fact-grid strong{display:block;color:var(--forest);font-size:12px;text-transform:uppercase;margin-bottom:6px}.fact-grid span{font-size:13px;color:var(--charcoal);line-height:1.35}
     .observation-list{margin:0;padding-left:18px}.observation-list li{font-size:15px;line-height:1.5;margin:10px 0;color:var(--charcoal)}
-    .memo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.memo{background:var(--paper);border-left:5px solid var(--mint);padding:18px 20px;border-top:1px solid var(--rule)}.memo.discard{border-left-color:var(--coral)}.memo h3{font-size:15px;margin:0 0 6px;color:var(--forest)}.memo-meta{font-size:12px;color:var(--muted);margin-bottom:12px}.memo p{font-size:13px;line-height:1.45;margin:8px 0}
+    .memo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px}.memo{background:var(--paper);border-left:5px solid var(--mint);padding:22px 24px;border-top:1px solid var(--rule);min-width:0}.memo.discard{border-left-color:var(--coral)}.memo h3{font-size:15px;margin:0 0 6px;color:var(--forest);overflow-wrap:break-word}.memo-meta{font-size:12px;color:var(--muted);margin-bottom:14px;font-variant-numeric:tabular-nums}.memo p{font-size:13px;line-height:1.55;margin:10px 0;text-wrap:pretty}.chain-read{margin:12px 0 14px;padding-left:18px}.chain-read li{font-size:13px;line-height:1.5;margin:7px 0;color:var(--charcoal);overflow-wrap:break-word}
+    .editorial{border-left:6px solid var(--forest);padding:28px 32px}.prose{max-width:980px}.prose h2{font-family:Georgia,serif;font-size:32px;line-height:1.1;text-transform:none;color:var(--forest);margin:0 0 16px;font-weight:500}.prose h3{font-size:16px;line-height:1.35;text-transform:none;color:var(--charcoal);margin:24px 0 8px}.prose h4{font-size:14px;line-height:1.35;color:var(--forest);margin:18px 0 6px}.prose p,.prose li{font-size:16px;line-height:1.55;color:var(--charcoal);text-wrap:pretty}.prose ul{margin:8px 0 16px;padding-left:20px}
     .fallback-row{display:grid;grid-template-columns:minmax(140px,240px) minmax(80px,1fr) 54px;gap:12px;align-items:center;margin:10px 0;min-width:0}.fallback-label{font-size:12px;line-height:1.25;color:var(--charcoal);min-width:0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.fallback-track{height:16px;background:#e7eeeb;min-width:0}.fallback-fill{height:100%;background:var(--mint)}.fallback-value{text-align:right;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}.fallback-more{font-size:12px;color:var(--muted);margin-top:10px}
-    table{width:100%;border-collapse:collapse;font-size:12px;line-height:1.35}th,td{border-bottom:1px solid #dfe7e4;padding:9px 8px;text-align:left;vertical-align:top;overflow-wrap:anywhere}th{color:var(--muted);font-weight:800;text-transform:uppercase;font-size:10px;background:#f7faf9}
-    .semantic-table td:nth-child(7),.semantic-table td:nth-child(8),.semantic-table td:nth-child(9){min-width:220px}.artifact td:first-child{font-weight:700}.footer{border-top:1px solid var(--rule);color:var(--muted);font-size:12px;margin-top:28px;padding-top:16px}
+    .table-scroll{width:100%;overflow-x:auto;overscroll-behavior-x:contain}.table-scroll table{min-width:980px}table{width:100%;border-collapse:collapse;font-size:12px;line-height:1.35;table-layout:auto}th,td{border-bottom:1px solid #dfe7e4;padding:9px 10px;text-align:left;vertical-align:top;overflow-wrap:break-word;word-break:normal}th{color:var(--muted);font-weight:800;text-transform:uppercase;font-size:10px;background:#f7faf9}
+    .semantic-table{min-width:1040px}.artifact td:first-child{font-weight:700}.footer{border-top:1px solid var(--rule);color:var(--muted);font-size:12px;margin-top:28px;padding-top:16px}
     @media(max-width:980px){header,main{padding-left:26px;padding-right:26px}h1{font-size:42px}.kpi-grid,.report-grid,.narrative,.memo-grid,.fact-grid{grid-template-columns:1fr}.chart{height:300px}.fallback-row{grid-template-columns:minmax(0,1fr);gap:6px}.fallback-value{text-align:left}}
     """
     chart_js = f"""
@@ -636,8 +818,8 @@ def main() -> None:
     }}
     window.addEventListener('load', renderCharts);
     """
-    discard_cards = "".join(semantic_card_html(row) for _, row in semantic[semantic.get("agent_final_decision", pd.Series(dtype=str)).eq("discard")].iterrows())
-    keep_cards = "".join(semantic_card_html(row) for _, row in semantic[semantic.get("agent_final_decision", pd.Series(dtype=str)).ne("discard")].head(6).iterrows())
+    discard_cards = "".join(semantic_card_html(row, dashboard_annotations) for _, row in semantic[semantic.get("agent_final_decision", pd.Series(dtype=str)).eq("discard")].iterrows())
+    keep_cards = "".join(semantic_card_html(row, dashboard_annotations) for _, row in semantic[semantic.get("agent_final_decision", pd.Series(dtype=str)).ne("discard")].head(6).iterrows())
     html_doc = [
         "<!doctype html><html><head><meta charset='utf-8'><title>Survey Quality Dashboard</title>",
         "<meta name='viewport' content='width=device-width, initial-scale=1'>",
@@ -689,12 +871,14 @@ def main() -> None:
         "<section class='panel'><h2>Observed semantic and scoring patterns</h2><ul class='observation-list'>",
         "".join(f"<li>{html.escape(note)}</li>" for note in observation_notes),
         "</ul></section>",
+        "<h2 class='section-title'>Agent editorial interpretation</h2>",
+        editorial_html or "<section class='panel editorial'><p>The required agent dashboard editorial review was not found. The run should be completed by writing <code>agent_dashboard_editorial_review.md</code> from the exploration, field-role mapping, full-chain review, and final semantic judgments before client delivery.</p></section>",
         "<h2 class='section-title'>Agent semantic reasoning</h2>",
         "<section class='memo-grid'>",
         discard_cards or "<p>No discard rows were found.</p>",
         "</section>",
         "<section class='panel'><h2>All agent-reviewed rows</h2>",
-        table_html(semantic, ["respondent_key", "agent_final_decision", "review_theme", "supplier", "qtime", "computed_score", "programmatic_discard_recommendation", "response_chain_field_count", "semantic_review_chain_field_count", "verifier_counterevidence", "semantic_discard_basis", "agent_semantic_judgment", "agent_trust_rationale", "agent_recommended_next_step"], 30).replace("<table>", "<table class='semantic-table'>"),
+        ledger_html(semantic, 40).replace("<table>", "<table class='semantic-table'>"),
         "</section>",
         "<h2 class='section-title'>Kept rows that improve the survey</h2>",
         "<section class='memo-grid'>",
@@ -715,12 +899,12 @@ def main() -> None:
         "<section class='panel'><h2>Citations</h2>",
         citations_html(citations),
         "</section>",
-        "<section class='panel'><h2>Artifact index</h2><table class='artifact'><thead><tr><th>Artifact</th><th>Path</th></tr></thead><tbody>",
+        "<section class='panel'><h2>Artifact index</h2><div class='table-scroll'><table class='artifact'><thead><tr><th>Artifact</th><th>Path</th></tr></thead><tbody>",
         "".join(
             f"<tr><td>{html.escape(name)}</td><td>{html.escape(path)}</td></tr>"
             for name, path in artifact_links(run_dir)
         ),
-        "</tbody></table></section>",
+        "</tbody></table></div></section>",
         "<div class='footer'>Generated from agent judgment artifacts. Final PM labels, when present, are validation data and not decision input.</div>",
         "<script src='https://unpkg.com/react@18/umd/react.production.min.js'></script>",
         "<script src='https://unpkg.com/react-dom@18/umd/react-dom.production.min.js'></script>",
@@ -779,14 +963,20 @@ def main() -> None:
         "## Dataset observations",
         *[f"- {note}" for note in observation_notes],
         "",
+        "## Agent editorial interpretation",
+        editorial_markdown or "The required agent dashboard editorial review was not found. Write `agent_dashboard_editorial_review.md` before delivery.",
+        "",
         "## Agent review decisions",
         *[f"- {idx}: {int(val)} ({pct(int(val), review_total)})" for idx, val in agent_counts.items()],
         "",
         "## Agent discard set",
         *markdown_table(discard, ["respondent_key", "agent_discard_rationale", "observed_evidence", "supplier", "qtime", "agent_semantic_judgment", "agent_trust_rationale"], 10),
         "",
+        "## Dashboard row annotations",
+        *markdown_table(dashboard_annotation_table, ["respondent_key", "agent_editorial_summary", "chain_interpretation", "quality_judgment", "workflow_learning", "next_step"], 12),
+        "",
         "## All semantic decisions",
-        *markdown_table(semantic, ["respondent_key", "agent_final_decision", "review_theme", "supplier", "qtime", "computed_score", "programmatic_discard_recommendation", "response_chain_field_count", "semantic_review_chain_field_count", "verifier_counterevidence", "semantic_discard_basis", "agent_semantic_judgment", "agent_trust_rationale"], 30),
+        *markdown_table(semantic, ["respondent_key", "agent_final_decision", "review_theme", "supplier", "qtime", "computed_score", "programmatic_discard_recommendation", "response_chain_field_count", "semantic_review_chain_field_count", "agent_recommended_next_step"], 30),
         "",
         "## Survey improvement synthesis",
         *markdown_table(kept_synthesis, ["theme", "kept_review_rows", "why_kept", "survey_question_or_parameter_recommendation", "suggested_quality_parameter"], 10),

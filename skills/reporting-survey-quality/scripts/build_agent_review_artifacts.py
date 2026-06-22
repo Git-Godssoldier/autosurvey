@@ -79,6 +79,65 @@ def chain_answer_text(full_chain: str) -> str:
     return " ".join(answers)
 
 
+def parsed_chain_segments(full_chain: str) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for segment in chain_segments(full_chain):
+        match = re.match(r"([^[]+)\s+\[([^\]]+)\]\s*(.*):\s*(.*)$", segment)
+        if match:
+            rows.append(
+                {
+                    "column": match.group(1).strip(),
+                    "role": match.group(2).strip(),
+                    "prompt": match.group(3).strip(),
+                    "answer": match.group(4).strip(),
+                }
+            )
+    return rows
+
+
+def first_chain_answer(segments: list[dict[str, str]], pattern: str) -> str:
+    regex = re.compile(pattern, re.I)
+    for segment in segments:
+        if regex.search(segment.get("column", "")) and segment.get("answer"):
+            return segment["answer"]
+    return ""
+
+
+def short_answer(value: str, limit: int = 170) -> str:
+    clean = re.sub(r"\s+", " ", text(value))
+    if len(clean) <= limit:
+        return clean
+    return clean[:limit].rsplit(" ", 1)[0].rstrip(" .,;:") + "..."
+
+
+def chain_readout(full_chain: str) -> str:
+    segments = parsed_chain_segments(full_chain)
+    if not segments:
+        return "The focused chain did not include readable section answers."
+    parts: list[str] = []
+    qcoe = first_chain_answer(segments, r"^qcoe1$")
+    q9 = first_chain_answer(segments, r"^(q9|q9r10oe|PIPEINTOQ10)$")
+    q10 = first_chain_answer(segments, r"^q10$")
+    q43 = first_chain_answer(segments, r"^q43")
+    outro = first_chain_answer(segments, r"^outro$")
+    q32_count = sum(1 for segment in segments if re.match(r"q32", segment.get("column", ""), re.I))
+    if qcoe:
+        parts.append(f"service example: {short_answer(qcoe)}")
+    if q9:
+        parts.append(f"preferred store: {short_answer(q9)}")
+    if q10:
+        parts.append(f"reason: {short_answer(q10)}")
+    if q43:
+        parts.append(f"purchase behavior: {short_answer(q43)}")
+    if q32_count:
+        parts.append(f"Q32 had {q32_count} answered matrix fields")
+    if outro:
+        parts.append(f"survey recap: {short_answer(outro)}")
+    if not parts:
+        return "The focused chain had fields, but none gave a compact narrative answer."
+    return "The focused chain showed " + "; ".join(parts[:6]) + "."
+
+
 def repeated_character_expression(value: str) -> bool:
     return bool(re.search(r"([a-z!?])\1{2,}", value.lower()))
 
@@ -239,18 +298,18 @@ def verified_theme(theme: str, decision: str) -> str:
 def semantic_judgment(key: str, decision: str, theme: str, raw_text: str, full_chain: str, audit_row: pd.Series, verifier: dict[str, object]) -> str:
     narrative = text(audit_row.get("narrative_quality"), "not_classified")
     risks = text(audit_row.get("independent_risk_factors"), "none")
-    chain_note = f" Full response chain reviewed: {full_chain[:900]}"
+    chain_note = chain_readout(full_chain)
     if decision == "discard":
         return (
-            f"Respondent {key} should stay in the discard queue after critic verification. "
-            f"Semantic discard basis: {verifier['semantic_discard_basis']} "
-            f"Narrative class: {narrative}. Risk factors: {risks}. Raw text reviewed: {raw_text}.{chain_note}"
+            f"Escalate respondent {key} for removal review. The final theme is {theme}. "
+            f"The verifier found this discard basis: {verifier['semantic_discard_basis']} "
+            f"{chain_note} Narrative class: {narrative}. Risk factors: {risks}."
         )
     return (
-        f"Keep respondent {key} with a review note after critic verification. "
-        f"The static layer routed the row for review, but the verifier did not find a defensible semantic discard basis. "
-        f"Counterevidence: {verifier['verifier_counterevidence']} "
-        f"Narrative class: {narrative}. Raw text reviewed: {raw_text}.{chain_note}"
+        f"Keep respondent {key} with a review note. The final theme is {theme}. "
+        f"The static layer routed the row for review, but the focused chain did not support discard. "
+        f"{chain_note} Counterevidence: {verifier['verifier_counterevidence']} "
+        f"Narrative class: {narrative}."
     )
 
 
@@ -258,8 +317,8 @@ def language_assessment(decision: str, raw_text: str) -> str:
     if decision == "discard":
         return "The concern is answer substance. The answer is evasive, repetitive, generic, or too weak for a required response."
     if len(raw_text.split()) <= 5:
-        return "The answer is short. It can still be valid when the prompt only requires a factor or simple reason."
-    return "The language may be imperfect, but the meaning is readable in the survey context."
+        return "The answer is short. Keep it when the surrounding chain gives a clear reason or a valid simple factor."
+    return "The language is readable enough for review. Judge it by fit to the prompt, not by polish alone."
 
 
 def next_step(decision: str, theme: str) -> str:
@@ -385,7 +444,7 @@ def build(run_dir: Path) -> None:
                 "semantic_pattern_findings": verifier["semantic_pattern_findings"],
                 "agent_semantic_judgment": semantic_judgment(key, decision, theme, raw_text, semantic_chain, ar, verifier),
                 "agent_linguistic_fluency_assessment": language_assessment(decision, raw_text),
-                "agent_trust_rationale": f"The decision uses the stitched full response chain, field role, timing, independent audit classification, and critic verifier result. Theme: {theme}.",
+                "agent_trust_rationale": f"The decision is based on the focused semantic chain, the full response chain, timing, source context, and the critic verifier result. Theme: {theme}.",
                 "agent_recommended_next_step": next_step(decision, theme),
                 "agent_discard_rationale": "The row has converging evidence for exclusion review." if decision == "discard" else "",
                 "independent_narrative_quality": text(ar.get("narrative_quality")),
