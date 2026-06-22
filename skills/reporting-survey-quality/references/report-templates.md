@@ -212,12 +212,14 @@ Sections:
 - callouts where the workflow should challenge or revise itself
 - workflow learning for the next pass
 
-`agent_findings_essay.md` should be written by the agent after reading the run artifacts. It is the main reasoning artifact, not a structured export. It should be a natural prose essay with citations to the local run materials.
+`agent_findings_essay.md` should be written after reading the run artifacts. It is the main reasoning artifact, not a structured export. It should be a natural prose essay with citations to the local run materials.
+
+The essay should be client-facing by default. It should read as one cohesive review system. Use "we discovered," "we reviewed," and "we recommend." Avoid internal process language such as "the agent final pass," "the agent decided," or "script output shows" unless the user specifically asks for implementation detail.
 
 The essay should do the following in whatever structure best serves the dataset:
 
 - state the real quality conclusion, not just the counts
-- explain what the agent discovered during data exploration and field-role mapping
+- explain what we discovered during data exploration and field-role mapping
 - explain how the Datamap and stitched response chains changed the final read
 - interpret the strongest semantic patterns found in the full chains
 - describe the best retained rows and why they improve confidence in the data

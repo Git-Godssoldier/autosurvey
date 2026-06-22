@@ -90,7 +90,8 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - Reconcile counts across respondent review, agent judgment, discard set, kept synthesis, essay, escalation packet, and dashboard.
    - Verify that every discard row appears in the escalation packet.
    - Verify that the dashboard renders without unreadable tables or overlapping prose.
-   - Preview the main artifacts before responding to the user. Inspect the findings essay, escalation packet, internal signal bank, dashboard, visual findings report, discard set, agent judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
+   - Preview the main artifacts before responding to the user. Inspect the findings essay, escalation packet, internal signal bank, dashboard, visual findings report, discard set, final judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
+   - The final assistant response must be client-facing and email-ready. It should read as one cohesive review system, using language such as "we discovered," "we reviewed," and "we recommend." Do not describe the close-out as tool execution or as "the agent final pass."
    - The final assistant response must include a clear narrative of core discoveries, core discard recommendations with respondent keys and row or cell-level citations when available, key statistics from the run, brief descriptions of important artifacts, a verified-artifact statement, and the next-pass signals.
 13. Before starting the next run, read `next_pass_signal_inventory.csv` and `internal_quality_signal_bank.md`. Decide which signals can be added to the first-pass context, which signals need PM examples, which signals are false-positive guardrails, and which signals should remain agent-only.
 

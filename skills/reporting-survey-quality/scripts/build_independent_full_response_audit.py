@@ -514,7 +514,7 @@ def write_markdown(run_dir: Path, audit: pd.DataFrame, judgments: pd.DataFrame) 
                 f"- {row['respondent_key']}: {row['independent_risk_factors']}. "
                 f"Role: {row['qcoe1']}. Brand: {row['brand_answer_details']}. "
                 f"Narrative: {row['narrative_text']}. "
-                f"Reviewed: {row['autosurvey_reviewed']}. Agent decision: {text(row.get('agent_final_decision'))}."
+                f"Reviewed: {row['autosurvey_reviewed']}. Final decision: {text(row.get('agent_final_decision'))}."
             )
 
     lines.extend(
@@ -522,9 +522,9 @@ def write_markdown(run_dir: Path, audit: pd.DataFrame, judgments: pd.DataFrame) 
             "",
             "## Audit conclusion",
             "",
-            "The workflow is not perfect on new datasets. The agent review layer can correct many first-pass errors, but the run still needs an independent full-row audit before final delivery.",
+            "The workflow is not perfect on new datasets. The final review can correct many first-pass errors, but the run still needs an independent full-row audit before final delivery.",
             "The audit checks whether the scorer missed rows because the triggered evidence table did not include the full source row.",
-            "When the audit finds a possible missed discard or a large false-positive group, update the agent judgment artifacts and feed the finding into the next-pass signal inventory.",
+            "When the audit finds a possible missed discard or a large false-positive group, update the final judgment artifacts and feed the finding into the next-pass signal inventory.",
             "",
         ]
     )

@@ -129,11 +129,11 @@ python3 scripts/build_full_chain_analyst_readout.py \
   --run-dir /path/to/outputs/rubric-evolution-seed
 ```
 
-Then do the agent essay pass before the dashboard is built. This is not a rote script step and it is not a form to fill out. The agent must read the Datamap field-role mapping, discovery profile, demographic summary, scorer criteria, independent full-response audit, full-chain analyst readout, deep semantic sample, agent judgment table, kept review synthesis, and next-pass signal inventory. The agent must then write:
+Then do the findings essay pass before the dashboard is built. This is not a rote script step and it is not a form to fill out. Read the Datamap field-role mapping, discovery profile, demographic summary, scorer criteria, independent full-response audit, full-chain analyst readout, deep semantic sample, final judgment table, kept review synthesis, and next-pass signal inventory. Then write:
 
-- `agent_findings_essay.md`: a natural prose essay with citations. It should explain what happened in the run, what the agent discovered, what the field-role mapping changed, what the best and worst response chains reveal, what the final discard or keep decisions mean, what demographic and aggregate context matters, what should change in the next pass, and where the workflow should challenge itself.
+- `agent_findings_essay.md`: a natural prose essay with citations. It should explain what we discovered in the run, what the field-role mapping changed, what the best and worst response chains reveal, what the final discard or keep recommendations mean, what demographic and aggregate context matters, what should change in the next pass, and where the workflow should challenge itself.
 
-The essay can have whatever sections the agent believes best explain the run. Do not force the agent to populate a fixed set of row-note fields. Scripts may carry this prose into HTML, but scripts must not be treated as the author of the reasoning. If this essay is missing, the run is not ready for client or PM review.
+The essay can have whatever sections best explain the run. Do not force it into fixed row-note fields. Scripts may carry this prose into HTML, but scripts must not be treated as the author of the reasoning. If this essay is missing, the run is not ready for client or PM review.
 
 Then:
 
@@ -160,9 +160,9 @@ python3 scripts/build_visual_dashboard.py \
 - Include demographic and aggregate insights from source data. These are report context, not quality-discard evidence by themselves.
 - Treat client-annotated Excel review files as the minimum audit surface. The report should match their practical columns and counts where relevant, then go further with prose analysis, chain-level semantic judgment, verifier counterevidence, kept-row learning, and next-pass signal updates.
 - Always report fielding start/date/timestamp discoveries when the source file contains them. Odd-hour starts and start bursts are fielding-context findings unless corroborating evidence or project rules make them row-level evidence.
-- Treat scoring criteria as the initial case file. The final agent layer must act as a critic and verifier that can supersede static checks when the full chain gives a meaningful semantic explanation.
-- Treat the dashboard and final report as agent-authored research products, not formatted log output. The agent must personally synthesize the exploration, field-role mapping, response chains, programmatic signals, counterevidence, demographics, and next-pass learning into clear prose before publishing.
-- Do not let scripted string assembly substitute for analysis. A script can assemble charts, ledgers, citations, and HTML, but the deciding prose must come from `agent_findings_essay.md`, written after the agent studies the run materials.
+- Treat scoring criteria as the initial case file. The final review must act as a critic and verifier that can supersede static checks when the full chain gives a meaningful semantic explanation.
+- Treat the dashboard and final report as client-facing research products, not formatted log output. The final prose must synthesize the exploration, field-role mapping, response chains, programmatic signals, counterevidence, demographics, and next-pass learning before publishing.
+- Do not let scripted string assembly substitute for analysis. A script can assemble charts, ledgers, citations, and HTML, but the deciding prose must come from `agent_findings_essay.md`, written after studying the run materials.
 - Write `agent_escalation_packet.md` as the complete operational answer. It must say which rows should be reviewed for exclusion, which suspicious rows were kept, which internal comments or criteria shaped the decision, what evidence was decisive, what evidence was inconclusive, and what the PM should do next. If no rows should be discarded, the packet must still explain why.
 - Write `internal_quality_signal_bank.md` as an internal learning artifact. It should preserve useful comments, criteria, false-positive guardrails, and recurring bad-response or fabricated-response patterns for later runs. It is not client copy.
 - Show verifier counterevidence and semantic discard basis for final decisions. A row should not be discarded only because a programmatic check fired.
@@ -201,7 +201,8 @@ python3 scripts/build_visual_dashboard.py \
 - Apply plain-writing rules to all narrative explanations: use everyday words, write complete sentences, avoid filler, avoid jargon unless it is explained, and state exactly why a row was discarded or kept.
 - Cite every important claim. Use local artifact citations for run-specific claims, such as respondent counts, criteria support, discoveries, semantic judgments, and kept-row synthesis. Use external citations for design, charting, and writing-method guidance.
 - The final citation list must include at least the respondent review table, generated criteria catalog, discovery profile, criterion evidence table, agent judgment table, kept review synthesis, visual design reference, plain-writing reference, and charting reference.
-- Before the final assistant response, preview the main artifacts. Inspect the findings essay, escalation packet, internal signal bank, dashboard, visual findings report, discard set, agent judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
+- Before the final assistant response, preview the main artifacts. Inspect the findings essay, escalation packet, internal signal bank, dashboard, visual findings report, discard set, final judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
+- The final assistant response must be client-facing and email-ready. It should read as one cohesive review system, using language such as "we discovered," "we reviewed," and "we recommend." Do not write "the agent final pass" or similar internal process language in client-facing copy.
 - The final assistant response must include a clear narrative of core discoveries, core discard recommendations with respondent keys and row or cell-level citations when available, key statistics from the run, brief descriptions of important artifacts, a verified-artifact statement, and next-pass signals. Do not only say that scripts ran.
 
 ## When To Read References

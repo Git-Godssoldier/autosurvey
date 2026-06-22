@@ -33,7 +33,7 @@ def dataset_name(run_dir: Path, respondent: pd.DataFrame) -> str:
 
 def main_finding(signals: pd.DataFrame) -> str:
     if signals.empty:
-        return "The run did not produce a next-pass signal inventory. Review the agent judgment table before changing the next first pass."
+        return "The run did not produce a next-pass signal inventory. Review the final judgment table before changing the next first pass."
     top = signals.sort_values("support_rows", ascending=False).iloc[0]
     return (
         f"The largest next-pass signal was `{top['signal_id']}`, with {int(top['support_rows'])} reviewed rows. "
@@ -58,7 +58,7 @@ def what_this_run_teaches(signals: pd.DataFrame) -> list[str]:
         )
     if "semantic_topic_relevance_replace_keyword_miss" in signal_ids:
         lessons.append(
-            "Keyword topic mismatch should stay a routing signal. The agent should make the final relevance decision from the raw text and project context."
+            "Keyword topic mismatch should stay a routing signal. We should make the final relevance recommendation from the raw text and project context."
         )
     if "semantic_topic_map_before_keyword_scoring" in signal_ids:
         lessons.append(
@@ -129,8 +129,8 @@ def main() -> None:
         "",
         "## Executive readout",
         "",
-        f"The agent reviewed {reviewed} rows out of {total} responses. That is {pct(reviewed, total)} of the file.",
-        f"The agent kept {kept_count} reviewed rows and left {discard_count} rows in the discard queue.",
+        f"We reviewed {reviewed} rows out of {total} responses. That is {pct(reviewed, total)} of the file.",
+        f"We kept {kept_count} reviewed rows and recommend {discard_count} rows for exclusion review.",
         "",
         main_finding(signals),
         "",
@@ -208,7 +208,7 @@ def main() -> None:
                 f"It found {len(safe_reviewed)} autosurvey-reviewed rows that the independent audit would have kept without review.",
                 f"It found {len(possible_missed)} possible discard or escalation rows that were not in the final discard set.",
                 "",
-                "Use this section to decide whether the first pass needs better field mapping, or whether the agent review layer missed full-row evidence.",
+                "Use this section to decide whether the first pass needs better field mapping, or whether the final review missed full-row evidence.",
                 "",
             ]
         )
@@ -237,9 +237,9 @@ def main() -> None:
         [
             "## Flow audit",
             "",
-            "The run is complete only if the output folder contains scoring artifacts, agent review judgments, a discard set, kept review synthesis, next-pass signals, a first-pass config proposal, a deep semantic sample, a visual dashboard, and this findings memo.",
+            "The run is complete only if the output folder contains scoring artifacts, final review judgments, a discard set, kept review synthesis, next-pass signals, a first-pass config proposal, a deep semantic sample, a visual dashboard, and this findings memo.",
             "",
-            "The next run should start by reading `next_pass_first_pass_config.json` and the workbook Datamap. The agent should map each open-end field to its field role before it applies topic mismatch or low-effort scoring.",
+            "The next run should start by reading `next_pass_first_pass_config.json` and the workbook Datamap. We should map each open-end field to its field role before applying topic mismatch or low-effort scoring.",
             "",
         ]
     )

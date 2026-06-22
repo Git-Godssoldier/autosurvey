@@ -128,6 +128,7 @@ def artifact_links(run_dir: Path) -> list[tuple[str, str]]:
         "agent_review_judgment_summary.md",
         "agent_findings_essay.md",
         "agent_escalation_packet.md",
+        "client_email_ready_summary.md",
         "internal_quality_signal_bank.md",
         "agent_verified_quality_brief.md",
         "agent_discard_set.csv",
@@ -162,7 +163,7 @@ def citation_map(run_dir: Path) -> list[tuple[str, str, str]]:
         ("C2", "Generated criteria catalog", str(run_dir / "generated_criteria_catalog.csv")),
         ("C3", "Discovery profile", str(run_dir / "discovery_profiles.json")),
         ("C4", "Criterion evidence table", str(run_dir / "response_criteria_evidence_table.csv")),
-        ("C5", "Agent judgment table", str(run_dir / "agent_review_judgment_table.csv")),
+        ("C5", "Final judgment table", str(run_dir / "agent_review_judgment_table.csv")),
         ("C6", "Kept review synthesis", str(run_dir / "agent_kept_review_synthesis_table.csv")),
         ("C11", "Next-pass signal inventory", str(run_dir / "next_pass_signal_inventory.csv")),
         ("C12", "Deep semantic review sample", str(run_dir / "deep_semantic_review_sample.md")),
@@ -309,7 +310,7 @@ def criteria_shape(criteria: pd.DataFrame) -> pd.DataFrame:
         elif support_rows == 0:
             role = "Keep available for future runs"
         if any(token in tags for token in ["relevance", "open_end", "authenticity"]):
-            role += "; agent must make final semantic call"
+            role += "; final review must make semantic call"
         rows.append(
             {
                 "criterion_id": row.get("criterion_id", ""),
@@ -344,7 +345,7 @@ def response_analysis_table(evidence: pd.DataFrame) -> pd.DataFrame:
                 "kept_with_recommendation": int(decisions.get("keep_with_recommendation", 0)),
                 "sample_source": sample.get("source_column", ""),
                 "sample_observed_value": plain_truncate(sample.get("observed_value", ""), 140),
-                "how_to_read": "Candidate evidence only. The agent makes the final discard decision when text meaning or language quality is involved.",
+                "how_to_read": "Candidate evidence only. We make the final recommendation after reading the text meaning and response context.",
                 "citation": "[C4]",
             }
         )
@@ -356,24 +357,24 @@ def observations(respondent: pd.DataFrame, judgments: pd.DataFrame, criteria: pd
     total = max(1, len(respondent))
     review_total = len(judgments)
     discard_total = int(judgments.get("agent_final_decision", pd.Series(dtype=str)).astype(str).eq("discard").sum()) if not judgments.empty else 0
-    notes.append(f"The scoring pass sent {review_total} of {len(respondent)} rows to the agent for final review. That is {pct(review_total, total)} of all responses. The agent recommended {discard_total} rows for discard. [C1][C5]")
+    notes.append(f"We reviewed {review_total} of {len(respondent)} rows after the scoring pass. That is {pct(review_total, total)} of all responses. We recommend {discard_total} rows for exclusion review. [C1][C5]")
     if not criteria.empty and "support_rows" in criteria:
         open_topic = criteria[criteria["criterion_id"].astype(str).str.contains("open_end_relevance|open_end_topic|relevance", case=False, regex=True)]
         if not open_topic.empty:
             support = int(pd.to_numeric(open_topic["support_rows"], errors="coerce").fillna(0).max())
-            notes.append(f"Topic mismatch was a broad discovery signal with as many as {support} supported rows, but it was not used as a final semantic decision. The agent kept rows when the raw language was still about the project topic or when the flagged field was only survey-experience feedback. [C2][C5]")
+            notes.append(f"Topic mismatch was a broad discovery signal with as many as {support} supported rows, but we did not use it as a final decision by itself. We kept rows when the raw language still answered the project topic or when the flagged field was only survey-experience feedback. [C2][C5]")
     if not kept_synthesis.empty:
         for _, row in kept_synthesis.iterrows():
             notes.append(f"{int(row['kept_review_rows'])} kept rows fell under '{row['theme']}'. The report turns those rows into survey design guidance instead of discard actions. [C6]")
     if not judgments.empty:
         supplier = judgments["supplier"].fillna("missing").astype(str).value_counts()
         if not supplier.empty:
-            notes.append(f"{supplier.index[0]} had the largest number of agent-reviewed rows with {int(supplier.iloc[0])}. This is a routing observation, not proof that the supplier produced bad data. [C5]")
+            notes.append(f"{supplier.index[0]} had the largest number of reviewed rows with {int(supplier.iloc[0])}. This is a routing observation, not proof that the supplier produced bad data. [C5]")
         themes = judgments["review_theme"].fillna("missing").astype(str).value_counts()
         if not themes.empty:
             notes.append(f"The largest semantic pattern was '{themes.index[0]}' with {int(themes.iloc[0])} reviewed rows. This shows that matrix design is a larger improvement opportunity than respondent removal in this run. [C5][C6]")
     notes.append("The report uses a research-style figure structure and source notes so reviewers can move from a chart to the row-level evidence. [C7][C9]")
-    notes.append("The written explanations use plain language. Each decision states what the agent read, what it decided, and why the decision is defensible. [C8]")
+    notes.append("The written explanations use plain language. Each decision states what we reviewed, what we recommend, and why the recommendation is defensible. [C8]")
     return notes
 
 
@@ -426,7 +427,7 @@ def scatter_series(judgments: pd.DataFrame) -> list[dict[str, object]]:
     if judgments.empty:
         return []
     colors = {"discard": "#d87855", "keep_with_review_note": "#7fbfaf"}
-    labels = {"discard": "Agent discard", "keep_with_review_note": "Kept after review"}
+    labels = {"discard": "Recommended exclusion", "keep_with_review_note": "Kept after review"}
     series = []
     for decision, group in judgments.groupby(judgments.get("agent_final_decision", pd.Series(dtype=str)).fillna("missing").astype(str)):
         points = []
@@ -550,7 +551,7 @@ def analyst_read(row: pd.Series) -> str:
     if decision == "discard":
         return (
             f"Escalate this row for removal review. The final concern is {theme}. "
-            f"The verifier found this basis after reading the focused chain: {basis}"
+            f"The full-chain review found this basis: {basis}"
         )
     return (
         f"Keep this row with a review note. The review theme is {theme}. "
@@ -561,14 +562,14 @@ def analyst_read(row: pd.Series) -> str:
 def ledger_html(df: pd.DataFrame, limit: int = 40) -> str:
     columns = [
         "respondent_key",
-        "agent_final_decision",
+        "final_decision",
         "review_theme",
         "supplier",
         "qtime",
         "computed_score",
         "response_chain_field_count",
         "semantic_review_chain_field_count",
-        "agent_recommended_next_step",
+        "recommended_next_step",
     ]
     return table_html(df, columns, limit)
 
@@ -586,9 +587,9 @@ def semantic_card_html(row: pd.Series) -> str:
         f"<h3>{html.escape(title)}</h3>"
         f"<div class='memo-meta'>{html.escape(decision)} | score {html.escape(text(row.get('computed_score')))} | qtime {html.escape(text(row.get('qtime')))}</div>"
         f"<p><strong>Theme.</strong> {html.escape(text(row.get('review_theme')))}</p>"
-        f"<p><strong>Agent read.</strong> {html.escape(editorial_summary)}</p>"
+        f"<p><strong>What we reviewed.</strong> {html.escape(editorial_summary)}</p>"
         f"<ul class='chain-read'>{chain_html}</ul>"
-        f"<p><strong>Review depth.</strong> The agent checked {html.escape(text(row.get('semantic_review_chain_field_count')))} focused fields and {html.escape(text(row.get('response_chain_field_count')))} total answer fields.</p>"
+        f"<p><strong>Review depth.</strong> We checked {html.escape(text(row.get('semantic_review_chain_field_count')))} focused fields and {html.escape(text(row.get('response_chain_field_count')))} total answer fields.</p>"
         f"<p><strong>Language quality.</strong> {html.escape(plain_truncate(row.get('agent_linguistic_fluency_assessment'), 260))}</p>"
         f"<p><strong>Next step.</strong> {html.escape(next_step_text)}</p>"
         "</article>"
@@ -627,6 +628,31 @@ def main() -> None:
     discoveries = discovery_summary(discovery)
     criteria_expanded = criteria_shape(criteria)
     response_criteria = response_analysis_table(evidence)
+    response_criteria_display = response_criteria.rename(
+        columns={
+            "discard_candidates_before_agent": "scoring_discard_candidates",
+            "kept_with_recommendation": "kept_with_recommendation_before_final_review",
+            "sample_source": "sample_field",
+            "sample_observed_value": "sample_value",
+        }
+    )
+    semantic_display = semantic.rename(
+        columns={
+            "agent_final_decision": "final_decision",
+            "programmatic_discard_recommendation": "scoring_discard_recommendation",
+            "agent_recommended_next_step": "recommended_next_step",
+            "agent_semantic_judgment": "review_explanation",
+            "agent_trust_rationale": "evidence_rationale",
+            "agent_linguistic_fluency_assessment": "language_quality",
+        }
+    )
+    discard_display = discard.rename(
+        columns={
+            "agent_discard_rationale": "exclusion_review_rationale",
+            "agent_semantic_judgment": "review_explanation",
+            "agent_trust_rationale": "evidence_rationale",
+        }
+    )
     observation_notes = observations(respondent, judgments, criteria, kept_synthesis)
     editorial_html = editorial_review_html(run_dir)
     editorial_markdown = agent_findings_markdown(run_dir)
@@ -648,7 +674,7 @@ def main() -> None:
     }
 
     top_finding = (
-        f"The agent reviewed {review_total} rows and recommended {discard_total} for discard. "
+        f"We reviewed {review_total} rows and recommend {discard_total} for exclusion review. "
         f"The remaining {kept_review_total} rows stayed in the data and became survey improvement signals. [C1][C5][C6]"
     )
     trend_note = "Review volume was low relative to the full data file. Use the trend chart to see whether review rows came from one fielding window or appeared across the whole run. [C1][C5]"
@@ -753,7 +779,7 @@ def main() -> None:
           e(R.Legend, {{ wrapperStyle: {{ fontSize: 12 }} }}),
           e(R.Bar, {{ yAxisId: 'left', dataKey: 'total', fill: '#d8cf8c', name: 'All responses' }}),
           e(R.Line, {{ yAxisId: 'right', type: 'monotone', dataKey: 'review', stroke: '#354244', strokeWidth: 2, dot: true, name: 'Review rows' }}),
-          e(R.Line, {{ yAxisId: 'right', type: 'monotone', dataKey: 'discard', stroke: '#d87855', strokeWidth: 2, dot: true, name: 'Agent discards' }}));
+          e(R.Line, {{ yAxisId: 'right', type: 'monotone', dataKey: 'discard', stroke: '#d87855', strokeWidth: 2, dot: true, name: 'Recommended exclusions' }}));
         mount(id, chart);
       }}
       function StackedSupplierPanel(id, data) {{
@@ -764,7 +790,7 @@ def main() -> None:
           tooltip,
           e(R.Legend, {{ wrapperStyle: {{ fontSize: 12 }} }}),
           e(R.Bar, {{ dataKey: 'keep_with_review_note', stackId: 'a', fill: '#7fbfaf', name: 'Kept after review' }}),
-          e(R.Bar, {{ dataKey: 'discard', stackId: 'a', fill: '#d87855', name: 'Agent discard' }}));
+          e(R.Bar, {{ dataKey: 'discard', stackId: 'a', fill: '#d87855', name: 'Recommended exclusion' }}));
         mount(id, chart);
       }}
       function ClusterPanel(id, series) {{
@@ -796,38 +822,38 @@ def main() -> None:
         "<!doctype html><html><head><meta charset='utf-8'><title>Survey Quality Dashboard</title>",
         "<meta name='viewport' content='width=device-width, initial-scale=1'>",
         f"<style>{css}</style></head><body>",
-        "<header><div class='eyebrow'>Figures | Survey Quality Intelligence | Agent-Verified Run</div>",
+        "<header><div class='eyebrow'>Figures | Survey Quality Intelligence | Final Review</div>",
         "<h1>Survey Quality Review</h1>",
-        "<p class='deck'>This report shows how the agent moved from candidate flags to final discard decisions. It also shows which kept rows should improve the survey design.</p>",
+        "<p class='deck'>This report explains what we found in the data, which rows we recommend for exclusion review, and which retained rows should improve the next survey pass.</p>",
         f"<div class='sub'>Run directory: {html.escape(str(run_dir))}</div></header><main>",
         "<section class='kpi-grid'>",
         kpi("Total responses", str(total), "Rows in the respondent review table."),
         kpi("Review-tagged", str(review_total), f"{pct(review_total, total)} of responses."),
-        kpi("Agent discards", str(discard_total), f"{pct(discard_total, total)} of responses."),
+        kpi("Recommended exclusions", str(discard_total), f"{pct(discard_total, total)} of responses."),
         kpi("Kept review rows", str(kept_review_total), "Rows kept with notes and design guidance."),
         "</section>",
         f"<div class='callout'>{html.escape(top_finding)}</div>",
         "<section class='narrative'>",
-        "<div class='text-box'><strong>Decision rule</strong>Scoring finds rows to review. The agent makes the final discard decision after reading the evidence.</div>",
-        "<div class='text-box'><strong>Semantic rule</strong>Keyword mismatch is not a final decision. The agent checks whether the answer is actually off topic or only worded differently.</div>",
+        "<div class='text-box'><strong>Decision rule</strong>Scoring finds rows to review. We make the final recommendation after reading the evidence and the full response context.</div>",
+        "<div class='text-box'><strong>Semantic rule</strong>Keyword mismatch is not a final decision. We check whether the answer is actually off topic or only worded differently.</div>",
         "<div class='text-box'><strong>Survey design rule</strong>Rows that survive review become recommendations for better questions and clearer fielding controls.</div>",
         "</section>",
         "<h2 class='section-title'>Decision funnel</h2><section class='report-grid'>",
         "<section class='panel'><h2>Figure 1: Scoring action counts</h2><div id='chart-actions' class='chart'></div><div class='source'>Source: Opulent scoring artifacts. [C1]</div></section>",
         "<section class='panel'><h2>Figure 2: Second pass disposition</h2><div id='chart-dispositions' class='chart'></div><div class='source'>Source: respondent review table. [C1]</div></section>",
         "</section><section class='report-grid'>",
-        "<section class='panel soft'><h2>Figure 3: Agent review decisions</h2><div id='chart-agentDecisions' class='chart'></div><div class='source'>Source: agent judgment table. [C5]</div></section>",
-        "<section class='panel soft'><h2>Figure 4: Review themes</h2><div id='chart-allThemes' class='chart'></div><div class='source'>Source: agent judgment table. [C5]</div></section>",
+        "<section class='panel soft'><h2>Figure 3: Final review decisions</h2><div id='chart-agentDecisions' class='chart'></div><div class='source'>Source: final judgment table. [C5]</div></section>",
+        "<section class='panel soft'><h2>Figure 4: Review themes</h2><div id='chart-allThemes' class='chart'></div><div class='source'>Source: final judgment table. [C5]</div></section>",
         "</section>",
         "<h2 class='section-title'>Trends and clusters</h2><section class='report-grid'>",
-        f"<section class='panel'><h2>Figure 5: Fielding trend</h2><div id='chart-trend' class='chart'></div><p>{html.escape(trend_note)}</p><div class='source'>Source: respondent date field and final agent decisions. [C1][C5]</div></section>",
-        f"<section class='panel'><h2>Figure 6: Review candidate cluster</h2><div id='chart-clusters' class='chart'></div><p>{html.escape(cluster_note)}</p><div class='source'>X axis is qtime. Y axis is generated score. Point color is final agent decision.</div></section>",
+        f"<section class='panel'><h2>Figure 5: Fielding trend</h2><div id='chart-trend' class='chart'></div><p>{html.escape(trend_note)}</p><div class='source'>Source: respondent date field and final decisions. [C1][C5]</div></section>",
+        f"<section class='panel'><h2>Figure 6: Review candidate cluster</h2><div id='chart-clusters' class='chart'></div><p>{html.escape(cluster_note)}</p><div class='source'>X axis is qtime. Y axis is generated score. Point color is final decision.</div></section>",
         "</section>",
         "<h2 class='section-title'>Supplier and improvement views</h2><section class='report-grid'>",
         "<section class='panel'><h2>Figure 7: Supplier review stack</h2><div id='chart-supplierStack' class='chart'></div><div class='source'>Supplier concentration is context. It is not proof of poor quality. [C5]</div></section>",
         "<section class='panel'><h2>Figure 8: Kept review themes</h2><div id='chart-keptThemes' class='chart'></div><div class='source'>Rows kept after review are used to improve questions and fielding controls. [C6]</div></section>",
         "</section><section class='wide-grid'>",
-        "<section class='panel'><h2>Figure 9: Review rows by supplier</h2><div id='chart-suppliers' class='chart short'></div><div class='source'>Source: agent judgment table. [C5]</div></section>",
+        "<section class='panel'><h2>Figure 9: Review rows by supplier</h2><div id='chart-suppliers' class='chart short'></div><div class='source'>Source: final judgment table. [C5]</div></section>",
         "</section>",
         "<h2 class='section-title'>Discovery and scorer criteria</h2>",
         "<section class='panel'><h2>New discoveries from the raw export</h2>",
@@ -837,20 +863,20 @@ def main() -> None:
         table_html(criteria_expanded, ["criterion_id", "status", "tags", "source_columns", "generated_weight", "support_rows", "support_rate", "decision_role", "rationale", "citation"], 40),
         "</section>",
         "<section class='panel'><h2>Response analysis criteria</h2>",
-        table_html(response_criteria, ["criterion_id", "rows", "discard_candidates_before_agent", "kept_with_recommendation", "sample_source", "sample_observed_value", "how_to_read", "citation"], 40),
+        table_html(response_criteria_display, ["criterion_id", "rows", "scoring_discard_candidates", "kept_with_recommendation_before_final_review", "sample_field", "sample_value", "how_to_read", "citation"], 40),
         "</section>",
         "<h2 class='section-title'>Dataset observations</h2>",
         "<section class='panel'><h2>Observed semantic and scoring patterns</h2><ul class='observation-list'>",
         "".join(f"<li>{html.escape(note)}</li>" for note in observation_notes),
         "</ul></section>",
-        "<h2 class='section-title'>Agent findings essay</h2>",
-        editorial_html or "<section class='panel editorial'><p>The required agent findings essay was not found. The run should be completed by writing <code>agent_findings_essay.md</code> from the exploration, field-role mapping, full-chain review, final semantic judgments, demographic context, and next-pass learning before client delivery.</p></section>",
-        "<h2 class='section-title'>Agent semantic reasoning</h2>",
+        "<h2 class='section-title'>Findings narrative</h2>",
+        editorial_html or "<section class='panel editorial'><p>The required findings narrative was not found. The run is not ready for client review until <code>agent_findings_essay.md</code> explains the exploration, field-role mapping, full-chain review, final recommendations, demographic context, and next-pass learning.</p></section>",
+        "<h2 class='section-title'>Review reasoning</h2>",
         "<section class='memo-grid'>",
         discard_cards or "<p>No discard rows were found.</p>",
         "</section>",
-        "<section class='panel'><h2>All agent-reviewed rows</h2>",
-        ledger_html(semantic, 40).replace("<table>", "<table class='semantic-table'>"),
+        "<section class='panel'><h2>All reviewed rows</h2>",
+        ledger_html(semantic_display, 40).replace("<table>", "<table class='semantic-table'>"),
         "</section>",
         "<h2 class='section-title'>Kept rows that improve the survey</h2>",
         "<section class='memo-grid'>",
@@ -877,7 +903,7 @@ def main() -> None:
             for name, path in artifact_links(run_dir)
         ),
         "</tbody></table></div></section>",
-        "<div class='footer'>Generated from agent judgment artifacts. Final PM labels, when present, are validation data and not decision input.</div>",
+        "<div class='footer'>Generated from the final review artifacts. Final PM labels, when present, are validation data and not decision input.</div>",
         "<script src='https://unpkg.com/react@18/umd/react.production.min.js'></script>",
         "<script src='https://unpkg.com/react-dom@18/umd/react-dom.production.min.js'></script>",
         "<script src='https://unpkg.com/recharts/umd/Recharts.min.js'></script>",
@@ -887,7 +913,7 @@ def main() -> None:
     (run_dir / "agent_final_review_dashboard.html").write_text("\n".join(html_doc), encoding="utf-8")
 
     md = [
-        "# Agent final visual findings report",
+        "# Survey quality findings report",
         "",
         f"Run directory: `{run_dir}`",
         "",
@@ -897,13 +923,13 @@ def main() -> None:
         "## KPI summary",
         f"- Total responses: {total}",
         f"- Review-tagged rows: {review_total} ({pct(review_total, total)})",
-        f"- Agent discard rows: {discard_total} ({pct(discard_total, total)})",
+        f"- Recommended exclusion-review rows: {discard_total} ({pct(discard_total, total)})",
         f"- Kept review rows used for survey improvements: {kept_review_total}",
         "",
         "## Figure guide",
         "- Figure 1 shows action counts from the scoring pass.",
-        "- Figure 2 shows the second pass disposition before the agent made final discard decisions.",
-        "- Figure 3 shows the final agent decisions.",
+        "- Figure 2 shows the second pass disposition before final recommendations.",
+        "- Figure 3 shows the final review decisions.",
         "- Figure 4 shows the review themes.",
         "- Figure 5 shows review and discard volume by fielding date.",
         "- Figure 6 plots review candidates by completion time and generated score.",
@@ -930,22 +956,22 @@ def main() -> None:
         *markdown_table(criteria_expanded, ["criterion_id", "status", "tags", "source_columns", "generated_weight", "support_rows", "support_rate", "decision_role", "rationale", "citation"], 40),
         "",
         "## Response analysis criteria",
-        *markdown_table(response_criteria, ["criterion_id", "rows", "discard_candidates_before_agent", "kept_with_recommendation", "sample_source", "sample_observed_value", "how_to_read", "citation"], 40),
+        *markdown_table(response_criteria_display, ["criterion_id", "rows", "scoring_discard_candidates", "kept_with_recommendation_before_final_review", "sample_field", "sample_value", "how_to_read", "citation"], 40),
         "",
         "## Dataset observations",
         *[f"- {note}" for note in observation_notes],
         "",
-        "## Agent findings essay",
-        editorial_markdown or "The required agent findings essay was not found. Write `agent_findings_essay.md` before delivery.",
+        "## Findings narrative",
+        editorial_markdown or "The required findings narrative was not found. Write `agent_findings_essay.md` before delivery.",
         "",
-        "## Agent review decisions",
+        "## Final review decisions",
         *[f"- {idx}: {int(val)} ({pct(int(val), review_total)})" for idx, val in agent_counts.items()],
         "",
-        "## Agent discard set",
-        *markdown_table(discard, ["respondent_key", "agent_discard_rationale", "observed_evidence", "supplier", "qtime", "agent_semantic_judgment", "agent_trust_rationale"], 10),
+        "## Recommended exclusion-review set",
+        *markdown_table(discard_display, ["respondent_key", "exclusion_review_rationale", "observed_evidence", "supplier", "qtime", "review_explanation", "evidence_rationale"], 10),
         "",
         "## All semantic decisions",
-        *markdown_table(semantic, ["respondent_key", "agent_final_decision", "review_theme", "supplier", "qtime", "computed_score", "programmatic_discard_recommendation", "response_chain_field_count", "semantic_review_chain_field_count", "agent_recommended_next_step"], 30),
+        *markdown_table(semantic_display, ["respondent_key", "final_decision", "review_theme", "supplier", "qtime", "computed_score", "scoring_discard_recommendation", "response_chain_field_count", "semantic_review_chain_field_count", "recommended_next_step"], 30),
         "",
         "## Survey improvement synthesis",
         *markdown_table(kept_synthesis, ["theme", "kept_review_rows", "why_kept", "survey_question_or_parameter_recommendation", "suggested_quality_parameter"], 10),
@@ -957,7 +983,7 @@ def main() -> None:
         *markdown_table(demographics, ["field", "question_text", "nonempty_rows", "mean", "median", "top_values"], 20),
         "",
         "## Final review rule",
-        "Use scoring to find candidates. Use the agent to make the final semantic discard decision. Use kept review rows to improve the next survey. [C5][C6]",
+        "Use scoring to find candidates. Make the final recommendation only after reading the full response context. Use kept review rows to improve the next survey. [C5][C6]",
         "",
         "## Citations",
         *[f"- [{key}] {label}: {source}" for key, label, source in citations],

@@ -327,13 +327,13 @@ def semantic_judgment(key: str, decision: str, theme: str, raw_text: str, full_c
     chain_note = chain_readout(full_chain)
     if decision == "discard":
         return (
-            f"Escalate respondent {key} for removal review. The final theme is {theme}. "
-            f"The verifier found this discard basis: {verifier['semantic_discard_basis']} "
+            f"We recommend respondent {key} for exclusion review. The final theme is {theme}. "
+            f"The basis is: {verifier['semantic_discard_basis']} "
             f"{chain_note} Narrative class: {narrative}. Risk factors: {risks}."
         )
     return (
         f"Keep respondent {key} with a review note. The final theme is {theme}. "
-        f"The static layer routed the row for review, but the focused chain did not support discard. "
+        f"The scoring layer routed the row for review, but the focused chain did not support exclusion. "
         f"{chain_note} Counterevidence: {verifier['verifier_counterevidence']} "
         f"Narrative class: {narrative}."
     )
@@ -470,7 +470,7 @@ def build(run_dir: Path) -> None:
                 "semantic_pattern_findings": verifier["semantic_pattern_findings"],
                 "agent_semantic_judgment": semantic_judgment(key, decision, theme, raw_text, semantic_chain, ar, verifier),
                 "agent_linguistic_fluency_assessment": language_assessment(decision, raw_text),
-                "agent_trust_rationale": f"The decision is based on the focused semantic chain, the full response chain, timing, source context, and the critic verifier result. Theme: {theme}.",
+                "agent_trust_rationale": f"The recommendation is based on the focused semantic chain, the full response chain, timing, source context, and the final review result. Theme: {theme}.",
                 "agent_recommended_next_step": next_step(decision, theme),
                 "agent_discard_rationale": "The row has converging evidence for exclusion review." if decision == "discard" else "",
                 "independent_narrative_quality": text(ar.get("narrative_quality")),
@@ -511,13 +511,13 @@ def build(run_dir: Path) -> None:
     (run_dir / "agent_kept_review_synthesis.md").write_text("\n".join(lines), encoding="utf-8")
 
     summary = [
-        "# Agent review judgment summary",
+        "# Final review judgment summary",
         "",
         f"Total source rows: {len(source)}.",
         f"Rows in first-pass review queue: {len(first_pass_keys)}.",
         f"Rows added by independent full-response audit: {len(audit_keys - first_pass_keys)}.",
-        f"Rows reviewed by agent: {len(judgments)}.",
-        f"Final discard or escalation rows: {len(discard)}.",
+        f"Rows reviewed in detail: {len(judgments)}.",
+        f"Recommended exclusion-review rows: {len(discard)}.",
         f"Kept with review note: {len(kept)}.",
         "",
         "## Themes",
@@ -528,7 +528,7 @@ def build(run_dir: Path) -> None:
     (run_dir / "agent_review_judgment_summary.md").write_text("\n".join(summary) + "\n", encoding="utf-8")
 
     verified = [
-        "# Agent-verified quality brief",
+        "# Quality review brief",
         "",
         f"Dataset: {workbook.name}",
         "",
@@ -537,15 +537,15 @@ def build(run_dir: Path) -> None:
         f"- Total responses: {len(source)}.",
         f"- First-pass review rows: {len(first_pass_keys)}.",
         f"- Independent audit additions: {len(audit_keys - first_pass_keys)}.",
-        f"- Agent-reviewed rows: {len(judgments)}.",
-        f"- Final discard or escalation queue: {len(discard)}.",
+        f"- Rows reviewed in detail: {len(judgments)}.",
+        f"- Recommended exclusion-review queue: {len(discard)}.",
         f"- Kept with review notes: {len(kept)}.",
         "",
         "## Workflow notes",
         "",
         "The workflow explored field roles and stitched each respondent's full response chain before final judgment.",
-        "The final review used the criteria as a case file, then applied a critic-verifier pass that could keep rows when the full chain gave a meaningful semantic explanation.",
-        "The agent kept weak, short, speed-only, and keyword-mismatch rows unless another strong signal supported escalation.",
+        "The final review used the criteria as a case file, then checked the full response chain before making each recommendation.",
+        "We kept weak, short, speed-only, and keyword-mismatch rows unless another strong signal supported escalation.",
         "The kept rows are converted into next-pass recommendations so the next first pass has better context before scoring.",
         "",
     ]

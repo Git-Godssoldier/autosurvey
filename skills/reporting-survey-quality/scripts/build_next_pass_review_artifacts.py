@@ -201,7 +201,7 @@ def theme_rule(theme: str) -> dict[str, str]:
         "critical_signal": "Reviewed rows did not create a specific new discard rule.",
         "first_pass_change": "Keep this signal as review-only until PM adjudication provides clearer evidence.",
         "analysis_factor": "Track the pattern across runs.",
-        "evidence_needed": "Agent review rows and PM labels.",
+        "evidence_needed": "Final review rows and PM labels.",
         "default_status": "needs_feedback",
         "escalation_rule": "Do not escalate without converging evidence.",
     }
@@ -336,8 +336,8 @@ def write_markdown(
     signal_lines = [
         "# Next-pass signal inventory",
         "",
-        f"Agent reviewed rows: {total_reviewed}",
-        f"Agent discard rows: {discard_count}",
+        f"Rows reviewed in detail: {total_reviewed}",
+        f"Recommended exclusion-review rows: {discard_count}",
         f"Kept review rows: {kept_count}",
         "",
         "## Signals to feed into the next first pass",
@@ -410,7 +410,7 @@ def write_markdown(
         "",
         "## Required follow-up after each scoring run",
         "1. Build `agent_review_judgment_table.csv` for every row with a review signal.",
-        "2. Build `agent_discard_set.csv` from the final agent decisions only.",
+        "2. Build `agent_discard_set.csv` from the final review decisions only.",
         "3. Build `agent_kept_review_synthesis_table.csv` from rows kept with review notes.",
         "4. Build `next_pass_signal_inventory.csv` before the next scoring run.",
         "5. Build `deep_semantic_review_sample.md` and return a subset of the sample in the work summary.",

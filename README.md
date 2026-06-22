@@ -85,7 +85,9 @@ folder contains:
 - `agent_final_review_dashboard.html`
 - `agent_final_visual_findings_report.md`
 
-Before the final assistant response, preview the main artifacts so the user can follow the work. At minimum, inspect the findings essay, escalation packet, internal signal bank, dashboard, visual findings report, discard set, agent judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
+Before the final assistant response, preview the main artifacts so the user can follow the work. At minimum, inspect the findings essay, escalation packet, internal signal bank, dashboard, visual findings report, discard set, final judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
+
+The final assistant response must be client-facing and email-ready. It should read as one cohesive survey-quality review, not as a list of tool runs or internal agent steps. Use "we discovered," "we reviewed," and "we recommend" for conclusions. Do not write phrases such as "the agent final pass" or "the agent reviewed" in client-facing copy unless the user asks for internal implementation detail.
 
 The final assistant response must include:
 
@@ -95,6 +97,8 @@ The final assistant response must include:
 - brief natural-language descriptions of the important artifacts and where to open them
 - a statement that every required artifact was verified, or a precise list of missing or inconclusive items
 - a short note on what should feed the next first-pass analysis
+
+The response should be ready to paste into a client email after removing local file paths if needed. It should summarize what was found, what should be done, and why the evidence supports the recommendation.
 
 Use `next_pass_signal_inventory.csv` and `next_pass_first_pass_config.json`
 before the next scoring run. These files record which signals should be scored,

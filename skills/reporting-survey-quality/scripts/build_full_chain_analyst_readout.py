@@ -299,7 +299,7 @@ def write_memo(run_dir: Path, examples: pd.DataFrame) -> None:
         "",
         "This memo is the human-facing reasoning layer for the full response-chain review. The scoring criteria narrowed the review list. The critic-verifier then read the stitched response chain and decided whether the row still had a semantic basis for discard.",
         "",
-        f"Agent-reviewed rows: {reviewed_count}. Final discards: {discard_count}. Programmatic discard recommendations rescued by critic verification: {rescued}.",
+        f"Rows reviewed in detail: {reviewed_count}. Recommended exclusions: {discard_count}. Programmatic discard recommendations rescued by full-chain review: {rescued}.",
         "",
         "## What the best chains show",
         "",
@@ -355,7 +355,7 @@ def write_memo(run_dir: Path, examples: pd.DataFrame) -> None:
         [
             "## Workflow learning",
             "",
-            "The workflow succeeds only when both parts are present. Pattern analysis finds the candidates and the recurring survey-design issues. Agentic reasoning reads the full chain, explains the meaning, rescues plausible answers, and leaves the human with a shorter and more useful review queue.",
+            "The workflow succeeds only when both parts are present. Pattern analysis finds the candidates and the recurring survey-design issues. Full-chain reasoning explains the meaning, rescues plausible answers, and leaves the human with a shorter and more useful review queue.",
             "",
             "A run that only emits scores, flags, charts, or raw tables is incomplete. The final package must include this prose interpretation so a PM can understand what the agent saw, why it trusted or rejected the row, and what should change before the next pass.",
             "",
