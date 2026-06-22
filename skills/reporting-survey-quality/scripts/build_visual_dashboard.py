@@ -125,6 +125,8 @@ def artifact_links(run_dir: Path) -> list[tuple[str, str]]:
         "agent_discard_set.csv",
         "agent_kept_review_synthesis.md",
         "agent_kept_review_synthesis_table.csv",
+        "full_chain_analyst_readout.md",
+        "full_chain_best_worst_examples.csv",
         "next_pass_signal_inventory.md",
         "next_pass_signal_inventory.csv",
         "next_pass_first_pass_config.json",

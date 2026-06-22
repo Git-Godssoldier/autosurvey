@@ -8,7 +8,7 @@ Real survey data does not arrive with clean labels. It arrives as Decipher expor
 
 For market research teams, that matters because data quality is part of the product. PMs already review completes closely, but AI-assisted workflows can still leave them spending an hour or more checking whether poor-quality respondents were missed. Opulent’s role is to make that loop faster, more consistent, and more auditable while preserving the PM’s authority over final business judgment.
 
-The system starts with raw, unannotated data. It profiles the export, discovers available analysis families, generates criteria with tags and rationale, proposes provisional weights only after inspecting the current evidence, uses scoring to find review candidates, gives every possible discard an extra semantic pass, and produces a cited dashboard and findings report. Later PM decisions become the measurement surface for improving the methodology, criteria, weights, escalation rules, and survey-question design.
+The system starts with raw, unannotated data. It profiles the export, discovers available analysis families, generates criteria with tags and rationale, proposes provisional weights only after inspecting the current evidence, uses scoring to find review candidates, gives every possible discard an extra semantic pass, and produces a cited dashboard and findings report. It also produces a prose analyst readout that explains the best and worst full response chains in plain language. Later PM decisions become the measurement surface for improving the methodology, criteria, weights, escalation rules, and survey-question design.
 
 This design follows the same broad pattern as self-improving agents: production traces reveal failures, those failures become eval targets, and the system improves through bounded, measurable changes rather than one-off prompt edits.[^openai-self-improving] It also borrows from AutoResearch thinking: discovery, validation, provenance, reporting, and revision are all first-class steps, not afterthoughts.[^autoresearch]
 
@@ -78,7 +78,9 @@ After the first pass, a PM may discard a row Opulent kept, keep a row Opulent tr
 
 The useful part is that the correction is now structured. Opulent can see which generated criterion fired, which tags were attached, what evidence triggered the score, what provisional weight was used, what the agent concluded, what the PM changed, and which final action was accepted. That converts PM review from a terminal clean-up step into a training signal for the next quality pass.
 
-The escalation rule is intentionally narrow. Scoring can route rows for review, but only the Opulent agent makes the final discard judgment. It investigates the review-tagged candidates, reads the relevant raw text and metadata, and writes a discard set only when the evidence supports throwing the row out. Rows that survive the extra pass are kept with recommendations, not buried. Those survivor patterns are aggregated into survey-design guidance: clearer prompts, structured reason codes, minimum exposure timers, better matrix design, better brand mapping, and stricter follow-up requirements when vague answers can be gamed.
+The escalation rule is intentionally narrow. Scoring can route rows for review, but only the Opulent agent makes the final discard judgment. It investigates the review-tagged candidates, reads the full response chain, looks for semantic counterevidence, and writes a discard set only when the evidence supports throwing the row out. Rows that survive the extra pass are kept with recommendations, not buried. Those survivor patterns are aggregated into survey-design guidance: clearer prompts, structured reason codes, minimum exposure timers, better matrix design, better brand mapping, and stricter follow-up requirements when vague answers can be gamed.
+
+This workflow fails if it becomes only programmatic execution. Scores, flags, clusters, and charts are the evidence layer. They are not the final product. The final product must include agentic prose analysis that tells the human what the agent saw, why it trusted or rejected the row, where the static checks were misleading, and what the next pass should learn.
 
 This distinction matters. A keyword mismatch can be useful as a discovery signal, but it should not become the final semantic decision. A single straightlined matrix can be useful as a review signal, but it should not automatically remove a respondent when open-ended context is recoverable. A short duration can be useful as a timing signal, but it should not decide the case without corroborating evidence.
 
@@ -100,6 +102,7 @@ Each run produces a trace:
 - discard-candidate escalation routing
 - agent discard set
 - recommended actions
+- full-chain analyst readout with best and worst examples
 - PM final actions when available
 - methodology config version
 - cited final dashboard and findings report
@@ -169,6 +172,8 @@ The practical task environment is small:
 |   +-- agent_discard_set.csv
 |   +-- agent_kept_review_synthesis.md
 |   +-- agent_kept_review_synthesis_table.csv
+|   +-- full_chain_analyst_readout.md
+|   +-- full_chain_best_worst_examples.csv
 |   +-- methodology_config.json
 |   +-- quality_report.md
 |   +-- pm_quality_brief.md
@@ -184,6 +189,7 @@ The final reporting step is part of the method, not a presentation extra. Every 
 - a PM operations report with rows by action, severity, criterion, evidence, escalation owner, and semantic rationale
 - a client-facing summary with aggregate counts and defensible language
 - a final visual review package with charts, dashboards, citations, semantic decision tables, generated criteria, response analysis criteria, and survey-question recommendations
+- a full-chain analyst readout that explains the strongest and weakest examples in prose and calls out where the workflow should challenge itself
 
 The dashboard should be designed like an executive research artifact. It should use clear hierarchy, restrained color, figure captions, source notes, trend charts, cluster plots, pie charts, stacked bars, supplier/source views, and readable tables. The writing should use plain language: what the agent read, what it decided, and why the decision is defensible.[^cbre][^plain-writing][^recharts][^open-design]
 

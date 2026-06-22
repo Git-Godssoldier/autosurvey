@@ -43,6 +43,7 @@ Produce three report layers:
    - dataset observations section with a cited list of semantic patterns, trend findings, supplier/source patterns, and survey-design implications
    - structured discard table with agent rationale and source evidence
    - full semantic decision table for all rows the agent investigated, including the number of fields reviewed from the stitched full response chain, programmatic discard recommendation, verifier counterevidence, and semantic discard basis
+   - full-chain analyst readout that turns best and worst response-chain examples into readable prose, not just tables
    - kept-review synthesis table with survey-question and parameter recommendations
    - next-pass signal inventory that states what should change before the next first-pass scoring run
    - deep semantic review sample that shows a subset of reviewed rows with the full reasoning and next-pass learning
@@ -70,6 +71,8 @@ Use outputs from `run_quality_loop.py`:
 - `agent_discard_set.csv`
 - `agent_kept_review_synthesis.md`
 - `agent_kept_review_synthesis_table.csv`
+- `full_chain_analyst_readout.md`
+- `full_chain_best_worst_examples.csv`
 - `next_pass_signal_inventory.csv`
 - `next_pass_signal_inventory.md`
 - `next_pass_first_pass_config.json`
@@ -109,6 +112,13 @@ python3 scripts/build_agent_review_artifacts.py \
   --run-dir /path/to/outputs/rubric-evolution-seed
 ```
 
+Build the full-chain analyst readout:
+
+```bash
+python3 scripts/build_full_chain_analyst_readout.py \
+  --run-dir /path/to/outputs/rubric-evolution-seed
+```
+
 Then:
 
 ```bash
@@ -132,6 +142,8 @@ python3 scripts/build_visual_dashboard.py \
 - Include the stitched question chain and full response chain before final semantic review. The final agent judgment table must carry `response_chain_field_count` and `full_response_chain`, and the final discard decision must be based on that chain plus the surfaced evidence.
 - Treat scoring criteria as the initial case file. The final agent layer must act as a critic and verifier that can supersede static checks when the full chain gives a meaningful semantic explanation.
 - Show verifier counterevidence and semantic discard basis for final decisions. A row should not be discarded only because a programmatic check fired.
+- Produce readable prose analysis for the best and worst full response chains. The prose must explain what the agent saw, why strong rows are strong, why bad rows remain bad after full-chain review, and where the workflow should challenge itself.
+- Do not treat generated tables, charts, or flags as the final communication layer. They support analysis, but the report must include agent-written interpretation for the human reviewer.
 - Include one row per triggered criterion in the evidence table so PMs can audit all criteria, observations, explanations, second-pass disposition, agent semantic analysis, survivor/discard rationale, and rationales.
 - Treat annotation text as an Opulent semantic-judgment layer, not a deterministic score explanation. Reports should show what the response pattern means and why the recommendation is trustworthy.
 - For raw-data runs, include discovery notes from `discovery_profiles.json`.

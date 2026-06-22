@@ -52,6 +52,9 @@ python3 skills/reporting-survey-quality/scripts/build_independent_full_response_
 python3 skills/reporting-survey-quality/scripts/build_agent_review_artifacts.py \
   --run-dir /path/to/private_outputs/run
 
+python3 skills/reporting-survey-quality/scripts/build_full_chain_analyst_readout.py \
+  --run-dir /path/to/private_outputs/run
+
 python3 skills/reporting-survey-quality/scripts/build_next_pass_review_artifacts.py \
   --run-dir /path/to/private_outputs/run
 
@@ -69,6 +72,8 @@ folder contains:
 - `agent_review_judgment_table.csv`
 - `agent_discard_set.csv`
 - `agent_kept_review_synthesis_table.csv`
+- `full_chain_analyst_readout.md`
+- `full_chain_best_worst_examples.csv`
 - `next_pass_signal_inventory.csv`
 - `next_pass_first_pass_config.json`
 - `deep_semantic_review_sample.md`

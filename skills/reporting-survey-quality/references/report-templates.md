@@ -81,6 +81,8 @@ Sections:
    - agent review judgment table
    - agent discard set
    - kept-review synthesis table
+   - full-chain analyst readout
+   - full-chain best and worst examples table
    - next-pass signal inventory
    - next-pass first-pass config
    - deep semantic review sample
@@ -95,6 +97,7 @@ Sections:
    - next-pass signals to feed into the next first-pass analysis
    - deep semantic sample with row-level reasoning and learning for the next pass
    - independent full-response audit comparing all source rows to autosurvey decisions
+   - full-chain analyst readout explaining the best and worst examples in prose
    - deep findings memo with final interpretation and workflow audit
    - final guidance on what to discard, what to keep, and what to improve in the survey instrument
 
@@ -167,6 +170,35 @@ Sections:
 - discard or keep rationale
 - next step
 - respondent metadata and observed evidence
+- full response chain field count
+- programmatic discard recommendation
+- verifier counterevidence
+- semantic discard basis
+
+`full_chain_analyst_readout.md` should include:
+
+- a plain-language read-this-first section
+- a summary of what the best full response chains show
+- a summary of what the worst full response chains show
+- readable answer excerpts, not raw coded chain dumps
+- explicit judgment about why strong rows are strong
+- explicit judgment about why bad rows remain bad after full-chain review
+- callouts where the workflow should challenge or revise itself
+- workflow learning for the next pass
+
+`full_chain_best_worst_examples.csv` should include:
+
+- respondent key
+- best or worst group
+- selection type
+- rank basis
+- final agent decision
+- review theme
+- open-end focus
+- verifier counterevidence
+- semantic discard basis
+- response chain field count
+- full response chain
 
 `agent_kept_review_synthesis_table.csv` should include:
 

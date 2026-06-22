@@ -55,6 +55,7 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - `agent_review_judgment_table.csv`: all review-tagged rows with agent decisions.
    - `agent_discard_set.csv`: only rows the agent judged should be escalated for removal.
    - `agent_kept_review_synthesis.md` and `.csv`: synthesis of kept review-flagged candidates into survey-question and parameter improvements.
+   - `full_chain_analyst_readout.md` and `full_chain_best_worst_examples.csv`: readable prose analysis of the best and worst full response chains, with explicit reasoning about what the agent saw.
    - `next_pass_signal_inventory.csv`: critical signals that should shape the next first-pass analysis.
    - `next_pass_first_pass_config.json`: proposed next-pass rules, evidence needs, and escalation guardrails.
    - `deep_semantic_review_sample.md`: a small set of reviewed rows with deeper semantic reasoning and next-pass learning.
@@ -74,6 +75,7 @@ Each run must produce:
 - generated action thresholds
 - second-pass disposition and discard-only escalation routing
 - agent-generated semantic annotations for escalations and survivor decisions
+- prose analyst readout that blends pattern evidence with full-chain agent reasoning
 - next-pass signal inventory from agent-reviewed rows
 - deep semantic review sample for a subset of reviewed rows
 - evaluation metrics when adjudicated labels exist
@@ -107,6 +109,8 @@ If the workbook already contains `Respondent Flags` but lacks raw helper columns
 Generate annotations as a separate Opulent judgment pass after scoring and second-pass disposition. The annotation pass should use the score, tags, source evidence, respondent metadata, and open-ended text context, but it should not simply restate deterministic criteria.
 
 The final review layer must act as a critic and verifier, not as a rubber stamp for criteria. Static checks create the case file. The agent then reads the full response chain, looks for benign explanations, expressive language, recoverable context, and semantic patterns that static rules cannot see, and only then decides whether discard is justified. For example, repeated characters or punctuation should not trigger discard when the full answer is an enthusiastic or spirited but meaningful response.
+
+The workflow fails if it stops at programmatic execution. Scores, flags, tables, and charts are only the evidence substrate. The deliverable must include prose analysis that explains the patterns, gives examples, challenges weak discard calls, and teaches the next pass what should change.
 
 For each row with evidence, especially every possible `discard_candidate`, write:
 
