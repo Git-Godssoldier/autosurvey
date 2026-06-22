@@ -20,6 +20,12 @@ SUBSTANTIVE_TERMS = re.compile(
     r"deal|purchase|checkout|fee|fees|client|customer|labor|worker|blueprint|takeoff|job",
     re.I,
 )
+CATEGORY_CONTEXT_TERMS = re.compile(
+    r"gas|fuel|pump|station|convenience|store|racetrac|raceway|7-eleven|circle k|quiktrip|\\bqt\\b|wawa|"
+    r"speedway|casey|murphy|food|drink|coffee|snack|slurpee|bathroom|restroom|parking|clean|staff|"
+    r"employee|cashier|receipt|reward|loyalty|app|checkout|price|cheap|cheaper|deal|inside|road|visit",
+    re.I,
+)
 PROJECT_ANSWER_TERMS = re.compile(
     r"paint|painting|repaint|floor|flooring|tile|kitchen|bedroom|bathroom|basement|porch|deck|gazebo|"
     r"fireplace|fire place|driveway|sidewalk|patio|padio|pool|pond|cabinet|countertop|sink|stove|"
@@ -39,6 +45,11 @@ NON_RESPONSE_TERMS = re.compile(
 ABUSIVE_OR_HOSTILE_TERMS = re.compile(r"fuck|shit|piece[s]? of shit", re.I)
 PLACEHOLDER_FRAGMENT_RE = re.compile(
     r"\b(?:test|asdf|qwerty|n/?a|dont know|don't know|no idea|not sure)\b",
+    re.I,
+)
+CONTACT_OR_MISPLACED_TEXT_RE = re.compile(
+    r"\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b|\b\d{3,5}\s+[A-Za-z0-9 .'-]+(?:rd|road|st|street|ave|avenue|dr|drive|ln|lane|blvd|boulevard)\b|"
+    r"\bgood morning my love\b|\bsend me a picture\b|\bthanks for the update\b",
     re.I,
 )
 
@@ -77,6 +88,9 @@ def chain_segments(full_chain: str) -> list[str]:
 
 
 def chain_answer_text(full_chain: str) -> str:
+    parsed = parsed_chain_segments(full_chain)
+    if parsed:
+        return " ".join(segment.get("answer", "") for segment in parsed)
     answers: list[str] = []
     for segment in chain_segments(full_chain):
         if ": " in segment:
@@ -153,6 +167,15 @@ def has_substantive_context(value: str) -> bool:
     return bool(SUBSTANTIVE_TERMS.search(value))
 
 
+def has_meaningful_narrative_context(value: str) -> bool:
+    clean = re.sub(r"\s+", " ", value).strip()
+    if not clean:
+        return False
+    if severe_weak_narrative(clean) or gibberish_or_misplaced_text(clean):
+        return False
+    return bool(SUBSTANTIVE_TERMS.search(clean) or CATEGORY_CONTEXT_TERMS.search(clean))
+
+
 def has_plausible_project_answer(value: str) -> bool:
     return bool(PROJECT_ANSWER_TERMS.search(value))
 
@@ -180,6 +203,38 @@ def severe_weak_narrative(value: str) -> bool:
     return False
 
 
+def gibberish_or_misplaced_text(value: str) -> bool:
+    clean = re.sub(r"\s+", " ", value).strip()
+    if not clean:
+        return True
+    if CONTACT_OR_MISPLACED_TEXT_RE.search(clean):
+        return True
+    if has_substantive_context(clean):
+        return False
+    words = re.findall(r"[A-Za-z0-9']+", clean)
+    if not words:
+        return True
+    short_words = sum(1 for word in words if len(word) <= 3)
+    vowel_words = sum(1 for word in words if re.search(r"[aeiouy]", word, re.I))
+    if len(words) <= 6 and short_words >= max(3, len(words) - 1):
+        return True
+    if len(words) <= 6 and vowel_words <= max(1, len(words) // 3):
+        return True
+    return False
+
+
+def narrative_answers_from_chain(full_chain: str) -> list[str]:
+    answers: list[str] = []
+    for segment in parsed_chain_segments(full_chain):
+        role = segment.get("role", "")
+        column = segment.get("column", "")
+        if "narrative_open_end" in role or re.search(r"^(qcoe1|q10|outro)$", column, re.I):
+            answer = text(segment.get("answer"))
+            if answer:
+                answers.append(answer)
+    return answers
+
+
 def semantic_verifier_profile(audit_row: pd.Series, review_row: pd.Series, raw_text: str, full_chain: str) -> dict[str, object]:
     if not full_chain:
         raise ValueError("Final agent review requires full_response_chain from the independent audit.")
@@ -191,12 +246,15 @@ def semantic_verifier_profile(audit_row: pd.Series, review_row: pd.Series, raw_t
     second_pass = text(review_row.get("second_pass_decision"))
     segments = chain_segments(full_chain)
     answer_text = chain_answer_text(full_chain)
+    narrative_answers = narrative_answers_from_chain(full_chain)
+    narrative_answer_text = " ".join(narrative_answers)
     combined_text = f"{raw_text} {answer_text}"
 
     programmatic_discard = action == "review_for_possible_discard" or second_pass == "discard_candidate"
     counterevidence: list[str] = []
     discard_basis: list[str] = []
     patterns: list[str] = []
+    meaningful_narratives = [item for item in narrative_answers if has_meaningful_narrative_context(item)]
 
     expressive_repetition = repeated_character_expression(raw_text) or repeated_character_expression(answer_text)
     if expressive_repetition:
@@ -206,10 +264,8 @@ def semantic_verifier_profile(audit_row: pd.Series, review_row: pd.Series, raw_t
 
     if narrative in {"topic_relevant", "substantive_narrative", "product_relevant"}:
         counterevidence.append("The audited narrative is usable in context.")
-    if has_substantive_context(combined_text):
-        counterevidence.append("The full response chain contains substantive project, product, role, or evaluation terms.")
-    if has_plausible_project_answer(combined_text):
-        counterevidence.append("The answer names a plausible project, product use, or home-improvement activity.")
+    if meaningful_narratives:
+        counterevidence.append("The full response chain contains a concrete store, product, service, or evaluation answer.")
     if len(segments) >= 8:
         patterns.append(f"The verifier reviewed nonempty answers across {len(segments)} fields before judging discard.")
 
@@ -217,6 +273,15 @@ def semantic_verifier_profile(audit_row: pd.Series, review_row: pd.Series, raw_t
         discard_basis.append("The reviewed text contains hostile or abusive language.")
     if NON_RESPONSE_TERMS.fullmatch(raw_text.strip()):
         discard_basis.append("The reviewed text is a direct non-response.")
+    weak_narratives = [item for item in narrative_answers if severe_weak_narrative(item) or gibberish_or_misplaced_text(item)]
+    if len(weak_narratives) >= 2 and not counterevidence:
+        discard_basis.append("Multiple critical narrative answers are non-responsive, gibberish, or misplaced text.")
+    if (severe_weak_narrative(raw_text) or gibberish_or_misplaced_text(raw_text)) and "speed_risk" in risks and not counterevidence:
+        discard_basis.append("Speed combines with a severely weak or misplaced critical narrative answer and no full-chain counterevidence was found.")
+    if "speed_risk" in risks and not meaningful_narratives and not counterevidence:
+        discard_basis.append("The row was fast and the focused response chain did not contain a meaningful narrative answer.")
+    if CONTACT_OR_MISPLACED_TEXT_RE.search(narrative_answer_text) and "speed_risk" in risks and not counterevidence:
+        discard_basis.append("Contact information or unrelated conversational text appears in critical narrative fields during a fast complete.")
     if narrative == "nonsensical_or_repetitive" and not counterevidence:
         discard_basis.append("The narrative is nonsensical or repetitive and the full chain does not recover useful context.")
     if "narrative_discard_risk" in risks and not counterevidence:
