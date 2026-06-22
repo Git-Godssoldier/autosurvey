@@ -398,6 +398,11 @@ def semantic_rows(judgments: pd.DataFrame) -> pd.DataFrame:
         "raw_open_end_text",
         "response_chain_field_count",
         "full_response_chain",
+        "programmatic_discard_recommendation",
+        "agent_verifier_mode",
+        "verifier_counterevidence",
+        "semantic_discard_basis",
+        "semantic_pattern_findings",
         "agent_semantic_judgment",
         "agent_linguistic_fluency_assessment",
         "agent_trust_rationale",
@@ -417,6 +422,8 @@ def semantic_card_html(row: pd.Series) -> str:
         f"<div class='memo-meta'>{html.escape(decision)} | score {html.escape(text(row.get('computed_score')))} | qtime {html.escape(text(row.get('qtime')))}</div>"
         f"<p><strong>Theme.</strong> {html.escape(text(row.get('review_theme')))}</p>"
         f"<p><strong>Full chain fields.</strong> {html.escape(text(row.get('response_chain_field_count')))}</p>"
+        f"<p><strong>Verifier counterevidence.</strong> {html.escape(plain_truncate(row.get('verifier_counterevidence'), 360))}</p>"
+        f"<p><strong>Semantic discard basis.</strong> {html.escape(plain_truncate(row.get('semantic_discard_basis'), 360))}</p>"
         f"<p><strong>Response chain preview.</strong> {html.escape(plain_truncate(row.get('full_response_chain'), 520))}</p>"
         f"<p><strong>Semantic judgment.</strong> {html.escape(plain_truncate(row.get('agent_semantic_judgment'), 520))}</p>"
         f"<p><strong>Language quality.</strong> {html.escape(plain_truncate(row.get('agent_linguistic_fluency_assessment'), 360))}</p>"
@@ -675,7 +682,7 @@ def main() -> None:
         discard_cards or "<p>No discard rows were found.</p>",
         "</section>",
         "<section class='panel'><h2>All agent-reviewed rows</h2>",
-        table_html(semantic, ["respondent_key", "agent_final_decision", "review_theme", "supplier", "qtime", "computed_score", "response_chain_field_count", "observed_evidence", "raw_open_end_text", "agent_semantic_judgment", "agent_trust_rationale", "agent_recommended_next_step"], 30).replace("<table>", "<table class='semantic-table'>"),
+        table_html(semantic, ["respondent_key", "agent_final_decision", "review_theme", "supplier", "qtime", "computed_score", "programmatic_discard_recommendation", "response_chain_field_count", "verifier_counterevidence", "semantic_discard_basis", "agent_semantic_judgment", "agent_trust_rationale", "agent_recommended_next_step"], 30).replace("<table>", "<table class='semantic-table'>"),
         "</section>",
         "<h2 class='section-title'>Kept rows that improve the survey</h2>",
         "<section class='memo-grid'>",
@@ -761,7 +768,7 @@ def main() -> None:
         *markdown_table(discard, ["respondent_key", "agent_discard_rationale", "observed_evidence", "supplier", "qtime", "agent_semantic_judgment", "agent_trust_rationale"], 10),
         "",
         "## All semantic decisions",
-        *markdown_table(semantic, ["respondent_key", "agent_final_decision", "review_theme", "supplier", "qtime", "computed_score", "response_chain_field_count", "observed_evidence", "raw_open_end_text", "agent_semantic_judgment", "agent_trust_rationale"], 30),
+        *markdown_table(semantic, ["respondent_key", "agent_final_decision", "review_theme", "supplier", "qtime", "computed_score", "programmatic_discard_recommendation", "response_chain_field_count", "verifier_counterevidence", "semantic_discard_basis", "agent_semantic_judgment", "agent_trust_rationale"], 30),
         "",
         "## Survey improvement synthesis",
         *markdown_table(kept_synthesis, ["theme", "kept_review_rows", "why_kept", "survey_question_or_parameter_recommendation", "suggested_quality_parameter"], 10),

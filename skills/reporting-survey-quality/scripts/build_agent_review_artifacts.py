@@ -5,9 +5,35 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 import pandas as pd
+
+
+SUBSTANTIVE_TERMS = re.compile(
+    r"cost|price|quality|durab|fit|function|feature|design|style|brand|safety|security|privacy|"
+    r"comfort|convenien|easy|efficient|energy|warrant|service|support|install|maintain|material|"
+    r"performance|availability|trust|recommend|contract|construction|repair|project|home|store|supplier",
+    re.I,
+)
+PROJECT_ANSWER_TERMS = re.compile(
+    r"paint|painting|repaint|floor|flooring|tile|kitchen|bedroom|bathroom|basement|porch|deck|gazebo|"
+    r"fireplace|fire place|driveway|sidewalk|patio|padio|pool|pond|cabinet|countertop|sink|stove|"
+    r"microwave|appliance|renovat|remodel|replace|replacing|redo|built|building|added|extending|room|"
+    r"outdoor|garden|barbecue|bbq|wood|concrete|paving|front porch|interior",
+    re.I,
+)
+ENTHUSIASM_TERMS = re.compile(
+    r"love|loved|like|liked|great|excellent|awesome|amazing|good|nice|interesting|helpful|perfect|best|"
+    r"excited|enthusiastic|yes|wow|cool",
+    re.I,
+)
+NON_RESPONSE_TERMS = re.compile(
+    r"^(na|n/a|none|nothing|no comment|dont know|don't know|no idea|not sure|asdf|qwerty|test)$",
+    re.I,
+)
+ABUSIVE_OR_HOSTILE_TERMS = re.compile(r"fuck|shit|piece[s]? of shit", re.I)
 
 
 def text(value: object, default: str = "") -> str:
@@ -37,6 +63,107 @@ def row_from(indexed: pd.DataFrame, key: str) -> pd.Series:
     if isinstance(row, pd.DataFrame):
         return row.iloc[0]
     return row
+
+
+def chain_segments(full_chain: str) -> list[str]:
+    return [item.strip() for item in full_chain.split("||") if item.strip()]
+
+
+def chain_answer_text(full_chain: str) -> str:
+    answers: list[str] = []
+    for segment in chain_segments(full_chain):
+        if ": " in segment:
+            answers.append(segment.split(": ", 1)[1])
+        else:
+            answers.append(segment)
+    return " ".join(answers)
+
+
+def repeated_character_expression(value: str) -> bool:
+    return bool(re.search(r"([a-z!?])\1{2,}", value.lower()))
+
+
+def has_substantive_context(value: str) -> bool:
+    return bool(SUBSTANTIVE_TERMS.search(value))
+
+
+def has_plausible_project_answer(value: str) -> bool:
+    return bool(PROJECT_ANSWER_TERMS.search(value))
+
+
+def has_enthusiastic_context(value: str) -> bool:
+    return bool(ENTHUSIASM_TERMS.search(value))
+
+
+def semantic_verifier_profile(audit_row: pd.Series, review_row: pd.Series, raw_text: str, full_chain: str) -> dict[str, object]:
+    if not full_chain:
+        raise ValueError("Final agent review requires full_response_chain from the independent audit.")
+
+    criteria = text(review_row.get("criteria_triggered"))
+    narrative = text(audit_row.get("narrative_quality"))
+    risks = text(audit_row.get("independent_risk_factors"))
+    action = text(audit_row.get("independent_suggested_action"))
+    second_pass = text(review_row.get("second_pass_decision"))
+    segments = chain_segments(full_chain)
+    answer_text = chain_answer_text(full_chain)
+    combined_text = f"{raw_text} {answer_text}"
+
+    programmatic_discard = action == "review_for_possible_discard" or second_pass == "discard_candidate"
+    counterevidence: list[str] = []
+    discard_basis: list[str] = []
+    patterns: list[str] = []
+
+    expressive_repetition = repeated_character_expression(raw_text) or repeated_character_expression(answer_text)
+    if expressive_repetition:
+        patterns.append("duplicate-character or repeated-punctuation expression")
+        if has_enthusiastic_context(combined_text) and has_substantive_context(combined_text):
+            counterevidence.append("Repeated characters appear in an enthusiastic or spirited answer with substantive context.")
+
+    if narrative in {"topic_relevant", "substantive_narrative", "product_relevant"}:
+        counterevidence.append("The audited narrative is usable in context.")
+    if has_substantive_context(combined_text):
+        counterevidence.append("The full response chain contains substantive project, product, role, or evaluation terms.")
+    if has_plausible_project_answer(combined_text):
+        counterevidence.append("The answer names a plausible project, product use, or home-improvement activity.")
+    if len(segments) >= 8:
+        patterns.append(f"The verifier reviewed nonempty answers across {len(segments)} fields before judging discard.")
+
+    if ABUSIVE_OR_HOSTILE_TERMS.search(raw_text):
+        discard_basis.append("The reviewed text contains hostile or abusive language.")
+    if NON_RESPONSE_TERMS.fullmatch(raw_text.strip()):
+        discard_basis.append("The reviewed text is a direct non-response.")
+    if narrative == "nonsensical_or_repetitive" and not counterevidence:
+        discard_basis.append("The narrative is nonsensical or repetitive and the full chain does not recover useful context.")
+    if "narrative_discard_risk" in risks and not counterevidence:
+        discard_basis.append("The audit found a narrative discard risk and the full chain did not provide a benign reading.")
+    if "narrative_quality_risk" in risks and "speed_risk" in risks and not counterevidence:
+        discard_basis.append("Weak narrative evidence combines with speed and the full chain does not recover usable context.")
+    if "role_fit_risk" in risks and not counterevidence:
+        discard_basis.append("Role fit appears invalid and the full chain does not provide qualifying context.")
+    if "duplicate_ip" in criteria and "matrix_straightline" in criteria and not counterevidence:
+        discard_basis.append("Independent duplicate evidence combines with straightlining and no full-chain counterevidence was found.")
+    if "matrix_straightline" in criteria and "low_effort_open_end" in criteria and not counterevidence:
+        discard_basis.append("Straightlining combines with low-effort text and no full-chain counterevidence was found.")
+
+    if not programmatic_discard:
+        final = "keep_with_review_note"
+        reason = "Static criteria routed the row for review, but they did not recommend discard."
+    elif discard_basis:
+        final = "discard"
+        reason = "The verifier found a semantic discard basis after reading the full response chain."
+    else:
+        final = "keep_with_review_note"
+        reason = "The verifier did not find enough semantic evidence to support discard after reading the full response chain."
+
+    return {
+        "programmatic_discard_recommendation": programmatic_discard,
+        "agent_verifier_mode": "full_chain_critic_verifier",
+        "agent_final_decision": final,
+        "verifier_reason": reason,
+        "verifier_counterevidence": " ".join(counterevidence) if counterevidence else "No strong semantic counterevidence found.",
+        "semantic_discard_basis": " ".join(discard_basis) if discard_basis else "No semantic discard basis found after full-chain review.",
+        "semantic_pattern_findings": " ".join(patterns) if patterns else "No special semantic expression pattern found.",
+    }
 
 
 def review_theme(key: str, audit_row: pd.Series, review_row: pd.Series) -> str:
@@ -103,32 +230,26 @@ def review_theme(key: str, audit_row: pd.Series, review_row: pd.Series) -> str:
     return "general review signal kept for PM calibration"
 
 
-def final_decision(audit_row: pd.Series, review_row: pd.Series, full_chain: str) -> str:
-    if not full_chain:
-        raise ValueError("Final agent review requires full_response_chain from the independent audit.")
-    if text(audit_row.get("independent_suggested_action")) == "review_for_possible_discard":
-        return "discard"
-    if text(review_row.get("second_pass_decision")) == "discard_candidate":
-        return "discard"
-    return "keep_with_review_note"
+def verified_theme(theme: str, decision: str) -> str:
+    if decision != "discard" and "discard candidate" in theme:
+        return theme.replace("discard candidate", "kept after critic verification")
+    return theme
 
 
-def semantic_judgment(key: str, decision: str, theme: str, raw_text: str, full_chain: str, audit_row: pd.Series) -> str:
+def semantic_judgment(key: str, decision: str, theme: str, raw_text: str, full_chain: str, audit_row: pd.Series, verifier: dict[str, object]) -> str:
     narrative = text(audit_row.get("narrative_quality"), "not_classified")
     risks = text(audit_row.get("independent_risk_factors"), "none")
     chain_note = f" Full response chain reviewed: {full_chain[:900]}"
     if decision == "discard":
         return (
-            f"Respondent {key} should stay in the discard queue. The full response does not give a usable answer for the field role. "
+            f"Respondent {key} should stay in the discard queue after critic verification. "
+            f"Semantic discard basis: {verifier['semantic_discard_basis']} "
             f"Narrative class: {narrative}. Risk factors: {risks}. Raw text reviewed: {raw_text}.{chain_note}"
         )
-    if narrative in {"topic_relevant", "substantive_narrative", "product_relevant"}:
-        return (
-            f"Keep respondent {key} with a review note. The row was routed by a candidate signal, but the full answer is usable in context. "
-            f"The next pass should treat this pattern as a routing signal unless another quality issue appears. Raw text reviewed: {raw_text}.{chain_note}"
-        )
     return (
-        f"Keep respondent {key} with a PM calibration note. The answer is weak, unclear, short, or generic, but it is not enough by itself for discard. "
+        f"Keep respondent {key} with a review note after critic verification. "
+        f"The static layer routed the row for review, but the verifier did not find a defensible semantic discard basis. "
+        f"Counterevidence: {verifier['verifier_counterevidence']} "
         f"Narrative class: {narrative}. Raw text reviewed: {raw_text}.{chain_note}"
     )
 
@@ -157,7 +278,11 @@ def next_step(decision: str, theme: str) -> str:
 
 def synthesis_for_theme(theme: str, group: pd.DataFrame) -> dict[str, object]:
     lower = theme.lower()
-    if "weak or unclear" in lower:
+    if "kept after critic verification" in lower:
+        why = "Static criteria suggested discard, but the verifier found recoverable semantic context in the full response chain."
+        recommendation = "Keep these cases as examples where final review must supersede programmatic checks after reading the full chain."
+        parameter = "Programmatic discard recommendations require critic-verifier confirmation before exclusion."
+    elif "weak or unclear" in lower:
         why = "Rows were weak or unclear but did not meet an automatic discard threshold without PM depth rules."
         recommendation = "Add PM examples of acceptable and unacceptable answers to the next first-pass context."
         parameter = "Weak narrative answers should remain PM calibration examples unless another strong signal appears."
@@ -224,8 +349,9 @@ def build(run_dir: Path) -> None:
         ar = row_from(audit_index, key)
         raw_text = text(ar.get("narrative_text")) or text(rr.get("observed_evidence"))
         full_chain = text(ar.get("full_response_chain"))
-        decision = final_decision(ar, rr, full_chain)
-        theme = review_theme(key, ar, rr)
+        verifier = semantic_verifier_profile(ar, rr, raw_text, full_chain)
+        decision = text(verifier.get("agent_final_decision"))
+        theme = verified_theme(review_theme(key, ar, rr), decision)
         observed = text(rr.get("observed_evidence")) or f"{text(ar.get('narrative_column'), 'narrative')}: {raw_text}"
         rows.append(
             {
@@ -248,9 +374,15 @@ def build(run_dir: Path) -> None:
                 "raw_open_end_text": raw_text,
                 "response_chain_field_count": ar.get("response_chain_field_count", ""),
                 "full_response_chain": full_chain,
-                "agent_semantic_judgment": semantic_judgment(key, decision, theme, raw_text, full_chain, ar),
+                "programmatic_discard_recommendation": verifier["programmatic_discard_recommendation"],
+                "agent_verifier_mode": verifier["agent_verifier_mode"],
+                "verifier_reason": verifier["verifier_reason"],
+                "verifier_counterevidence": verifier["verifier_counterevidence"],
+                "semantic_discard_basis": verifier["semantic_discard_basis"],
+                "semantic_pattern_findings": verifier["semantic_pattern_findings"],
+                "agent_semantic_judgment": semantic_judgment(key, decision, theme, raw_text, full_chain, ar, verifier),
                 "agent_linguistic_fluency_assessment": language_assessment(decision, raw_text),
-                "agent_trust_rationale": f"The decision uses the stitched full response chain, field role, timing, and independent audit classification. Theme: {theme}.",
+                "agent_trust_rationale": f"The decision uses the stitched full response chain, field role, timing, independent audit classification, and critic verifier result. Theme: {theme}.",
                 "agent_recommended_next_step": next_step(decision, theme),
                 "agent_discard_rationale": "The row has converging evidence for exclusion review." if decision == "discard" else "",
                 "independent_narrative_quality": text(ar.get("narrative_quality")),
@@ -324,6 +456,7 @@ def build(run_dir: Path) -> None:
         "## Workflow notes",
         "",
         "The workflow explored field roles and stitched each respondent's full response chain before final judgment.",
+        "The final review used the criteria as a case file, then applied a critic-verifier pass that could keep rows when the full chain gave a meaningful semantic explanation.",
         "The agent kept weak, short, speed-only, and keyword-mismatch rows unless another strong signal supported escalation.",
         "The kept rows are converted into next-pass recommendations so the next first pass has better context before scoring.",
         "",

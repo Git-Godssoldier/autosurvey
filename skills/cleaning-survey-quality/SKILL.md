@@ -106,12 +106,15 @@ If the workbook already contains `Respondent Flags` but lacks raw helper columns
 
 Generate annotations as a separate Opulent judgment pass after scoring and second-pass disposition. The annotation pass should use the score, tags, source evidence, respondent metadata, and open-ended text context, but it should not simply restate deterministic criteria.
 
+The final review layer must act as a critic and verifier, not as a rubber stamp for criteria. Static checks create the case file. The agent then reads the full response chain, looks for benign explanations, expressive language, recoverable context, and semantic patterns that static rules cannot see, and only then decides whether discard is justified. For example, repeated characters or punctuation should not trigger discard when the full answer is an enthusiastic or spirited but meaningful response.
+
 For each row with evidence, especially every possible `discard_candidate`, write:
 
 - `agent_semantic_analysis`: a concise but rich judgment about what the evidence means in context.
 - `agent_linguistic_fluency_assessment`: whether the respondent's language is fluent, generic, evasive, off-topic, low-information, or otherwise suspicious, without treating polish alone as quality.
 - `agent_trust_rationale`: why the recommendation is defensible from source evidence and not just a rigid score.
 - `agent_recommended_next_step`: what the PM or Data Quality Lead should do next.
+- verifier fields that show whether the programmatic layer recommended discard, what counterevidence the agent found, and what semantic basis remains for discard.
 
 Escalation annotations must give readers enough trust and depth that they can adjudicate the discard decision directly. They should not force the reader to reconstruct the reasoning from flags and points.
 
@@ -120,10 +123,12 @@ Semantic relevance and linguistic-quality calls must be made by the Opulent agen
 Before finalizing any text-driven discard:
 
 1. Read the stitched full response chain, including the prompt context for each answered field when available.
-2. Decide whether a reasonable PM would treat the answer as substantively off-topic or merely awkward/variant phrasing.
-3. Check whether the text concern independently strengthens another quality signal, such as straightlining or speed.
-4. Downgrade rows where semantic evidence is plausible or only weakly ambiguous; keep them with a survey-question recommendation instead.
-5. Escalate only rows where the agent can explain, in fluent business language, why the response should be discarded.
+2. Treat the criteria as the initial case file, not the final decision.
+3. Look for counterevidence, such as substantive answers elsewhere in the chain, enthusiastic or expressive wording, recoverable role context, or answers that are short but valid for the question.
+4. Decide whether a reasonable PM would treat the answer as substantively off-topic or merely awkward/variant phrasing.
+5. Check whether the text concern independently strengthens another quality signal, such as straightlining or speed.
+6. Downgrade rows where semantic evidence is plausible or only weakly ambiguous; keep them with a survey-question recommendation instead.
+7. Escalate only rows where the agent can explain, in fluent business language, why the response should be discarded after critic verification.
 
 ## Raw-Data Discovery
 

@@ -31,6 +31,12 @@ not available, use the ordered source columns. Then stitch each respondent's ful
 response chain from all nonempty answer fields. The final agent semantic review
 must review that full chain before it writes a structured discard decision.
 
+The final agent review is a critic and verifier layer. The criteria create the
+case file, but they do not decide discard on their own. The agent must look for
+semantic counterevidence in the full response chain, including meaningful but
+awkward wording, enthusiastic repeated characters, and short answers that are
+valid for the prompt.
+
 ```bash
 python3 skills/cleaning-survey-quality/scripts/run_quality_loop.py \
   --input-file /path/to/unannotated_export.xlsx \

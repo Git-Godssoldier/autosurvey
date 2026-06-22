@@ -42,7 +42,7 @@ Produce three report layers:
    - response analysis criteria section showing which criteria actually fired, how many rows they touched, and how to read each criterion
    - dataset observations section with a cited list of semantic patterns, trend findings, supplier/source patterns, and survey-design implications
    - structured discard table with agent rationale and source evidence
-   - full semantic decision table for all rows the agent investigated, including the number of fields reviewed from the stitched full response chain
+   - full semantic decision table for all rows the agent investigated, including the number of fields reviewed from the stitched full response chain, programmatic discard recommendation, verifier counterevidence, and semantic discard basis
    - kept-review synthesis table with survey-question and parameter recommendations
    - next-pass signal inventory that states what should change before the next first-pass scoring run
    - deep semantic review sample that shows a subset of reviewed rows with the full reasoning and next-pass learning
@@ -130,6 +130,8 @@ python3 scripts/build_visual_dashboard.py \
 - Include justifications for each scoring criterion.
 - Include respondent metadata in review tables wherever source fields are available.
 - Include the stitched question chain and full response chain before final semantic review. The final agent judgment table must carry `response_chain_field_count` and `full_response_chain`, and the final discard decision must be based on that chain plus the surfaced evidence.
+- Treat scoring criteria as the initial case file. The final agent layer must act as a critic and verifier that can supersede static checks when the full chain gives a meaningful semantic explanation.
+- Show verifier counterevidence and semantic discard basis for final decisions. A row should not be discarded only because a programmatic check fired.
 - Include one row per triggered criterion in the evidence table so PMs can audit all criteria, observations, explanations, second-pass disposition, agent semantic analysis, survivor/discard rationale, and rationales.
 - Treat annotation text as an Opulent semantic-judgment layer, not a deterministic score explanation. Reports should show what the response pattern means and why the recommendation is trustworthy.
 - For raw-data runs, include discovery notes from `discovery_profiles.json`.
