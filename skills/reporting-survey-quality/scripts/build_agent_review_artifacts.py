@@ -14,7 +14,10 @@ import pandas as pd
 SUBSTANTIVE_TERMS = re.compile(
     r"cost|price|quality|durab|fit|function|feature|design|style|brand|safety|security|privacy|"
     r"comfort|convenien|easy|efficient|energy|warrant|service|support|install|maintain|material|"
-    r"performance|availability|trust|recommend|contract|construction|repair|project|home|store|supplier",
+    r"performance|availability|inventory|stock|trust|recommend|contract|construction|repair|project|"
+    r"home|store|supplier|digital|software|tool|app|online|order|ordering|delivery|schedule|"
+    r"scheduling|communication|workflow|payment|invoice|estimate|bid|proposal|pricing|discount|"
+    r"deal|purchase|checkout|fee|fees|client|customer|labor|worker|blueprint|takeoff|job",
     re.I,
 )
 PROJECT_ANSWER_TERMS = re.compile(
@@ -34,6 +37,10 @@ NON_RESPONSE_TERMS = re.compile(
     re.I,
 )
 ABUSIVE_OR_HOSTILE_TERMS = re.compile(r"fuck|shit|piece[s]? of shit", re.I)
+PLACEHOLDER_FRAGMENT_RE = re.compile(
+    r"\b(?:test|asdf|qwerty|n/?a|dont know|don't know|no idea|not sure)\b",
+    re.I,
+)
 
 
 def text(value: object, default: str = "") -> str:
@@ -154,6 +161,25 @@ def has_enthusiastic_context(value: str) -> bool:
     return bool(ENTHUSIASM_TERMS.search(value))
 
 
+def severe_weak_narrative(value: str) -> bool:
+    clean = re.sub(r"\s+", " ", value).strip()
+    if not clean:
+        return True
+    if NON_RESPONSE_TERMS.fullmatch(clean):
+        return True
+    if PLACEHOLDER_FRAGMENT_RE.search(clean) and not has_substantive_context(clean):
+        return True
+    words = re.findall(r"[A-Za-z0-9']+", clean)
+    repeated_tokens = [word.lower() for word in words if len(word) > 2]
+    if repeated_tokens:
+        most_common = max(repeated_tokens.count(word) for word in set(repeated_tokens))
+        if most_common >= 3 and len(set(repeated_tokens)) <= 3 and not has_substantive_context(clean):
+            return True
+    if re.search(r"(.)\1{4,}", clean) and not has_substantive_context(clean):
+        return True
+    return False
+
+
 def semantic_verifier_profile(audit_row: pd.Series, review_row: pd.Series, raw_text: str, full_chain: str) -> dict[str, object]:
     if not full_chain:
         raise ValueError("Final agent review requires full_response_chain from the independent audit.")
@@ -195,8 +221,8 @@ def semantic_verifier_profile(audit_row: pd.Series, review_row: pd.Series, raw_t
         discard_basis.append("The narrative is nonsensical or repetitive and the full chain does not recover useful context.")
     if "narrative_discard_risk" in risks and not counterevidence:
         discard_basis.append("The audit found a narrative discard risk and the full chain did not provide a benign reading.")
-    if "narrative_quality_risk" in risks and "speed_risk" in risks and not counterevidence:
-        discard_basis.append("Weak narrative evidence combines with speed and the full chain does not recover usable context.")
+    if "narrative_quality_risk" in risks and "speed_risk" in risks and severe_weak_narrative(raw_text) and not counterevidence:
+        discard_basis.append("Severely weak narrative evidence combines with speed and the full chain does not recover usable context.")
     if "role_fit_risk" in risks and not counterevidence:
         discard_basis.append("Role fit appears invalid and the full chain does not provide qualifying context.")
     if "duplicate_ip" in criteria and "matrix_straightline" in criteria and not counterevidence:
