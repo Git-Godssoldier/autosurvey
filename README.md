@@ -31,6 +31,14 @@ not available, use the ordered source columns. Then stitch each respondent's ful
 response chain from all nonempty answer fields. The final agent semantic review
 must review that full chain before it writes a structured discard decision.
 
+The run must audit the whole respondent population, not only the rows surfaced
+by the first-pass scorer. `independent_full_response_audit.csv` must contain one
+row for every source respondent and must carry the stitched full response chain
+for each row. Signal discovery can decide which rows need deeper narrative
+writeups first, but it cannot replace the all-row read. If source rows,
+`row_scores.csv`, `respondent_review_table.csv`, and
+`independent_full_response_audit.csv` do not reconcile, the run is blocked.
+
 The final agent review is a critic and verifier layer. The criteria create the
 case file, but they do not decide discard on their own. The agent must look for
 semantic counterevidence in the full response chain, including meaningful but
@@ -104,6 +112,13 @@ Use `next_pass_signal_inventory.csv` and `next_pass_first_pass_config.json`
 before the next scoring run. These files record which signals should be scored,
 which signals should stay review-only, and what extra evidence is needed.
 
+Each cycle starts by reading the prior findings essay, escalation packet,
+internal signal bank, and next-pass inventory. The next run should carry forward
+promoted signals, keep false-positive guardrails active, and retire signals that
+proved misleading. Continue dataset cycles until all artifact gates pass, the
+dashboard is readable, the prose is client-ready, every row has been audited,
+and any remaining open questions are true PM or client judgment calls.
+
 Kept review rows must feed the next run. The workflow now treats these patterns
 as standard signals on any dataset:
 
@@ -115,3 +130,9 @@ as standard signals on any dataset:
 - Keyword topic mismatch is only review routing until semantic relevance is
   confirmed.
 - Survey-feedback wording is classified separately from substantive answers.
+- Direct non-response, repeated placeholders, or hostile text in a required
+  high-value open end should route to exclusion review when the full response
+  chain does not recover useful context.
+- Duplicate IP or device evidence is context by itself. It becomes stronger
+  only when multiple supposedly independent responses share the same chain
+  pattern, weak narratives, timing concerns, or other converging signals.

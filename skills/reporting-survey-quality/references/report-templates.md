@@ -221,6 +221,8 @@ The essay should do the following in whatever structure best serves the dataset:
 - state the real quality conclusion, not just the counts
 - explain what we discovered during data exploration and field-role mapping
 - explain how the Datamap and stitched response chains changed the final read
+- state that the independent full-response audit covered every source row, or explain why the run is blocked
+- summarize what the all-row audit found outside the first-pass review queue
 - interpret the strongest semantic patterns found in the full chains
 - describe the best retained rows and why they improve confidence in the data
 - describe the weakest retained rows and why they are calibration cases rather than discards
@@ -334,6 +336,7 @@ The bank can be free-form prose. The agent should retire or demote misleading si
 `independent_full_response_audit.md` should include:
 
 - all-row audit scope
+- proof that audited rows match the source row count
 - independent classification counts
 - comparison to autosurvey reviewed rows
 - missed review candidates
@@ -378,6 +381,14 @@ Dashboard rules:
 - Selected row examples should read as analyst prose. They can be written directly in the essay or in any companion artifact the agent chooses. Do not require a rigid row-note schema.
 - Raw full response chains belong in CSV or audit artifacts. Dashboard-visible chain content must be summarized into short readable observations.
 - Any dashboard that wraps prose into one-character columns, overlaps sections, or requires the reviewer to infer meaning from flags is not deliverable.
+
+Cycle rules:
+
+- Read the previous findings essay, escalation packet, internal signal bank, and next-pass inventory before the next dataset.
+- Carry promoted signals into first-pass context only when they survived full-chain review.
+- Keep false-positive guardrails active, especially for speed-only rows, keyword topic misses, short but valid answers, shared IP context, and enthusiastic repeated characters.
+- Promote direct non-response or repeated placeholder patterns only when the full chain does not recover useful context.
+- End each cycle with a plain critique of what improved, what still failed, and whether the next dataset should rerun with changed first-pass context.
 
 ## Client-Facing Summary
 

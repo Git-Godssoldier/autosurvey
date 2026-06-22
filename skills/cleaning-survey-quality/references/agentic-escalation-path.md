@@ -28,6 +28,7 @@ At minimum, done means:
 - all internal comments, PM notes, client annotations, and prior criteria available to the run were reviewed
 - deterministic evidence artifacts were generated
 - the agent read the full response chain before any final discard choice
+- every source row was included in an independent full-response audit, including rows that no static signal flagged
 - a cited findings essay exists
 - an escalation packet exists
 - the internal signal bank was updated
@@ -50,6 +51,12 @@ Do not start with a scorer. First identify:
 - fields that may look like evidence but are only context
 
 Write down what each field family can and cannot prove. This is important on unfamiliar datasets because a field name can mislead the scorer.
+
+Also define how the run will prove that every row was read. The independent
+full-response audit must include every source respondent, the full chain count,
+the focused semantic chain when available, and whether the row was surfaced by
+the scorer. A sampled deep read is useful for explanation, but it is not a
+substitute for the all-row audit.
 
 ## Phase 3. Build hypotheses
 
@@ -87,7 +94,11 @@ Do not let deterministic evidence become the final story. It is the evidence bas
 
 ## Phase 5. Critic review
 
-For every possible discard row, the agent must read the full response chain.
+For every possible discard row, the agent must read the full response chain. The
+agent must also read the independent full-response audit for the whole dataset
+before finalizing the discard set. This second read is where the agent checks
+for missed patterns, overbroad static checks, copied response chains, repeated
+placeholders, direct non-responses, and benign rows that should be protected.
 
 The review should answer:
 
@@ -137,6 +148,7 @@ Check:
 
 - all required files exist
 - counts reconcile across respondent review, agent judgment, discard set, kept synthesis, and dashboard
+- source row count, `row_scores.csv`, `respondent_review_table.csv`, and `independent_full_response_audit.csv` reconcile
 - every discard row appears in the escalation packet
 - every cited artifact path resolves
 - dashboard and Markdown report include the findings essay

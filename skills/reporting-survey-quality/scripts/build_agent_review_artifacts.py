@@ -408,6 +408,7 @@ def synthesis_for_theme(theme: str, group: pd.DataFrame) -> dict[str, object]:
 
 def build(run_dir: Path) -> None:
     respondent = read_csv(run_dir / "respondent_review_table.csv")
+    row_scores = read_csv(run_dir / "row_scores.csv")
     audit = read_csv(run_dir / "independent_full_response_audit.csv")
     if respondent.empty:
         raise SystemExit(f"No respondent_review_table.csv found in {run_dir}")
@@ -419,6 +420,32 @@ def build(run_dir: Path) -> None:
     workbook = source_workbook(run_dir)
     source = pd.read_excel(workbook, sheet_name=source_sheet(run_dir))
     key_col = "uuid" if "uuid" in source.columns else "record"
+    if key_col not in source.columns:
+        raise SystemExit("No respondent key column found. Expected `uuid` or `record` in the source sheet.")
+    expected_rows = len(source)
+    if len(audit) != expected_rows:
+        raise SystemExit(
+            f"Independent full-response audit row count mismatch: source has {expected_rows} rows, "
+            f"but independent_full_response_audit.csv has {len(audit)} rows."
+        )
+    if len(respondent) != expected_rows:
+        raise SystemExit(
+            f"Respondent review row count mismatch: source has {expected_rows} rows, "
+            f"but respondent_review_table.csv has {len(respondent)} rows."
+        )
+    if not row_scores.empty and len(row_scores) != expected_rows:
+        raise SystemExit(
+            f"Row score count mismatch: source has {expected_rows} rows, but row_scores.csv has {len(row_scores)} rows."
+        )
+    source_keys = set(source[key_col].astype(str))
+    audit_keys_all = set(audit["respondent_key"].astype(str)) if "respondent_key" in audit.columns else set()
+    missing_audit_keys = sorted(source_keys - audit_keys_all)
+    if missing_audit_keys:
+        preview = ", ".join(missing_audit_keys[:10])
+        raise SystemExit(f"Independent full-response audit is missing source respondents: {preview}")
+    nonempty_chains = audit["full_response_chain"].astype(str).str.strip().ne("").sum()
+    if nonempty_chains == 0:
+        raise SystemExit("Independent full-response audit contains no stitched full response chains.")
     source_index = source.set_index(key_col)
     review_index = respondent.set_index("respondent_key")
     audit_index = audit.set_index("respondent_key")

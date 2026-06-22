@@ -85,6 +85,9 @@ Watch for these families, then interpret them in context:
 - open ends that sound polished but do not answer the prompt
 - copied or near-duplicate narratives across supposedly independent respondents
 - hostile or nonsense text that cannot be read as a meaningful answer
+- direct non-response or repeated placeholder text in a required high-value open end, especially when the full chain does not recover usable context
+- duplicate IP, device, or session clusters where supposedly independent respondents also share weak answer chains or the same non-response pattern
+- first-pass topic mismatches caused by a missing project-specific topic map
 
 These are not automatic discard rules. The agent must still read the full response chain and consider benign alternatives.
 
@@ -101,6 +104,8 @@ Common false positives:
 - uniform matrix ratings that match a plausible opinion
 - shared IPs that look like household, workplace, or panel routing context
 - keyword misses caused by a weak project topic map
+- direct speed flags when the chain is coherent and the substantive answer is plausible
+- weak narrative answers that remain PM calibration examples until another strong signal appears
 
 False positive guardrails should be fed into the next first pass before harsher criteria are added.
 
@@ -115,3 +120,9 @@ At the end of every run:
 5. State which signals should affect the next first-pass scoring and which should stay agent-only.
 
 Do not let the signal bank become append-only clutter. If a signal has become misleading, say so and retire it.
+
+The next cycle must start with this read. The agent should carry promoted
+signals into the first-pass context, keep false-positive guardrails active,
+and then test whether the signals still work on a new dataset. If the new run
+shows that a signal is too broad, demote it. If it catches a pattern that the
+scorer missed and the full-chain read confirms it, promote it.

@@ -156,6 +156,8 @@ python3 scripts/build_visual_dashboard.py \
 - Include justifications for each scoring criterion.
 - Include respondent metadata in review tables wherever source fields are available.
 - Include the stitched question chain and full response chain before final semantic review. The final agent judgment table must carry `response_chain_field_count`, `full_response_chain`, `semantic_review_chain_field_count`, and `semantic_review_chain`. The final discard decision must be based on those chains plus the surfaced evidence.
+- The independent full-response audit is a blocking artifact. It must contain one row per source respondent. Before publishing, reconcile it against the source row count, `row_scores.csv`, and `respondent_review_table.csv`. If any count differs, stop and fix the run.
+- Read the independent full-response audit as a whole-population review surface. The final report must say what the all-row audit found among unflagged rows, not only what happened to the first-pass review queue.
 - Parse the Datamap into field roles before scoring or reporting. The final report should show that the workflow understood the role of `qcoe1`, `q9`, `q10`, `q32`, `q43`, and `outro` before making semantic decisions.
 - Include demographic and aggregate insights from source data. These are report context, not quality-discard evidence by themselves.
 - Treat client-annotated Excel review files as the minimum audit surface. The report should match their practical columns and counts where relevant, then go further with prose analysis, chain-level semantic judgment, verifier counterevidence, kept-row learning, and next-pass signal updates.
@@ -184,6 +186,7 @@ python3 scripts/build_visual_dashboard.py \
 - Always include these kept-row patterns in the next-pass workflow when they appear: weak or unclear narrative answers, speed-only plausible answers, short factor-list answers, semantic keyword false positives, and survey-feedback wording. Each pattern must produce both a survey-question or parameter recommendation and a suggested quality parameter.
 - Return a subset of reviewed rows with deeper semantic analysis. Include the final decision, raw evidence, language assessment, trust basis, next action, and the learning that should change the next pass.
 - Independently audit all source rows before final delivery. Compare the full-row audit against the scorer and agent review outputs. If the audit finds a missed possible discard, update the agent judgment artifacts and explain the fix.
+- Treat all-row audit findings as a way to challenge the scoring pass. Call out rows or patterns the first pass missed, rows the first pass over-reviewed, and signals that should be promoted, demoted, or held for PM examples.
 - Reconcile the escalation packet against the agent discard set and agent judgment table. Every discard row must appear in the packet. Every packet discard must appear in the discard set. Any mismatch blocks delivery until the agent resolves it.
 - Reconcile the internal signal bank against the findings essay and next-pass signal inventory. The signal bank should keep long-term internal learning. The next-pass inventory should say what changes before the next run.
 - Do not finalize `agent_review_judgment_table.csv` from an audit that lacks `full_response_chain`. Rerun the independent full-response audit first.
@@ -204,6 +207,7 @@ python3 scripts/build_visual_dashboard.py \
 - Before the final assistant response, preview the main artifacts. Inspect the findings essay, escalation packet, internal signal bank, dashboard, visual findings report, discard set, final judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
 - The final assistant response must be client-facing and email-ready. It should read as one cohesive review system, using language such as "we discovered," "we reviewed," and "we recommend." Do not write "the agent final pass" or similar internal process language in client-facing copy.
 - The final assistant response must include a clear narrative of core discoveries, core discard recommendations with respondent keys and row or cell-level citations when available, key statistics from the run, brief descriptions of important artifacts, a verified-artifact statement, and next-pass signals. Do not only say that scripts ran.
+- Keep running cycles on the next available datasets when the user asks for improvement over time. Each cycle must begin by reading the prior findings essay, escalation packet, signal bank, and next-pass inventory. Each cycle must end by saying which signals improved the first pass, which failed, and what should change before the next dataset.
 
 ## When To Read References
 
