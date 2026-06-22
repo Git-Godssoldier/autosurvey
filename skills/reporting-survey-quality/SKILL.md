@@ -45,6 +45,8 @@ Produce three report layers:
    - structured discard table with agent rationale and source evidence
    - full semantic decision table for all rows the agent investigated, including the number of fields reviewed from the stitched full response chain, programmatic discard recommendation, verifier counterevidence, and semantic discard basis
    - full-chain analyst readout that turns best and worst response-chain examples into readable prose, not just tables
+   - agent escalation packet that completes the PM review path, including discard rows, hard kept cases, uncertain cases, citations, and next actions
+   - internal quality signal bank that captures comments, criteria, bad-response patterns, fabricated-response patterns, false positives, and next-run signal status
    - kept-review synthesis table with survey-question and parameter recommendations
    - next-pass signal inventory that states what should change before the next first-pass scoring run
    - deep semantic review sample that shows a subset of reviewed rows with the full reasoning and next-pass learning
@@ -75,6 +77,8 @@ Use outputs from `run_quality_loop.py`:
 - `agent_review_judgment_table.csv`
 - `agent_discard_set.csv`
 - `agent_findings_essay.md`
+- `agent_escalation_packet.md`
+- `internal_quality_signal_bank.md`
 - `agent_kept_review_synthesis.md`
 - `agent_kept_review_synthesis_table.csv`
 - `full_chain_analyst_readout.md`
@@ -159,6 +163,8 @@ python3 scripts/build_visual_dashboard.py \
 - Treat scoring criteria as the initial case file. The final agent layer must act as a critic and verifier that can supersede static checks when the full chain gives a meaningful semantic explanation.
 - Treat the dashboard and final report as agent-authored research products, not formatted log output. The agent must personally synthesize the exploration, field-role mapping, response chains, programmatic signals, counterevidence, demographics, and next-pass learning into clear prose before publishing.
 - Do not let scripted string assembly substitute for analysis. A script can assemble charts, ledgers, citations, and HTML, but the deciding prose must come from `agent_findings_essay.md`, written after the agent studies the run materials.
+- Write `agent_escalation_packet.md` as the complete operational answer. It must say which rows should be reviewed for exclusion, which suspicious rows were kept, which internal comments or criteria shaped the decision, what evidence was decisive, what evidence was inconclusive, and what the PM should do next. If no rows should be discarded, the packet must still explain why.
+- Write `internal_quality_signal_bank.md` as an internal learning artifact. It should preserve useful comments, criteria, false-positive guardrails, and recurring bad-response or fabricated-response patterns for later runs. It is not client copy.
 - Show verifier counterevidence and semantic discard basis for final decisions. A row should not be discarded only because a programmatic check fired.
 - Produce readable prose analysis for the best and worst full response chains. The prose must explain what the agent saw, why strong rows are strong, why bad rows remain bad after full-chain review, and where the workflow should challenge itself.
 - Do not treat generated tables, charts, or flags as the final communication layer. They support analysis, but the report must include agent-written interpretation for the human reviewer.
@@ -178,6 +184,8 @@ python3 scripts/build_visual_dashboard.py \
 - Always include these kept-row patterns in the next-pass workflow when they appear: weak or unclear narrative answers, speed-only plausible answers, short factor-list answers, semantic keyword false positives, and survey-feedback wording. Each pattern must produce both a survey-question or parameter recommendation and a suggested quality parameter.
 - Return a subset of reviewed rows with deeper semantic analysis. Include the final decision, raw evidence, language assessment, trust basis, next action, and the learning that should change the next pass.
 - Independently audit all source rows before final delivery. Compare the full-row audit against the scorer and agent review outputs. If the audit finds a missed possible discard, update the agent judgment artifacts and explain the fix.
+- Reconcile the escalation packet against the agent discard set and agent judgment table. Every discard row must appear in the packet. Every packet discard must appear in the discard set. Any mismatch blocks delivery until the agent resolves it.
+- Reconcile the internal signal bank against the findings essay and next-pass signal inventory. The signal bank should keep long-term internal learning. The next-pass inventory should say what changes before the next run.
 - Do not finalize `agent_review_judgment_table.csv` from an audit that lacks `full_response_chain`. Rerun the independent full-response audit first.
 - Put the highest-severity rows before lower-priority review examples.
 - Do not expose raw open-end responses externally unless approved.

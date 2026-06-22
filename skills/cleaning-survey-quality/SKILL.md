@@ -13,9 +13,16 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
 
 ## Workflow
 
-1. Explore the workbook before writing or running scoring scripts:
+1. Frame the run before writing or running scoring scripts:
+   - Read `references/agentic-escalation-path.md`.
+   - State the definition of done for this dataset in plain words.
+   - Identify the source files, expected final artifacts, and what would block final delivery.
+   - If the run includes internal comments, PM notes, client annotations, or prior criteria, read `references/internal-signal-learning.md`.
+   - Start a short decision trail for non-obvious choices. The trail can be Markdown or TSV, but it must cite the artifact or command that supports each decision.
+2. Explore the workbook before writing or running scoring scripts:
    - Read the sheet names, row count, column count, and Datamap or codebook when present.
    - Inspect representative raw rows and nonempty examples from every open-ended field family.
+   - Read any internal comments, review notes, client annotations, prior quality essays, prior escalation packets, prior signal inventories, and prior signal banks that are available for the same client, survey family, or product area.
    - Parse the Datamap before scoring. Extract prompt text, value labels, field groups, and response options. Treat Datamap parsing as the source of truth for field-role mapping when it is available.
    - Map field roles before scoring. At minimum, separate job-role screeners, brand-list fields, narrative open ends, other-specify fields, survey-feedback fields, timing fields, supplier/source fields, respondent identifiers, IP/device fields, and review/helper fields.
    - Map demographics separately from quality evidence. Required demographic fields include `qGender`, `qager1`, `age`, `qEthnic*`, `qEd`, `qStateVer`, `qEmploy`, `qUSHHI`, `q44`, `q45`, and `qPolitics` when present.
@@ -23,12 +30,17 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - Stitch each respondent's full response chain from all nonempty respondent-answer fields before final semantic review. Also build a focused semantic chain around `qcoe1`, `q9`, `q9r10oe`, `q10`, `q32`, `q43`, and `outro` when those fields exist. The final discard decision must review these chains, not just the field that triggered a flag.
    - Decide which fields can be scored in the first pass, which fields need PM mapping, and which fields should only produce review notes.
    - Do not run topic mismatch or low-effort scoring until the field role is clear. A job-role screener should not be scored like a product-topic open end. An unaided brand-list field should not penalize short valid brand names.
-2. Profile the workbook:
+3. Build quality hypotheses from exploration:
+   - State which bad-response or fabricated-response patterns are plausible in this dataset.
+   - State what evidence would confirm each pattern and what evidence would make it a false positive.
+   - Separate row-level discard evidence from wave-level context and survey-design findings.
+   - Add relevant internal comments or criteria as hypotheses, not as automatic rules.
+4. Profile the workbook:
    - Identify the main respondent sheet, usually `A1`.
    - Confirm respondent key columns such as `uuid`, `record`, or `RID`.
    - Discover raw quality signals: qtime/duration, fielding start/date/timestamp fields, IP address, matrix grids, open-ended columns, brand/preference/recommendation candidates, and AI-likelihood columns when present.
    - Detect and ignore graded/review helper columns when building the raw-data discovery profile.
-3. Run the scoring loop:
+5. Run the scoring loop:
    ```bash
    python3 scripts/run_quality_loop.py \
      --data-dir /path/to/source-data \
@@ -41,8 +53,8 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
      --topic-keywords "construction,contractor,building,gas,c-store" \
      --output-dir /path/to/outputs/raw-quality-pass
    ```
-4. Review the generated `quality_report.md`, `row_scores.csv`, and `quality_summary.json`.
-5. Review the generated table artifacts:
+6. Review the generated `quality_report.md`, `row_scores.csv`, and `quality_summary.json`.
+7. Review the generated table artifacts:
    - `question_chain_map.csv`: ordered source-field map with field roles, prompt text when available, and the fields used for full response-chain review.
    - `demographic_summary.csv` and `.md`: demographic and aggregate insights from the source data, using Datamap labels where available.
    - `generated_criteria_catalog.csv`: all generated criteria, tags, source columns, rationale, generated weights, and support.
@@ -50,21 +62,35 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - `response_criteria_evidence_table.csv`: one row per respondent criterion with observed value, source column, generated points, explanation, weight rationale, second-pass disposition, and agent annotation context.
    - `agent_annotation_table.csv`: focused Opulent annotation surface for semantic analysis, linguistic fluency assessment, trust rationale, and next steps.
    - `respondent_review_table.md`: PM-facing Markdown sample sorted by severity/score.
-6. Review `discovery_profiles.json` to confirm detected qtime, fielding timestamp, IP, matrix, open-end, brand-consistency, and AI-authenticity candidate analyses.
-7. Route rows using `second_pass_decision` first, then `severity_level`, `escalation_owner`, and `escalation_reason`.
+8. Review `discovery_profiles.json` to confirm detected qtime, fielding timestamp, IP, matrix, open-end, brand-consistency, and AI-authenticity candidate analyses.
+9. Route rows using `second_pass_decision` first, then `severity_level`, `escalation_owner`, and `escalation_reason`.
    - Escalate only rows marked `discard_candidate` after the extra pass.
    - Keep rows marked `keep_with_recommendation` or `keep_no_issue`; aggregate their survivor rationales and survey-question recommendations.
-8. After the agent has investigated review-tagged rows, generate a final visual review package through `reporting-survey-quality`:
+10. Run the agent critic review over every possible discard:
+   - Treat the generated criteria as the case file.
+   - Read the full response chain and focused semantic chain.
+   - Consider the strongest benign explanation.
+   - Decide whether evidence is verified, not verified, or inconclusive.
+   - Promote rows into the final discard set only when the agent can explain the discard in plain language with citations.
+11. After the agent has investigated review-tagged rows, generate a final visual review package through `reporting-survey-quality`:
    - `agent_review_judgment_table.csv`: all review-tagged rows with agent decisions.
    - `agent_discard_set.csv`: only rows the agent judged should be escalated for removal.
+   - `agent_escalation_packet.md`: the final PM-ready escalation path, including discard rows, hard kept cases, difficult calls, internal criteria used, citations, and next actions. This file exists even when there are no discards.
+   - `internal_quality_signal_bank.md`: internal lessons, comments, criteria, false positives, and next-pass signal status. This file is internal and should not be treated as client copy.
    - `agent_kept_review_synthesis.md` and `.csv`: synthesis of kept review-flagged candidates into survey-question and parameter improvements.
    - `full_chain_analyst_readout.md` and `full_chain_best_worst_examples.csv`: readable prose analysis of the best and worst full response chains, with explicit reasoning about what the agent saw.
    - `next_pass_signal_inventory.csv`: critical signals that should shape the next first-pass analysis.
    - `next_pass_first_pass_config.json`: proposed next-pass rules, evidence needs, and escalation guardrails.
    - `deep_semantic_review_sample.md`: a small set of reviewed rows with deeper semantic reasoning and next-pass learning.
+   - `agent_findings_essay.md`: cited natural prose analysis of the run, discoveries, decisions, demographic context, and workflow learning.
    - `agent_final_review_dashboard.html` and `agent_final_visual_findings_report.md`: final dashboard, charts, tables, findings, and artifact index for content review.
    - Use `build_agent_review_artifacts.py` after the independent full-response audit to create the agent judgment table, discard set, kept-review synthesis, and verified quality brief.
-9. Before starting the next run, read `next_pass_signal_inventory.csv` and decide which signals can be added to the first-pass context, which signals need PM examples, and which signals should remain review-only.
+12. Prove the package before calling the run complete:
+   - Check that the required artifacts exist.
+   - Reconcile counts across respondent review, agent judgment, discard set, kept synthesis, essay, escalation packet, and dashboard.
+   - Verify that every discard row appears in the escalation packet.
+   - Verify that the dashboard renders without unreadable tables or overlapping prose.
+13. Before starting the next run, read `next_pass_signal_inventory.csv` and `internal_quality_signal_bank.md`. Decide which signals can be added to the first-pass context, which signals need PM examples, which signals are false-positive guardrails, and which signals should remain agent-only.
 
 ## Generated Criteria And Scoring Policy
 
@@ -79,11 +105,32 @@ Each run must produce:
 - second-pass disposition and discard-only escalation routing
 - agent-generated semantic annotations for escalations and survivor decisions
 - prose analyst readout that blends pattern evidence with full-chain agent reasoning
+- cited agent findings essay
+- final escalation packet, even when the discard set is empty
+- internal signal bank for comments, criteria, false positives, and next-run learning
+- decision trail for non-obvious choices in long or high-stakes runs
 - next-pass signal inventory from agent-reviewed rows
 - deep semantic review sample for a subset of reviewed rows
 - evaluation metrics when adjudicated labels exist
 
 Weights are trial artifacts, not policy. They should evolve from discoveries, PM findings, adjudicated examples, and feedback. Do not auto-remove respondents from this skill alone. Output discard-candidate escalations with evidence and row-level justifications only after a second pass has found converging discard evidence. Treat programmatic scoring as the evidence substrate, not the reader-facing judgment.
+
+## Research-Grade Analysis Standard
+
+The agent should reason like a careful investigator. It should collect evidence first, then decide what story the evidence supports.
+
+For each major finding, the agent should state:
+
+- what was observed
+- where it was observed
+- what alternate explanation could fit
+- what evidence supports the final interpretation
+- what remains uncertain
+- what the next pass should do with the lesson
+
+Do not over-polish uncertainty into confidence. If a claim is indirect, say that it appears likely or needs PM review. If a source was unavailable, name the gap.
+
+The final discard call should be stronger than the initial score. It should reflect the score, the Datamap, the response chain, internal comments, counterevidence, and the agent's own semantic read.
 
 ## Evidence Rules
 
@@ -107,6 +154,8 @@ Every flag must include:
 - agent recommended next step
 
 If the workbook already contains `Respondent Flags` but lacks raw helper columns, use those flags only as inherited evidence and mark the source as `existing_review_field`.
+
+Internal comments and criteria must be cited separately from raw respondent evidence. They can explain what to look for, but they do not prove that a row is bad. If an internal note changes a decision, the agent must say how it applied to the actual response chain.
 
 ## Agent Annotation Layer
 
@@ -137,6 +186,8 @@ Before finalizing any text-driven discard:
 5. Check whether the text concern independently strengthens another quality signal, such as straightlining or speed.
 6. Downgrade rows where semantic evidence is plausible or only weakly ambiguous; keep them with a survey-question recommendation instead.
 7. Escalate only rows where the agent can explain, in fluent business language, why the response should be discarded after critic verification.
+
+After finalizing discard decisions, write the escalation packet. The packet is complete only when a PM can read it and know which rows to review for exclusion, which rows survived, which criteria shaped the choice, and what remains uncertain.
 
 ## Raw-Data Discovery
 
@@ -228,6 +279,8 @@ The synthesis must always preserve these reusable patterns when they appear:
 
 ## When To Read References
 
+- Read `references/agentic-escalation-path.md` before running a full dataset from raw export to final discard choices.
+- Read `references/internal-signal-learning.md` when internal comments, PM notes, client annotations, prior criteria, prior findings essays, or recurring bad-response patterns are available.
 - Read `references/rubric-seed.md` only as historical seed context, not as a source of fixed weights.
 - Read `references/autonomous-discovery.md` before changing discovery behavior.
 - Read `references/evaluation-methodology.md` before changing open-end evaluation, judge behavior, or validation metrics.

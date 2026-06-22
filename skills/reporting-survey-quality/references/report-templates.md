@@ -229,6 +229,34 @@ The essay should do the following in whatever structure best serves the dataset:
 
 Do not turn this essay into a list of required fields. The point is to let the agent reason in prose after reading the evidence. Tables can support the essay, but they are not the analysis.
 
+`agent_escalation_packet.md` should be written by the agent after final semantic review. It is the PM-ready operational artifact. It should let a reviewer act without reading every CSV.
+
+The packet should explain:
+
+- which rows are in the final discard set and why
+- which suspicious rows were kept and why
+- which rows were hard to decide and what evidence was missing
+- what internal comments, client criteria, PM notes, or prior signals affected the review
+- what evidence was decisive
+- what evidence was inconclusive
+- what the reviewer should do next
+
+If the final discard set is empty, the packet still exists. It should explain why the path ended with no row-level removals.
+
+`internal_quality_signal_bank.md` should be written for internal use after each run. It is a learning artifact for future datasets, not client copy.
+
+The bank should preserve:
+
+- useful internal comments and criteria
+- suspected bad-response or fabricated-response patterns
+- false-positive guardrails
+- PM-approved discard signals
+- review-routing signals
+- survey-design signals
+- signals that need more examples before they can affect scoring
+
+The bank can be free-form prose. The agent should retire or demote misleading signals instead of keeping an append-only list.
+
 `full_chain_best_worst_examples.csv` should include:
 
 - respondent key
@@ -336,6 +364,8 @@ Do not turn this essay into a list of required fields. The point is to let the a
 - next-pass signal inventory
 - deep semantic review sample
 - cited agent findings essay
+- agent escalation packet
+- internal quality signal bank for long-term learning
 - citations for all run-specific and method-specific claims
 - clear artifact index for content review
 
