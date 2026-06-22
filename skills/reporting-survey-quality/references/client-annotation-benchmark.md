@@ -13,6 +13,7 @@ The Farnsworth example contains:
 
 The onboarding instructions also require review of:
 
+- Datamap prompt text and response options before scoring
 - qtime speeders and unusually long completes
 - start-date or timestamp bursts, including odd starts between 22:00 and 04:00
 - grid straightlining
@@ -27,10 +28,13 @@ Autosurvey should preserve the useful audit surface from the annotated workbook,
 Each final package should include:
 
 - equivalent practical fields or tables for qtime, timestamp/fielding pattern, straightline, brand mapping, open-end relevance, duplicate technical identifiers, respondent flags, score, and action
+- Datamap-derived field roles before any scoring
 - full question-chain and full response-chain context before final semantic review
+- a focused semantic chain around `qcoe1`, `q9`, `q10`, `q32`, `q43`, and `outro` when those fields exist
 - a critic-verifier decision that can override static checks when counterevidence exists
 - clear discard rationale, keep rationale, verifier counterevidence, and semantic discard basis
 - readable prose analysis of best and worst response chains
+- demographic and aggregate insights from fields such as `qGender`, `qager1`, `age`, `qEthnic*`, `qEd`, `qStateVer`, `qEmploy`, `qUSHHI`, `q44`, `q45`, and `qPolitics`
 - kept-review synthesis that turns survivor patterns into survey-question or fielding-parameter improvements
 - next-pass signal inventory that says what should change before the next first-pass scoring run
 

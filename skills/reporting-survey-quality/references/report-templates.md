@@ -27,6 +27,7 @@ Sections:
    - status
    - candidate columns
    - mapping needs
+   - Datamap-derived field roles
    - generated criterion id
    - tags
    - rationale
@@ -75,6 +76,7 @@ Sections:
    - over-escalation and under-escalation counts
 12. Table artifact index
    - generated criteria catalog
+   - demographic summary
    - respondent review table
    - criterion evidence table
    - agent annotation table
@@ -109,6 +111,19 @@ Sections:
    - duplicate IP or comparable technical identifiers, with independent-cluster context
    - respondent flags, score, and recommended action equivalents
    - explanation of where autosurvey went beyond the annotated workbook through full-chain semantic reasoning, verifier counterevidence, kept-row learning, and next-pass signal updates
+15. Demographic and aggregate insights
+   - `qGender`
+   - `qager1` and `age`
+   - `qEthnic*`
+   - `qEd`
+   - `qStateVer`
+   - `qEmploy`
+   - `qUSHHI`
+   - `q44`
+   - `q45`
+   - `qPolitics`
+   - value counts and averages where the field supports them
+   - a clear note that demographic summaries are context, not discard evidence by themselves
 
 ## Required Table Fields
 
@@ -181,6 +196,7 @@ Sections:
 - next step
 - respondent metadata and observed evidence
 - full response chain field count
+- focused semantic review chain and field count for the key review sections
 - programmatic discard recommendation
 - verifier counterevidence
 - semantic discard basis
@@ -230,6 +246,17 @@ Sections:
 - evidence needed
 - default status
 - escalation rule
+
+`demographic_summary.csv` should include:
+
+- source workbook
+- field
+- Datamap question text when available
+- respondent count
+- nonempty count
+- missing count
+- mean, median, min, and max when numeric
+- top values with Datamap labels when available
 - survey-question or parameter recommendation
 
 `deep_semantic_review_sample.md` should include:

@@ -38,11 +38,13 @@ The process is deliberately discovery-first. Research on data-to-dashboard syste
 
 A new Decipher export arrives during fielding. It has no `Respondent Score`, no `Recommended_Action`, and no hand-annotated flag columns. Opulent inspects the workbook and identifies the usable signals:
 
+- Datamap prompt text, response options, and field groups for field-role mapping
 - `qtime` as completion duration
 - `date`, `start_date`, or comparable timestamp fields as fielding-pattern context
 - `ipAddress` as a duplicate technical signal
 - `q32_Lr...` columns as rating-grid groups
 - `qEthnicr8oe`, `qcoe1`, `q9r10oe`, `q43r11oe`, and `outro` as open-ended fields
+- `qGender`, `qager1`, `age`, `qEthnic*`, `qEd`, `qStateVer`, `qEmploy`, `qUSHHI`, `q44`, `q45`, and `qPolitics` as demographic context
 - possible brand fields such as `POSSIBLEBRANDSr1` through `POSSIBLEBRANDSr9`
 - supplier, date, and respondent-key fields that can support trend and source analysis
 
@@ -85,6 +87,8 @@ The escalation rule is intentionally narrow. Scoring can route rows for review, 
 This workflow fails if it becomes only programmatic execution. Scores, flags, clusters, and charts are the evidence layer. They are not the final product. The final product must include agentic prose analysis that tells the human what the agent saw, why it trusted or rejected the row, where the static checks were misleading, and what the next pass should learn.
 
 Client annotation workbooks are useful baselines because they show the practical review surface PMs expect: qtime speeders, start-date or odd-hour fielding checks, grid straightlining, brand consistency, open-end topic relevance, duplicate technical identifiers, respondent flags, scores, and recommended actions. Opulent must meet that surface and then surpass it. A run is not elite if it only recreates those columns. It has to read the full response chain, challenge weak discard calls, preserve counterevidence, explain kept rows, and turn survivor patterns into better survey questions and first-pass signals.
+
+For this family of workbooks, the first workflow task is Datamap parsing. The agent should map field roles before scoring, then stitch the response chain around `qcoe1`, `q9`, `q10`, `q32`, `q43`, and `outro`. The final review should use that chain to decide whether static evidence is meaningful or misleading. The final analysis should also summarize demographic and aggregate context, including gender, age, ethnicity, education, state, employment, income, household, living area, and politics fields when they exist.
 
 This distinction matters. A keyword mismatch can be useful as a discovery signal, but it should not become the final semantic decision. A single straightlined matrix can be useful as a review signal, but it should not automatically remove a respondent when open-ended context is recoverable. A short duration can be useful as a timing signal, but it should not decide the case without corroborating evidence.
 

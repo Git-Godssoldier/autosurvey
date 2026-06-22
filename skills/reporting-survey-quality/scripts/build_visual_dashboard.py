@@ -132,6 +132,8 @@ def artifact_links(run_dir: Path) -> list[tuple[str, str]]:
         "next_pass_first_pass_config.json",
         "deep_semantic_review_sample.md",
         "deep_semantic_review_sample.csv",
+        "demographic_summary.md",
+        "demographic_summary.csv",
         "independent_full_response_audit.md",
         "independent_full_response_audit.csv",
         "deep_findings_analysis.md",
@@ -156,6 +158,7 @@ def citation_map(run_dir: Path) -> list[tuple[str, str, str]]:
         ("C6", "Kept review synthesis", str(run_dir / "agent_kept_review_synthesis_table.csv")),
         ("C11", "Next-pass signal inventory", str(run_dir / "next_pass_signal_inventory.csv")),
         ("C12", "Deep semantic review sample", str(run_dir / "deep_semantic_review_sample.md")),
+        ("C13", "Demographic summary", str(run_dir / "demographic_summary.csv")),
         ("C7", "CBRE figures report format reference", "https://mktgdocs.cbre.com/2299/12439527-d1a2-46eb-b485-4fd377f0d618-223048296/European_Data_Centres_Figures_.pdf"),
         ("C8", "Plain writing skill", "https://github.com/shreyashankar/plain-writing-skill"),
         ("C9", "Recharts documentation", "https://recharts.org/"),
@@ -403,6 +406,8 @@ def semantic_rows(judgments: pd.DataFrame) -> pd.DataFrame:
         "raw_open_end_text",
         "response_chain_field_count",
         "full_response_chain",
+        "semantic_review_chain_field_count",
+        "semantic_review_chain",
         "programmatic_discard_recommendation",
         "agent_verifier_mode",
         "verifier_counterevidence",
@@ -427,9 +432,10 @@ def semantic_card_html(row: pd.Series) -> str:
         f"<div class='memo-meta'>{html.escape(decision)} | score {html.escape(text(row.get('computed_score')))} | qtime {html.escape(text(row.get('qtime')))}</div>"
         f"<p><strong>Theme.</strong> {html.escape(text(row.get('review_theme')))}</p>"
         f"<p><strong>Full chain fields.</strong> {html.escape(text(row.get('response_chain_field_count')))}</p>"
+        f"<p><strong>Focused semantic fields.</strong> {html.escape(text(row.get('semantic_review_chain_field_count')))}</p>"
         f"<p><strong>Verifier counterevidence.</strong> {html.escape(plain_truncate(row.get('verifier_counterevidence'), 360))}</p>"
         f"<p><strong>Semantic discard basis.</strong> {html.escape(plain_truncate(row.get('semantic_discard_basis'), 360))}</p>"
-        f"<p><strong>Response chain preview.</strong> {html.escape(plain_truncate(row.get('full_response_chain'), 520))}</p>"
+        f"<p><strong>Focused response chain preview.</strong> {html.escape(plain_truncate(row.get('semantic_review_chain') or row.get('full_response_chain'), 520))}</p>"
         f"<p><strong>Semantic judgment.</strong> {html.escape(plain_truncate(row.get('agent_semantic_judgment'), 520))}</p>"
         f"<p><strong>Language quality.</strong> {html.escape(plain_truncate(row.get('agent_linguistic_fluency_assessment'), 360))}</p>"
         f"<p><strong>Trust basis.</strong> {html.escape(plain_truncate(row.get('agent_trust_rationale'), 420))}</p>"
@@ -448,6 +454,7 @@ def main() -> None:
     next_pass_signals = read_csv(run_dir / "next_pass_signal_inventory.csv")
     criteria = read_csv(run_dir / "generated_criteria_catalog.csv")
     evidence = read_csv(run_dir / "response_criteria_evidence_table.csv")
+    demographics = read_csv(run_dir / "demographic_summary.csv")
     discovery = read_json(run_dir / "discovery_profiles.json")
 
     total = int(len(respondent))
@@ -687,7 +694,7 @@ def main() -> None:
         discard_cards or "<p>No discard rows were found.</p>",
         "</section>",
         "<section class='panel'><h2>All agent-reviewed rows</h2>",
-        table_html(semantic, ["respondent_key", "agent_final_decision", "review_theme", "supplier", "qtime", "computed_score", "programmatic_discard_recommendation", "response_chain_field_count", "verifier_counterevidence", "semantic_discard_basis", "agent_semantic_judgment", "agent_trust_rationale", "agent_recommended_next_step"], 30).replace("<table>", "<table class='semantic-table'>"),
+        table_html(semantic, ["respondent_key", "agent_final_decision", "review_theme", "supplier", "qtime", "computed_score", "programmatic_discard_recommendation", "response_chain_field_count", "semantic_review_chain_field_count", "verifier_counterevidence", "semantic_discard_basis", "agent_semantic_judgment", "agent_trust_rationale", "agent_recommended_next_step"], 30).replace("<table>", "<table class='semantic-table'>"),
         "</section>",
         "<h2 class='section-title'>Kept rows that improve the survey</h2>",
         "<section class='memo-grid'>",
@@ -699,6 +706,11 @@ def main() -> None:
         "<section class='panel'><h2>Next-pass signals</h2>",
         table_html(next_pass_signals, ["signal_id", "support_rows", "critical_signal", "first_pass_change", "evidence_needed", "escalation_rule"], 12),
         "<div class='source'>Source: next-pass signal inventory. [C11]</div>",
+        "</section>",
+        "<h2 class='section-title'>Demographic and aggregate insights</h2>",
+        "<section class='panel'><h2>Demographic profile</h2>",
+        table_html(demographics, ["field", "question_text", "nonempty_rows", "mean", "median", "top_values"], 20),
+        "<div class='source'>Source: demographic summary from respondent data and Datamap labels. [C13]</div>",
         "</section>",
         "<section class='panel'><h2>Citations</h2>",
         citations_html(citations),
@@ -774,13 +786,16 @@ def main() -> None:
         *markdown_table(discard, ["respondent_key", "agent_discard_rationale", "observed_evidence", "supplier", "qtime", "agent_semantic_judgment", "agent_trust_rationale"], 10),
         "",
         "## All semantic decisions",
-        *markdown_table(semantic, ["respondent_key", "agent_final_decision", "review_theme", "supplier", "qtime", "computed_score", "programmatic_discard_recommendation", "response_chain_field_count", "verifier_counterevidence", "semantic_discard_basis", "agent_semantic_judgment", "agent_trust_rationale"], 30),
+        *markdown_table(semantic, ["respondent_key", "agent_final_decision", "review_theme", "supplier", "qtime", "computed_score", "programmatic_discard_recommendation", "response_chain_field_count", "semantic_review_chain_field_count", "verifier_counterevidence", "semantic_discard_basis", "agent_semantic_judgment", "agent_trust_rationale"], 30),
         "",
         "## Survey improvement synthesis",
         *markdown_table(kept_synthesis, ["theme", "kept_review_rows", "why_kept", "survey_question_or_parameter_recommendation", "suggested_quality_parameter"], 10),
         "",
         "## Next-pass signals",
         *markdown_table(next_pass_signals, ["signal_id", "support_rows", "critical_signal", "first_pass_change", "evidence_needed", "escalation_rule"], 12),
+        "",
+        "## Demographic and aggregate insights",
+        *markdown_table(demographics, ["field", "question_text", "nonempty_rows", "mean", "median", "top_values"], 20),
         "",
         "## Final review rule",
         "Use scoring to find candidates. Use the agent to make the final semantic discard decision. Use kept review rows to improve the next survey. [C5][C6]",

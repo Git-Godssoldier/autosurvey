@@ -134,6 +134,8 @@ def fallback_field_role(column: str, summary: dict) -> str:
     }
     if re.search(r"uuid|^record$|^rid$|session", lower):
         return "respondent_identifier"
+    if re.search(r"^(date|start_date|start_time|started_at|timestamp)$|start.?date|start.?time", lower):
+        return "fielding_timestamp"
     if re.search(r"qtime|duration|elapsed|time", lower):
         return "timing_field"
     if re.search(r"ipaddress|ip_|device|browser|useragent", lower):
@@ -144,6 +146,8 @@ def fallback_field_role(column: str, summary: dict) -> str:
         return "technical_or_hidden_field"
     if column in matrix_cols:
         return "matrix_grid"
+    if re.search(r"^(qgender|qager1|qage|age|qethnic(?:r\d+(?:oe)?)?|qed|qstatever|qemploy|qushhi|q44|q45|qpolitics)$", lower):
+        return "demographic_field"
     if re.search(r"qcoe1|qindustry|qtrade|classify|occupation|job|role", lower):
         return "job_role_screener"
     if column in brand_cols or re.search(r"brand|aware|prefer|consider|recommend|purchase", lower):
@@ -180,15 +184,16 @@ def load_question_chain_map(run_dir: Path, source: pd.DataFrame, workbook_name: 
                 "field_role": role,
                 "question_text": column,
                 "include_in_full_response_chain": role not in CHAIN_EXCLUDED_ROLES,
+                "include_in_focused_semantic_chain": bool(re.search(r"^(qcoe1|q9|q9r10oe|pipeintoq10|q10|q32|q43|outro)", column, re.I)),
             }
         )
     return pd.DataFrame(rows)
 
 
-def full_response_chain(row: pd.Series, question_chain: pd.DataFrame) -> tuple[str, int]:
+def response_chain(row: pd.Series, question_chain: pd.DataFrame, include_column: str) -> tuple[str, int]:
     pieces: list[str] = []
     for _, field in question_chain.sort_values("position").iterrows():
-        if not truthy(field.get("include_in_full_response_chain", True)):
+        if not truthy(field.get(include_column, True)):
             continue
         column = text(field.get("source_column"))
         if column not in row.index:
@@ -203,6 +208,17 @@ def full_response_chain(row: pd.Series, question_chain: pd.DataFrame) -> tuple[s
         else:
             pieces.append(f"{column} [{role}] {prompt}: {answer}")
     return " || ".join(pieces), len(pieces)
+
+
+def full_response_chain(row: pd.Series, question_chain: pd.DataFrame) -> tuple[str, int]:
+    return response_chain(row, question_chain, "include_in_full_response_chain")
+
+
+def focused_semantic_chain(row: pd.Series, question_chain: pd.DataFrame) -> tuple[str, int]:
+    if "include_in_focused_semantic_chain" not in question_chain.columns:
+        return response_chain(row, question_chain, "include_in_full_response_chain")
+    focused = question_chain[question_chain["include_in_focused_semantic_chain"].map(truthy)]
+    return response_chain(row, focused, "include_in_focused_semantic_chain")
 
 
 def role_class(value: object) -> str:
@@ -283,8 +299,10 @@ TECHNICAL_TEXT_FIELD_TERMS = re.compile(
 CHAIN_EXCLUDED_ROLES = {
     "respondent_identifier",
     "timing_field",
+    "fielding_timestamp",
     "ip_or_device_field",
     "supplier_or_source_field",
+    "demographic_field",
     "review_helper",
     "technical_or_hidden_field",
 }
@@ -533,7 +551,11 @@ def main() -> None:
     judgments = read_csv(run_dir / "agent_review_judgment_table.csv")
 
     key_col = "uuid" if "uuid" in source.columns else "record"
-    role_col = "qcoe1" if "qcoe1" in source.columns else None
+    role_candidates = question_chain.loc[
+        question_chain.get("field_role", pd.Series(dtype=str)).astype(str).eq("job_role_screener"),
+        "source_column",
+    ].astype(str).tolist() if "field_role" in question_chain and "source_column" in question_chain else []
+    role_col = next((col for col in role_candidates if col in source.columns), None)
     brand_cols = [col for col in source.columns if re.match(r"qcoe2r\d+$", str(col))]
     narrative_col = detect_narrative_col(source, summary)
     topic_re = topic_pattern(summary)
@@ -558,6 +580,7 @@ def main() -> None:
         duplicate_type = text(cluster.get("cluster_type")) if duplicate_count > 1 else "single"
         action, risks = suggested_action(role, brand, narrative, qtime, duplicate_type)
         response_chain, response_chain_fields = full_response_chain(row, question_chain)
+        semantic_chain, semantic_chain_fields = focused_semantic_chain(row, question_chain)
         rows.append(
             {
                 "respondent_key": key,
@@ -580,6 +603,8 @@ def main() -> None:
                 "narrative_text": text(row.get(narrative_col))[:240] if narrative_col else "",
                 "response_chain_field_count": response_chain_fields,
                 "full_response_chain": response_chain,
+                "semantic_review_chain_field_count": semantic_chain_fields,
+                "semantic_review_chain": semantic_chain,
                 "independent_risk_factors": risks,
                 "independent_suggested_action": action,
                 "autosurvey_reviewed": key in reviewed_keys,

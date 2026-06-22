@@ -44,6 +44,16 @@ FIELDING_TIMESTAMP_RE = re.compile(
     re.I,
 )
 
+DEMOGRAPHIC_FIELD_RE = re.compile(
+    r"^(qgender|qager1|qage|age|qethnic(?:r\d+(?:oe)?)?|qed|qstatever|qemploy|qushhi|q44|q45|qpolitics)$",
+    re.I,
+)
+
+SEMANTIC_REVIEW_ANCHOR_RE = re.compile(
+    r"^(qcoe1|q9|q9r10oe|pipeintoq10|q10|q32(?:_|$)|q43(?:r\d+)?(?:oe)?|outro)$",
+    re.I,
+)
+
 
 METHODOLOGY_CONFIG: dict[str, Any] = {
     "version": "discovery-methodology-2026-06-17",
@@ -184,12 +194,13 @@ def clean_chain_text(value: Any, limit: int = 600) -> str:
     return raw
 
 
-def question_prompt_map(path: Path, source_sheet: str, source_columns: set[str]) -> dict[str, str]:
+def datamap_entries(path: Path, source_sheet: str, source_columns: set[str]) -> dict[str, Any]:
     prompts: dict[str, str] = {}
+    value_labels: dict[str, dict[str, str]] = {}
     try:
         xl = pd.ExcelFile(path)
     except Exception:
-        return prompts
+        return {"prompts": prompts, "value_labels": value_labels}
     candidate_sheets = [sheet for sheet in xl.sheet_names if sheet != source_sheet]
     ordered_sheets = sorted(
         candidate_sheets,
@@ -204,10 +215,14 @@ def question_prompt_map(path: Path, source_sheet: str, source_columns: set[str])
             continue
         if frame.empty:
             continue
-        headers = [str(col).strip() for col in frame.columns]
+        headers = [str(col).strip() for col in frame.columns if not str(col).lower().startswith("unnamed")]
         variable_cols = [col for col in headers if variable_terms.search(col)]
         prompt_cols = [col for col in headers if prompt_terms.search(col) and col not in variable_cols]
         if not variable_cols or not prompt_cols:
+            stacked = parse_stacked_datamap(path, sheet, source_columns)
+            prompts.update({key: value for key, value in stacked["prompts"].items() if key not in prompts})
+            for field, labels in stacked["value_labels"].items():
+                value_labels.setdefault(field, {}).update(labels)
             continue
         for _, row in frame.iterrows():
             for variable_col in variable_cols:
@@ -222,10 +237,78 @@ def question_prompt_map(path: Path, source_sheet: str, source_columns: set[str])
                         break
                 if prompt and field not in prompts:
                     prompts[field] = prompt
-    return prompts
+    return {"prompts": prompts, "value_labels": value_labels}
 
 
-def field_role(column: str, profile: dict[str, Any]) -> str:
+def parse_stacked_datamap(path: Path, sheet: str, source_columns: set[str]) -> dict[str, Any]:
+    prompts: dict[str, str] = {}
+    value_labels: dict[str, dict[str, str]] = {}
+    try:
+        frame = pd.read_excel(path, sheet_name=sheet, dtype=str, header=None, nrows=10000)
+    except Exception:
+        return {"prompts": prompts, "value_labels": value_labels}
+
+    current_field = ""
+    for _, row in frame.iterrows():
+        first = clean_chain_text(row.get(0), 1000)
+        second = clean_chain_text(row.get(1), 1000)
+        third = clean_chain_text(row.get(2), 1000)
+
+        header_text = first or second
+        if re.match(r"^values\s*:", header_text, re.I):
+            continue
+        header_match = re.match(r"^\[?([A-Za-z0-9_]+)\]?\s*:\s*(.+)$", header_text)
+        if header_match:
+            current_field = header_match.group(1).strip()
+            prompt = header_match.group(2).strip()
+            if current_field in source_columns and prompt:
+                prompts.setdefault(current_field, prompt)
+            continue
+
+        subfield_match = re.match(r"^\[([A-Za-z0-9_]+)\]$", second)
+        if subfield_match and third:
+            field = subfield_match.group(1)
+            if field in source_columns:
+                prompts.setdefault(field, third)
+            continue
+
+        if current_field and second and third and not second.startswith("["):
+            value_labels.setdefault(current_field, {})[second] = third
+
+    for column in source_columns:
+        if column in prompts:
+            continue
+        for field, prompt in prompts.items():
+            if re.match(rf"^{re.escape(field)}(?:r|c|_)", column, re.I):
+                prompts[column] = prompt
+                break
+    return {"prompts": prompts, "value_labels": value_labels}
+
+
+def question_prompt_map(path: Path, source_sheet: str, source_columns: set[str]) -> dict[str, str]:
+    return dict(datamap_entries(path, source_sheet, source_columns)["prompts"])
+
+
+def datamap_prompt_role(column: str, prompt: str) -> str | None:
+    lower = f"{column} {prompt}".lower()
+    if DEMOGRAPHIC_FIELD_RE.search(column):
+        return "demographic_field"
+    if re.search(r"race|ethnicity|gender|age|education|state do you live|employment|household income|marital|political|area in which you live", lower):
+        return "demographic_field"
+    if re.search(r"negative customer service|recent experience|why is|describe what this survey was about", lower):
+        return "narrative_open_end"
+    if re.search(r"preferred convenience store|preferred .*gas station|brand play|consider shopping|recommend", lower):
+        return "brand_list_or_brand_logic"
+    if re.search(r"typically buy|what do you buy|shopping at convenience stores", lower):
+        return "purchase_behavior"
+    if re.search(r"most important|rate|agree or disagree|grid|following convenience stores", lower):
+        return "matrix_grid" if re.search(r"q32|_lr", column, re.I) else "respondent_answer"
+    if re.search(r"occupation|job|role|industry|trade|qualified", lower):
+        return "job_role_screener"
+    return None
+
+
+def field_role(column: str, profile: dict[str, Any], prompt: str = "") -> str:
     lower = column.lower()
     matrix_columns = {item for cols in profile.get("matrix_groups", {}).values() for item in cols}
     if column in REVIEW_HELPER_COLUMNS or column.endswith("_AI_Likelihood") or "rd_review" in lower:
@@ -236,16 +319,21 @@ def field_role(column: str, profile: dict[str, Any]) -> str:
         return "fielding_timestamp"
     if column in profile.get("qtime_columns", []) or re.search(r"time|duration|elapsed", lower):
         return "timing_field"
-    if column in profile.get("ip_columns", []) or re.search(r"ip|device|browser|useragent", lower):
+    if column in profile.get("ip_columns", []) or re.search(r"(^|_)ip(address)?$|ipaddress|ip_address|device|browser|useragent", lower):
         return "ip_or_device_field"
     if re.search(r"supname|supplier|source|vendor", lower):
         return "supplier_or_source_field"
     if column in matrix_columns:
         return "matrix_grid"
-    if re.search(r"qcoe1|qindustry|qtrade|classify|occupation|job|role", lower):
+    datamap_role = datamap_prompt_role(column, prompt)
+    if datamap_role:
+        return datamap_role
+    if re.search(r"qindustry|qtrade|classify|occupation|job|role", lower):
         return "job_role_screener"
     if column in profile.get("brand_consistency_candidate_columns", []) or re.search(r"brand|aware|prefer|consider|recommend|purchase", lower):
         return "brand_list_or_brand_logic"
+    if DEMOGRAPHIC_FIELD_RE.search(column):
+        return "demographic_field"
     if re.search(r"other|specify", lower):
         return "other_specify"
     if re.search(r"survey.?feedback|feedback|outro", lower):
@@ -258,10 +346,13 @@ def field_role(column: str, profile: dict[str, Any]) -> str:
 
 
 def question_chain_map(source_name: str, workbook: Path, sheet_name: str, df: pd.DataFrame, profile: dict[str, Any]) -> pd.DataFrame:
-    prompts = question_prompt_map(workbook, sheet_name, set(str(col) for col in df.columns))
+    datamap = datamap_entries(workbook, sheet_name, set(str(col) for col in df.columns))
+    prompts = datamap["prompts"]
     rows: list[dict[str, Any]] = []
     for position, col in enumerate((str(item) for item in df.columns), start=1):
-        role = field_role(col, profile)
+        prompt = prompts.get(col, col)
+        role = field_role(col, profile, prompt)
+        semantic_anchor = bool(SEMANTIC_REVIEW_ANCHOR_RE.search(col))
         rows.append(
             {
                 "source_workbook": source_name,
@@ -269,7 +360,9 @@ def question_chain_map(source_name: str, workbook: Path, sheet_name: str, df: pd
                 "position": position,
                 "source_column": col,
                 "field_role": role,
-                "question_text": prompts.get(col, col),
+                "question_text": prompt,
+                "semantic_review_anchor": semantic_anchor,
+                "semantic_review_section": semantic_review_section(col, role),
                 "include_in_full_response_chain": role
                 not in {
                     "respondent_identifier",
@@ -277,12 +370,31 @@ def question_chain_map(source_name: str, workbook: Path, sheet_name: str, df: pd
                     "fielding_timestamp",
                     "ip_or_device_field",
                     "supplier_or_source_field",
+                    "demographic_field",
                     "review_helper",
                     "technical_or_hidden_field",
                 },
+                "include_in_focused_semantic_chain": semantic_anchor or role in {"narrative_open_end", "brand_list_or_brand_logic", "matrix_grid", "purchase_behavior", "survey_feedback_or_outro"},
             }
         )
     return pd.DataFrame(rows)
+
+
+def semantic_review_section(column: str, role: str) -> str:
+    lower = column.lower()
+    if lower.startswith("qcoe1"):
+        return "qcoe1_customer_service_experience"
+    if lower in {"q9", "q9r10oe", "pipeintoq10"} or lower.startswith("q10"):
+        return "q9_q10_preferred_brand_and_reason"
+    if lower.startswith("q32"):
+        return "q32_priority_matrix"
+    if lower.startswith("q43"):
+        return "q43_purchase_behavior"
+    if lower.startswith("outro"):
+        return "outro_survey_recap"
+    if role == "demographic_field":
+        return "demographics"
+    return role
 
 
 def derive_feedback_config(feedback_file: Path | None) -> dict[str, Any]:
@@ -681,6 +793,8 @@ def discover_profile(df: pd.DataFrame, topic_keywords: list[str], feedback_confi
     open_end_columns: list[str] = []
     for col in raw_columns:
         lower = col.lower()
+        if DEMOGRAPHIC_FIELD_RE.search(col):
+            continue
         if any(token in lower for token in ["langassess", "rd_review", "_pasted", "topic_relevance"]):
             continue
         if any(token in lower for token in ["oe", "open", "other", "specify", "comment", "explain", "outro"]):
@@ -1355,6 +1469,23 @@ def metadata_columns(df: pd.DataFrame) -> list[str]:
         "qGender",
         "qager1",
         "age",
+        "qEthnicr1",
+        "qEthnicr2",
+        "qEthnicr3",
+        "qEthnicr4",
+        "qEthnicr5",
+        "qEthnicr6",
+        "qEthnicr7",
+        "qEthnicr8",
+        "qEthnicr9",
+        "qEthnicr8oe",
+        "qEd",
+        "qStateVer",
+        "qEmploy",
+        "qUSHHI",
+        "q44",
+        "q45",
+        "qPolitics",
         "qzipr1",
         "Q_RespDataCity",
         "Q_RespDataState",
@@ -1362,6 +1493,99 @@ def metadata_columns(df: pd.DataFrame) -> list[str]:
         "Q_RespDataMARKETCODE",
     ]
     return [col for col in preferred if col in df.columns]
+
+
+def demographic_columns(df: pd.DataFrame) -> list[str]:
+    preferred = [
+        "qGender",
+        "qager1",
+        "age",
+        *[f"qEthnicr{i}" for i in range(1, 10)],
+        "qEthnicr8oe",
+        "qEd",
+        "qStateVer",
+        "qEmploy",
+        "qUSHHI",
+        "q44",
+        "q45",
+        "qPolitics",
+    ]
+    return [col for col in preferred if col in df.columns]
+
+
+def label_for_value(field: str, value: Any, labels: dict[str, dict[str, str]], prompts: dict[str, str]) -> str:
+    raw = norm(value)
+    if not raw:
+        return ""
+    canonical = raw[:-2] if raw.endswith(".0") else raw
+    if re.match(r"^qEthnicr\d+$", field, re.I) and raw.lower() in {"1", "1.0", "checked", "true"}:
+        prompt = prompts.get(field)
+        if prompt:
+            return f"Selected | {prompt}"
+    candidates = [field]
+    base_match = re.match(r"^(qEthnic)r\d+(?:oe)?$", field, re.I)
+    if base_match:
+        candidates.append(base_match.group(1))
+    for candidate in candidates:
+        label = labels.get(candidate, {}).get(raw) or labels.get(candidate, {}).get(canonical)
+        if label:
+            return f"{canonical} | {label}"
+    return canonical
+
+
+def demographic_summary(source_name: str, workbook: Path, sheet_name: str, df: pd.DataFrame) -> pd.DataFrame:
+    datamap = datamap_entries(workbook, sheet_name, set(str(col) for col in df.columns))
+    prompts = datamap["prompts"]
+    labels = datamap["value_labels"]
+    rows: list[dict[str, Any]] = []
+    total_rows = int(len(df))
+    for col in demographic_columns(df):
+        series = df[col]
+        if re.match(r"^qEthnicr\d+$", col, re.I):
+            nonempty = series[series.map(lambda item: norm(item).lower() in {"1", "1.0", "checked", "true"})]
+        else:
+            nonempty = series[series.map(lambda item: bool(norm(item)))]
+        numeric = pd.to_numeric(nonempty, errors="coerce")
+        value_counts = Counter(label_for_value(col, value, labels, prompts) for value in nonempty)
+        value_counts = Counter({key: count for key, count in value_counts.items() if key})
+        top_values = "; ".join(f"{key}: {count}" for key, count in value_counts.most_common(8))
+        numeric_values = numeric.dropna()
+        rows.append(
+            {
+                "source_workbook": source_name,
+                "field": col,
+                "question_text": prompts.get(col, col),
+                "respondents": total_rows,
+                "nonempty_rows": int(len(nonempty)),
+                "missing_rows": int(total_rows - len(nonempty)),
+                "mean": round(float(numeric_values.mean()), 2) if not numeric_values.empty else "",
+                "median": round(float(numeric_values.median()), 2) if not numeric_values.empty else "",
+                "min": round(float(numeric_values.min()), 2) if not numeric_values.empty else "",
+                "max": round(float(numeric_values.max()), 2) if not numeric_values.empty else "",
+                "top_values": top_values,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def write_demographic_markdown(output_dir: Path, demographic_table: pd.DataFrame) -> None:
+    lines = [
+        "# Demographic and aggregate insights",
+        "",
+        "This table summarizes demographic fields found in the respondent data. It uses Datamap labels when they are available.",
+        "",
+    ]
+    if demographic_table.empty:
+        lines.append("No configured demographic fields were found.")
+    else:
+        lines.extend(["| Field | Nonempty | Mean | Median | Top values |", "| --- | --- | --- | --- | --- |"])
+        for _, row in demographic_table.iterrows():
+            top_values = clean_chain_text(row.get("top_values"), 260).replace("|", "\\|")
+            lines.append(
+                f"| {row.get('field', '')} | {row.get('nonempty_rows', '')} | {row.get('mean', '')} | "
+                f"{row.get('median', '')} | {top_values} |"
+            )
+    (output_dir / "demographic_summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def criteria_catalog(profile: dict[str, Any], model: dict[str, Any]) -> pd.DataFrame:
@@ -1769,6 +1993,7 @@ def main() -> None:
     evidence_tables: list[pd.DataFrame] = []
     catalog_tables: list[pd.DataFrame] = []
     question_chain_tables: list[pd.DataFrame] = []
+    demographic_tables: list[pd.DataFrame] = []
     loaded: dict[Path, pd.DataFrame] = {}
     discovery_profiles: dict[str, Any] = {}
     generated_models: dict[str, Any] = {}
@@ -1783,6 +2008,9 @@ def main() -> None:
         chain_map = question_chain_map(path.name, path, sheet_name, df, profile)
         chain_map.to_csv(output_dir / f"{path.stem}.question_chain_map.csv", index=False)
         question_chain_tables.append(chain_map)
+        demographics = demographic_summary(path.name, path, sheet_name, df)
+        demographics.to_csv(output_dir / f"{path.stem}.demographic_summary.csv", index=False)
+        demographic_tables.append(demographics)
         scoring_model = generate_scoring_model(df, profile, METHODOLOGY_CONFIG)
         generated_models[path.name] = scoring_model
         scored = score_dataframe(df, scoring_model, profile)
@@ -1819,6 +2047,10 @@ def main() -> None:
         pd.concat(evidence_tables, ignore_index=True).to_csv(output_dir / "response_criteria_evidence_table.csv", index=False)
     if question_chain_tables:
         pd.concat(question_chain_tables, ignore_index=True).to_csv(output_dir / "question_chain_map.csv", index=False)
+    if demographic_tables:
+        combined_demographics = pd.concat(demographic_tables, ignore_index=True)
+        combined_demographics.to_csv(output_dir / "demographic_summary.csv", index=False)
+        write_demographic_markdown(output_dir, combined_demographics)
 
     (output_dir / "discovery_profiles.json").write_text(json.dumps(discovery_profiles, indent=2, ensure_ascii=True), encoding="utf-8")
     primary_model = next(iter(generated_models.values()))

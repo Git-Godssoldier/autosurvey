@@ -349,7 +349,8 @@ def build(run_dir: Path) -> None:
         ar = row_from(audit_index, key)
         raw_text = text(ar.get("narrative_text")) or text(rr.get("observed_evidence"))
         full_chain = text(ar.get("full_response_chain"))
-        verifier = semantic_verifier_profile(ar, rr, raw_text, full_chain)
+        semantic_chain = text(ar.get("semantic_review_chain")) or full_chain
+        verifier = semantic_verifier_profile(ar, rr, raw_text, semantic_chain)
         decision = text(verifier.get("agent_final_decision"))
         theme = verified_theme(review_theme(key, ar, rr), decision)
         observed = text(rr.get("observed_evidence")) or f"{text(ar.get('narrative_column'), 'narrative')}: {raw_text}"
@@ -374,13 +375,15 @@ def build(run_dir: Path) -> None:
                 "raw_open_end_text": raw_text,
                 "response_chain_field_count": ar.get("response_chain_field_count", ""),
                 "full_response_chain": full_chain,
+                "semantic_review_chain_field_count": ar.get("semantic_review_chain_field_count", ""),
+                "semantic_review_chain": semantic_chain,
                 "programmatic_discard_recommendation": verifier["programmatic_discard_recommendation"],
                 "agent_verifier_mode": verifier["agent_verifier_mode"],
                 "verifier_reason": verifier["verifier_reason"],
                 "verifier_counterevidence": verifier["verifier_counterevidence"],
                 "semantic_discard_basis": verifier["semantic_discard_basis"],
                 "semantic_pattern_findings": verifier["semantic_pattern_findings"],
-                "agent_semantic_judgment": semantic_judgment(key, decision, theme, raw_text, full_chain, ar, verifier),
+                "agent_semantic_judgment": semantic_judgment(key, decision, theme, raw_text, semantic_chain, ar, verifier),
                 "agent_linguistic_fluency_assessment": language_assessment(decision, raw_text),
                 "agent_trust_rationale": f"The decision uses the stitched full response chain, field role, timing, independent audit classification, and critic verifier result. Theme: {theme}.",
                 "agent_recommended_next_step": next_step(decision, theme),

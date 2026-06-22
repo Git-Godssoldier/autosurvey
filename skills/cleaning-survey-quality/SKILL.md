@@ -16,9 +16,11 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
 1. Explore the workbook before writing or running scoring scripts:
    - Read the sheet names, row count, column count, and Datamap or codebook when present.
    - Inspect representative raw rows and nonempty examples from every open-ended field family.
+   - Parse the Datamap before scoring. Extract prompt text, value labels, field groups, and response options. Treat Datamap parsing as the source of truth for field-role mapping when it is available.
    - Map field roles before scoring. At minimum, separate job-role screeners, brand-list fields, narrative open ends, other-specify fields, survey-feedback fields, timing fields, supplier/source fields, respondent identifiers, IP/device fields, and review/helper fields.
+   - Map demographics separately from quality evidence. Required demographic fields include `qGender`, `qager1`, `age`, `qEthnic*`, `qEd`, `qStateVer`, `qEmploy`, `qUSHHI`, `q44`, `q45`, and `qPolitics` when present.
    - Stitch the full question chain before scoring. Use the Datamap or codebook prompt text when available. Fall back to ordered source columns when prompt text is not available.
-   - Stitch each respondent's full response chain from all nonempty respondent-answer fields before final semantic review. The final discard decision must review this chain, not just the field that triggered a flag.
+   - Stitch each respondent's full response chain from all nonempty respondent-answer fields before final semantic review. Also build a focused semantic chain around `qcoe1`, `q9`, `q9r10oe`, `q10`, `q32`, `q43`, and `outro` when those fields exist. The final discard decision must review these chains, not just the field that triggered a flag.
    - Decide which fields can be scored in the first pass, which fields need PM mapping, and which fields should only produce review notes.
    - Do not run topic mismatch or low-effort scoring until the field role is clear. A job-role screener should not be scored like a product-topic open end. An unaided brand-list field should not penalize short valid brand names.
 2. Profile the workbook:
@@ -42,6 +44,7 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
 4. Review the generated `quality_report.md`, `row_scores.csv`, and `quality_summary.json`.
 5. Review the generated table artifacts:
    - `question_chain_map.csv`: ordered source-field map with field roles, prompt text when available, and the fields used for full response-chain review.
+   - `demographic_summary.csv` and `.md`: demographic and aggregate insights from the source data, using Datamap labels where available.
    - `generated_criteria_catalog.csv`: all generated criteria, tags, source columns, rationale, generated weights, and support.
    - `respondent_review_table.csv`: one row per respondent with metadata, triggered criteria, explanations, second-pass disposition, agent semantic analysis, linguistic fluency assessment, trust rationale, survivor rationale, discard rationale, and escalation routing.
    - `response_criteria_evidence_table.csv`: one row per respondent criterion with observed value, source column, generated points, explanation, weight rationale, second-pass disposition, and agent annotation context.
@@ -70,7 +73,7 @@ Do not provide fixed weights or closed criteria ahead of time. The methodology d
 Each run must produce:
 
 - generated candidate criteria with tags, source columns, and rationale
-- question-chain and response-chain context for final semantic review
+- Datamap-derived field roles, question-chain context, full response-chain context, and focused semantic-chain context for final semantic review
 - provisional weights with support counts and rationale
 - generated action thresholds
 - second-pass disposition and discard-only escalation routing
@@ -89,6 +92,7 @@ Every flag must include:
 - criterion id
 - generated tags
 - respondent metadata such as respondent id, source/vendor, status, timestamp, IP, qtime, geography, and quota markers when present
+- demographic summary outputs for `qGender`, `qager1`, `age`, `qEthnic*`, `qEd`, `qStateVer`, `qEmploy`, `qUSHHI`, `q44`, `q45`, and `qPolitics` when present
 - source column or open-end field
 - observed value
 - generated/provisional point contribution when available

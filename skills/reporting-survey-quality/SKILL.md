@@ -38,6 +38,7 @@ Produce three report layers:
    - publication-quality KPI dashboard for total responses, review-tagged rows, agent discard rows, and kept review rows
    - Recharts visualizations for action counts, second-pass disposition, agent review decisions, review themes, trend analysis, candidate clusters, stacked supplier outcomes, kept-review themes, and supplier/source concentrations
    - discovery section showing new candidate analyses, field groups, open-end fields, mapping needs, and unavailable analyses
+   - Datamap-derived field-role section showing how the workflow mapped key fields before scoring
    - expanded scorer criteria section showing criterion id, tags, source columns, generated weight, support, decision role, rationale, and citation
    - response analysis criteria section showing which criteria actually fired, how many rows they touched, and how to read each criterion
    - dataset observations section with a cited list of semantic patterns, trend findings, supplier/source patterns, and survey-design implications
@@ -48,6 +49,7 @@ Produce three report layers:
    - next-pass signal inventory that states what should change before the next first-pass scoring run
    - deep semantic review sample that shows a subset of reviewed rows with the full reasoning and next-pass learning
    - independent full-response audit that checks every row, not just rows surfaced by the scorer
+   - demographic and aggregate insights for `qGender`, `qager1`, `age`, `qEthnic*`, `qEd`, `qStateVer`, `qEmploy`, `qUSHHI`, `q44`, `q45`, and `qPolitics` when present
    - deep findings memo that states the main findings, limits, discard recommendations, and workflow changes
    - annotated-workbook benchmark coverage: qtime, fielding start/date patterns, brand consistency, grid straightlining, open-end topic relevance, duplicate technical signals, respondent flags, respondent score, and recommended action
    - editorial figure captions, source notes, callouts, and artifact navigation for fast content review
@@ -61,6 +63,8 @@ Use outputs from `run_quality_loop.py`:
 - `quality_summary.json`
 - `row_scores.csv`
 - `question_chain_map.csv`
+- `demographic_summary.csv`
+- `demographic_summary.md`
 - `discovery_profiles.json`
 - `generated_scoring_models.json`
 - `methodology_config.json`
@@ -140,7 +144,9 @@ python3 scripts/build_visual_dashboard.py \
 - Explain that criteria and provisional weights were generated from discovery, trial evidence, findings, and feedback.
 - Include justifications for each scoring criterion.
 - Include respondent metadata in review tables wherever source fields are available.
-- Include the stitched question chain and full response chain before final semantic review. The final agent judgment table must carry `response_chain_field_count` and `full_response_chain`, and the final discard decision must be based on that chain plus the surfaced evidence.
+- Include the stitched question chain and full response chain before final semantic review. The final agent judgment table must carry `response_chain_field_count`, `full_response_chain`, `semantic_review_chain_field_count`, and `semantic_review_chain`. The final discard decision must be based on those chains plus the surfaced evidence.
+- Parse the Datamap into field roles before scoring or reporting. The final report should show that the workflow understood the role of `qcoe1`, `q9`, `q10`, `q32`, `q43`, and `outro` before making semantic decisions.
+- Include demographic and aggregate insights from source data. These are report context, not quality-discard evidence by themselves.
 - Treat client-annotated Excel review files as the minimum audit surface. The report should match their practical columns and counts where relevant, then go further with prose analysis, chain-level semantic judgment, verifier counterevidence, kept-row learning, and next-pass signal updates.
 - Always report fielding start/date/timestamp discoveries when the source file contains them. Odd-hour starts and start bursts are fielding-context findings unless corroborating evidence or project rules make them row-level evidence.
 - Treat scoring criteria as the initial case file. The final agent layer must act as a critic and verifier that can supersede static checks when the full chain gives a meaningful semantic explanation.
