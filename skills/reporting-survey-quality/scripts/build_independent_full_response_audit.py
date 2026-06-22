@@ -48,6 +48,22 @@ BRAND_TERMS = re.compile(
 )
 TOOL_CATEGORY_TERMS = re.compile(r"saw|drill|nail gun|oscillator|tape measure|power drill|tool|tools|hammer|level|ladder|battery|impact|driver", re.I)
 INVALID_BRAND_TERMS = re.compile(r"^(no|none|all|dot|human|huffy|nickerson|yamuke|hyperguy|eleganzer|fusion|menace|bower|yougfin)$", re.I)
+DOOR_PRIORITY_TERMS = re.compile(
+    r"door|entry|front|glass|switchable|privacy|security|safety|safe|durab|cost|price|afford|design|style|"
+    r"look|curb|energy|efficien|insulat|quality|material|modern|smart|technology|home|house|exterior|"
+    r"replace|storm|hurricane|weather|light|sound|noise|warrant|install|maintenance|color|window",
+    re.I,
+)
+GENERIC_SURVEY_FEEDBACK_TERMS = re.compile(
+    r"interesting|great survey|good survey|nice survey|very good|good question|i like the idea|i liked the idea|"
+    r"learned|informative|experience|topic",
+    re.I,
+)
+NON_COOPERATIVE_NARRATIVE_TERMS = re.compile(
+    r"do not know|don't know|dont know|no idea|nothing|none|n/?a|not sure|would change nothing|"
+    r"prefer not|skip|asdf|test",
+    re.I,
+)
 
 
 def text(value: object, default: str = "") -> str:
@@ -111,6 +127,8 @@ def brand_token_class(value: object) -> str:
 def brand_quality(row: pd.Series, brand_cols: list[str]) -> tuple[str, int, str]:
     values = [text(row.get(col)) for col in brand_cols if text(row.get(col))]
     if not values:
+        if not brand_cols:
+            return "not_applicable_no_brand_list", 0, ""
         return "missing_brand_list", 0, ""
     classes = [brand_token_class(value) for value in values]
     counts = Counter(classes)
@@ -128,7 +146,65 @@ def brand_quality(row: pd.Series, brand_cols: list[str]) -> tuple[str, int, str]
     return quality, len(values), details
 
 
-def suggested_action(role: str, brand: str, qtime: float | None, duplicate_count: int) -> tuple[str, str]:
+def repeated_phrase_risk(raw: str) -> bool:
+    tokens = re.findall(r"[a-z']+", raw.lower())
+    if len(tokens) < 6:
+        return False
+    for size in (2, 3, 4):
+        grams = [" ".join(tokens[index : index + size]) for index in range(len(tokens) - size + 1)]
+        counts = Counter(grams)
+        if counts and max(counts.values()) >= 3:
+            return True
+    return False
+
+
+def detect_narrative_col(source: pd.DataFrame) -> str | None:
+    preferred = ["outro", "open_end", "openend", "comment", "comments"]
+    for col in preferred:
+        if col in source.columns:
+            return col
+
+    candidates: list[tuple[float, int, str]] = []
+    for col in source.columns:
+        series = source[col]
+        if not (pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series)):
+            continue
+        values = series.dropna().astype(str).str.strip()
+        values = values[values.ne("")]
+        if len(values) < max(20, len(source) // 10):
+            continue
+        avg_len = float(values.str.len().mean())
+        if avg_len >= 20:
+            candidates.append((avg_len, len(values), str(col)))
+    if not candidates:
+        return None
+    candidates.sort(reverse=True)
+    return candidates[0][2]
+
+
+def narrative_quality(value: object) -> str:
+    raw = text(value)
+    if not raw:
+        return "blank"
+    lowered = raw.lower()
+    words = re.findall(r"[a-z0-9']+", lowered)
+    unique_words = set(words)
+    if ABUSIVE_TERMS.search(raw) or NON_COOPERATIVE_NARRATIVE_TERMS.fullmatch(lowered):
+        return "non_cooperative"
+    if repeated_phrase_risk(raw):
+        return "nonsensical_or_repetitive"
+    if GENERIC_SURVEY_FEEDBACK_TERMS.search(raw) and not DOOR_PRIORITY_TERMS.search(raw):
+        return "generic_survey_feedback"
+    if DOOR_PRIORITY_TERMS.search(raw):
+        if len(words) <= 2 or len(unique_words) <= 2:
+            return "low_information"
+        return "product_relevant"
+    if len(words) <= 3 or len(unique_words) <= 2:
+        return "low_information"
+    return "unclear_product_answer"
+
+
+def suggested_action(role: str, brand: str, narrative: str, qtime: float | None, duplicate_count: int) -> tuple[str, str]:
     risks: list[str] = []
     if role in {"likely_non_trade", "non_cooperative"}:
         risks.append("role_fit_risk")
@@ -136,14 +212,29 @@ def suggested_action(role: str, brand: str, qtime: float | None, duplicate_count
         risks.append("role_calibration_needed")
     if brand in {"hostile_brand_answer", "weak_or_invalid_brand_list", "unknown_brand_quality"}:
         risks.append("brand_answer_risk")
+    if narrative in {"non_cooperative", "nonsensical_or_repetitive"}:
+        risks.append("narrative_discard_risk")
+    if narrative in {"generic_survey_feedback", "low_information", "unclear_product_answer"}:
+        risks.append("narrative_quality_risk")
     if qtime is not None and qtime < 240:
         risks.append("speed_risk")
     if duplicate_count > 1:
         risks.append("duplicate_ip_risk")
 
-    if role == "trade_relevant" and brand in {"has_valid_brand_or_tool_category", "unknown_possible_brand_only"} and "speed_risk" not in risks and "duplicate_ip_risk" not in risks:
+    role_ok = role in {"trade_relevant", "not_applicable_no_role_field"}
+    brand_ok = brand in {
+        "has_valid_brand_or_tool_category",
+        "unknown_possible_brand_only",
+        "not_applicable_no_brand_list",
+    }
+    narrative_ok = narrative in {"product_relevant", "not_applicable_no_narrative_field"}
+    if role_ok and brand_ok and narrative_ok and "speed_risk" not in risks and "duplicate_ip_risk" not in risks:
         return "keep_no_issue_from_independent_audit", "none"
+    if "narrative_discard_risk" in risks:
+        return "review_for_possible_discard", "; ".join(risks)
     if "role_fit_risk" in risks and ("duplicate_ip_risk" in risks or "brand_answer_risk" in risks or "speed_risk" in risks):
+        return "review_for_possible_discard", "; ".join(risks)
+    if "narrative_quality_risk" in risks and ("duplicate_ip_risk" in risks or "speed_risk" in risks):
         return "review_for_possible_discard", "; ".join(risks)
     if risks:
         return "review_or_pm_calibration", "; ".join(risks)
@@ -172,6 +263,7 @@ def write_markdown(run_dir: Path, audit: pd.DataFrame, judgments: pd.DataFrame) 
     for label, column in [
         ("Role class", "role_class"),
         ("Brand answer quality", "brand_quality"),
+        ("Narrative quality", "narrative_quality"),
         ("Suggested action", "independent_suggested_action"),
     ]:
         lines.append(f"### {label}")
@@ -212,6 +304,7 @@ def write_markdown(run_dir: Path, audit: pd.DataFrame, judgments: pd.DataFrame) 
             lines.append(
                 f"- {row['respondent_key']}: {row['independent_risk_factors']}. "
                 f"Role: {row['qcoe1']}. Brand: {row['brand_answer_details']}. "
+                f"Narrative: {row['narrative_text']}. "
                 f"Reviewed: {row['autosurvey_reviewed']}. Agent decision: {text(row.get('agent_final_decision'))}."
             )
 
@@ -247,19 +340,25 @@ def main() -> None:
     key_col = "uuid" if "uuid" in source.columns else "record"
     role_col = "qcoe1" if "qcoe1" in source.columns else None
     brand_cols = [col for col in source.columns if re.match(r"qcoe2r\d+$", str(col))]
+    narrative_col = detect_narrative_col(source)
     ip_counts = source["ipAddress"].fillna("").astype(str).value_counts().to_dict() if "ipAddress" in source else {}
-    reviewed_keys = set(judgments.get("respondent_key", pd.Series(dtype=str)).astype(str))
+    agent_reviewed_keys = set(judgments.get("respondent_key", pd.Series(dtype=str)).astype(str))
+    reviewed_keys: set[str] = set()
+    if not respondent.empty and "second_pass_decision" in respondent:
+        queued = respondent[respondent["second_pass_decision"].astype(str).ne("keep_no_issue")]
+        reviewed_keys.update(queued["respondent_key"].astype(str))
     discard_keys = set(judgments.loc[judgments.get("agent_final_decision", pd.Series(dtype=str)).astype(str).eq("discard"), "respondent_key"].astype(str)) if not judgments.empty else set()
 
     rows: list[dict[str, object]] = []
     for _, row in source.iterrows():
         key = text(row.get(key_col)) or str(row.name)
-        role = role_class(row.get(role_col, "")) if role_col else "missing_role"
+        role = role_class(row.get(role_col, "")) if role_col else "not_applicable_no_role_field"
         brand, brand_count, brand_details = brand_quality(row, brand_cols)
+        narrative = narrative_quality(row.get(narrative_col)) if narrative_col else "not_applicable_no_narrative_field"
         qtime_value = pd.to_numeric(pd.Series([row.get("qtime")]), errors="coerce").iloc[0] if "qtime" in source.columns else None
         qtime = None if pd.isna(qtime_value) else float(qtime_value)
         duplicate_count = int(ip_counts.get(text(row.get("ipAddress")), 0))
-        action, risks = suggested_action(role, brand, qtime, duplicate_count)
+        action, risks = suggested_action(role, brand, narrative, qtime, duplicate_count)
         rows.append(
             {
                 "respondent_key": key,
@@ -273,9 +372,13 @@ def main() -> None:
                 "brand_quality": brand,
                 "brand_answer_count": brand_count,
                 "brand_answer_details": brand_details,
+                "narrative_column": narrative_col or "",
+                "narrative_quality": narrative,
+                "narrative_text": text(row.get(narrative_col))[:240] if narrative_col else "",
                 "independent_risk_factors": risks,
                 "independent_suggested_action": action,
                 "autosurvey_reviewed": key in reviewed_keys,
+                "agent_reviewed": key in agent_reviewed_keys,
                 "autosurvey_agent_discard": key in discard_keys,
             }
         )
