@@ -34,10 +34,13 @@ python3 skills/cleaning-survey-quality/scripts/run_quality_loop.py \
 python3 skills/reporting-survey-quality/scripts/build_quality_brief.py \
   --run-dir /path/to/private_outputs/run
 
-python3 skills/reporting-survey-quality/scripts/build_next_pass_review_artifacts.py \
+python3 skills/reporting-survey-quality/scripts/build_independent_full_response_audit.py \
   --run-dir /path/to/private_outputs/run
 
-python3 skills/reporting-survey-quality/scripts/build_independent_full_response_audit.py \
+python3 skills/reporting-survey-quality/scripts/build_agent_review_artifacts.py \
+  --run-dir /path/to/private_outputs/run
+
+python3 skills/reporting-survey-quality/scripts/build_next_pass_review_artifacts.py \
   --run-dir /path/to/private_outputs/run
 
 python3 skills/reporting-survey-quality/scripts/build_deep_findings_analysis.py \
@@ -62,3 +65,15 @@ folder contains:
 Use `next_pass_signal_inventory.csv` and `next_pass_first_pass_config.json`
 before the next scoring run. These files record which signals should be scored,
 which signals should stay review-only, and what extra evidence is needed.
+
+Kept review rows must feed the next run. The workflow now treats these patterns
+as standard signals on any dataset:
+
+- Weak or unclear narrative answers stay as PM examples unless another strong
+  signal appears.
+- Speed-only rows stay review-only when the substantive answer is plausible.
+- Short factor-list answers stay review-only until PM defines the minimum depth
+  required for the field.
+- Keyword topic mismatch is only review routing until semantic relevance is
+  confirmed.
+- Survey-feedback wording is classified separately from substantive answers.

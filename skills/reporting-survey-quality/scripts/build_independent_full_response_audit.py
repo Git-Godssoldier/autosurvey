@@ -48,10 +48,11 @@ BRAND_TERMS = re.compile(
 )
 TOOL_CATEGORY_TERMS = re.compile(r"saw|drill|nail gun|oscillator|tape measure|power drill|tool|tools|hammer|level|ladder|battery|impact|driver", re.I)
 INVALID_BRAND_TERMS = re.compile(r"^(no|none|all|dot|human|huffy|nickerson|yamuke|hyperguy|eleganzer|fusion|menace|bower|yougfin)$", re.I)
-DOOR_PRIORITY_TERMS = re.compile(
-    r"door|entry|front|glass|switchable|privacy|security|safety|safe|durab|cost|price|afford|design|style|"
-    r"look|curb|energy|efficien|insulat|quality|material|modern|smart|technology|home|house|exterior|"
-    r"replace|storm|hurricane|weather|light|sound|noise|warrant|install|maintenance|color|window",
+SUBSTANTIVE_FACTOR_TERMS = re.compile(
+    r"cost|price|afford|value|quality|durab|reliab|fit|function|feature|design|style|look|brand|"
+    r"safety|security|privacy|comfort|convenien|easy|ease|efficient|energy|warrant|service|support|"
+    r"install|maintain|maintenance|material|size|color|performance|availability|speed|taste|clean|"
+    r"location|staff|employee|experience|selection|variety|technology|smart|access|trust|recommend",
     re.I,
 )
 GENERIC_SURVEY_FEEDBACK_TERMS = re.compile(
@@ -85,6 +86,23 @@ def source_workbook(run_dir: Path) -> Path:
     if not source_files:
         raise SystemExit(f"No source files listed in {summary_path}")
     return Path(source_files[0]["file"])
+
+
+def run_summary(run_dir: Path) -> dict:
+    summary_path = run_dir / "quality_summary.json"
+    if not summary_path.exists():
+        return {}
+    return json.loads(summary_path.read_text(encoding="utf-8"))
+
+
+def topic_pattern(summary: dict) -> re.Pattern[str] | None:
+    keywords: list[str] = []
+    for profile in summary.get("discovery_profiles", {}).values():
+        keywords.extend(str(item) for item in profile.get("topic_keywords", []) if str(item).strip())
+    keywords = sorted(set(keywords), key=len, reverse=True)
+    if not keywords:
+        return None
+    return re.compile("|".join(re.escape(item) for item in keywords), re.I)
 
 
 def role_class(value: object) -> str:
@@ -158,19 +176,52 @@ def repeated_phrase_risk(raw: str) -> bool:
     return False
 
 
-def detect_narrative_col(source: pd.DataFrame) -> str | None:
-    preferred = ["outro", "open_end", "openend", "comment", "comments"]
+TECHNICAL_TEXT_FIELD_TERMS = re.compile(
+    r"(^rd_|token|uuid|rid|session|url|useragent|browser|mobile|device|ipaddress|dcua|camp|source|supname|intcode)",
+    re.I,
+)
+
+
+def open_end_columns_from_summary(summary: dict) -> list[str]:
+    columns: list[str] = []
+    for profile in summary.get("discovery_profiles", {}).values():
+        columns.extend(str(item) for item in profile.get("open_end_columns", []) if str(item).strip())
+    return list(dict.fromkeys(columns))
+
+
+def useful_text_values(source: pd.DataFrame, col: str) -> pd.Series:
+    series = source[col]
+    values = series.dropna().astype(str).str.strip()
+    return values[values.ne("")]
+
+
+def detect_narrative_col(source: pd.DataFrame, summary: dict | None = None) -> str | None:
+    preferred = ["outro", "qc5", "open_end", "openend", "comment", "comments"]
     for col in preferred:
         if col in source.columns:
             return col
 
+    summary = summary or {}
+    open_end_cols = [col for col in open_end_columns_from_summary(summary) if col in source.columns and not TECHNICAL_TEXT_FIELD_TERMS.search(col)]
+    if open_end_cols:
+        ranked: list[tuple[int, float, str]] = []
+        for col in open_end_cols:
+            values = useful_text_values(source, col)
+            if values.empty:
+                continue
+            ranked.append((len(values), float(values.str.len().mean()), col))
+        if ranked:
+            ranked.sort(reverse=True)
+            return ranked[0][2]
+
     candidates: list[tuple[float, int, str]] = []
     for col in source.columns:
+        if TECHNICAL_TEXT_FIELD_TERMS.search(str(col)):
+            continue
         series = source[col]
         if not (pd.api.types.is_object_dtype(series) or pd.api.types.is_string_dtype(series)):
             continue
-        values = series.dropna().astype(str).str.strip()
-        values = values[values.ne("")]
+        values = useful_text_values(source, str(col))
         if len(values) < max(20, len(source) // 10):
             continue
         avg_len = float(values.str.len().mean())
@@ -182,7 +233,7 @@ def detect_narrative_col(source: pd.DataFrame) -> str | None:
     return candidates[0][2]
 
 
-def narrative_quality(value: object) -> str:
+def narrative_quality(value: object, topic_re: re.Pattern[str] | None = None) -> str:
     raw = text(value)
     if not raw:
         return "blank"
@@ -193,12 +244,18 @@ def narrative_quality(value: object) -> str:
         return "non_cooperative"
     if repeated_phrase_risk(raw):
         return "nonsensical_or_repetitive"
-    if GENERIC_SURVEY_FEEDBACK_TERMS.search(raw) and not DOOR_PRIORITY_TERMS.search(raw):
+    has_topic = bool(topic_re.search(raw)) if topic_re else False
+    has_substantive_factor = bool(SUBSTANTIVE_FACTOR_TERMS.search(raw))
+    if GENERIC_SURVEY_FEEDBACK_TERMS.search(raw) and not has_topic and not has_substantive_factor:
         return "generic_survey_feedback"
-    if DOOR_PRIORITY_TERMS.search(raw):
+    if has_topic:
         if len(words) <= 2 or len(unique_words) <= 2:
             return "low_information"
-        return "product_relevant"
+        return "topic_relevant"
+    if has_substantive_factor:
+        if len(words) <= 2 or len(unique_words) <= 2:
+            return "low_information"
+        return "substantive_narrative"
     if len(words) <= 3 or len(unique_words) <= 2:
         return "low_information"
     return "unclear_product_answer"
@@ -227,7 +284,7 @@ def suggested_action(role: str, brand: str, narrative: str, qtime: float | None,
         "unknown_possible_brand_only",
         "not_applicable_no_brand_list",
     }
-    narrative_ok = narrative in {"product_relevant", "not_applicable_no_narrative_field"}
+    narrative_ok = narrative in {"topic_relevant", "substantive_narrative", "not_applicable_no_narrative_field"}
     if role_ok and brand_ok and narrative_ok and "speed_risk" not in risks and "duplicate_ip_risk" not in risks:
         return "keep_no_issue_from_independent_audit", "none"
     if "narrative_discard_risk" in risks:
@@ -332,6 +389,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     run_dir = args.run_dir.expanduser().resolve()
+    summary = run_summary(run_dir)
     workbook = source_workbook(run_dir)
     source = pd.read_excel(workbook, sheet_name=args.sheet)
     respondent = read_csv(run_dir / "respondent_review_table.csv")
@@ -340,7 +398,8 @@ def main() -> None:
     key_col = "uuid" if "uuid" in source.columns else "record"
     role_col = "qcoe1" if "qcoe1" in source.columns else None
     brand_cols = [col for col in source.columns if re.match(r"qcoe2r\d+$", str(col))]
-    narrative_col = detect_narrative_col(source)
+    narrative_col = detect_narrative_col(source, summary)
+    topic_re = topic_pattern(summary)
     ip_counts = source["ipAddress"].fillna("").astype(str).value_counts().to_dict() if "ipAddress" in source else {}
     agent_reviewed_keys = set(judgments.get("respondent_key", pd.Series(dtype=str)).astype(str))
     reviewed_keys: set[str] = set()
@@ -354,7 +413,7 @@ def main() -> None:
         key = text(row.get(key_col)) or str(row.name)
         role = role_class(row.get(role_col, "")) if role_col else "not_applicable_no_role_field"
         brand, brand_count, brand_details = brand_quality(row, brand_cols)
-        narrative = narrative_quality(row.get(narrative_col)) if narrative_col else "not_applicable_no_narrative_field"
+        narrative = narrative_quality(row.get(narrative_col), topic_re) if narrative_col else "not_applicable_no_narrative_field"
         qtime_value = pd.to_numeric(pd.Series([row.get("qtime")]), errors="coerce").iloc[0] if "qtime" in source.columns else None
         qtime = None if pd.isna(qtime_value) else float(qtime_value)
         duplicate_count = int(ip_counts.get(text(row.get("ipAddress")), 0))

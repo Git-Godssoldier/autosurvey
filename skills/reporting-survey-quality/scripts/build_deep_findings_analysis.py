@@ -60,6 +60,26 @@ def what_this_run_teaches(signals: pd.DataFrame) -> list[str]:
         lessons.append(
             "Keyword topic mismatch should stay a routing signal. The agent should make the final relevance decision from the raw text and project context."
         )
+    if "semantic_topic_map_before_keyword_scoring" in signal_ids:
+        lessons.append(
+            "The next first pass should build a topic map from the Datamap, prompt text, and sampled open ends before it scores topic mismatch."
+        )
+    if "narrative_pm_depth_calibration" in signal_ids:
+        lessons.append(
+            "Weak narrative answers need PM examples before they can become stricter scoring rules. Keep these rows as calibration examples unless another strong signal appears."
+        )
+    if "critical_narrative_minimum_depth_rule" in signal_ids:
+        lessons.append(
+            "Short factor-list answers need a field-specific depth rule. The next pass should keep them review-only until PM decides whether that answer depth is acceptable."
+        )
+    if "survey_feedback_narrative_classifier" in signal_ids:
+        lessons.append(
+            "Survey-feedback wording should be separated from substantive prompt answers before topic scoring."
+        )
+    if "speed_only_review_guardrail" in signal_ids:
+        lessons.append(
+            "Speed-only rows should stay review-only when the high-value answers are plausible."
+        )
     if "outro_feedback_exclusion_from_topic_scoring" in signal_ids:
         lessons.append(
             "Survey-feedback outro fields should not be scored as product-topic mismatch unless the prompt asks for a product recap."

@@ -101,6 +101,13 @@ python3 scripts/build_independent_full_response_audit.py \
   --run-dir /path/to/outputs/rubric-evolution-seed
 ```
 
+Build agent review artifacts from the scorer and independent audit:
+
+```bash
+python3 scripts/build_agent_review_artifacts.py \
+  --run-dir /path/to/outputs/rubric-evolution-seed
+```
+
 Then:
 
 ```bash
@@ -131,6 +138,7 @@ python3 scripts/build_visual_dashboard.py \
 - If semantic relevance or linguistic quality contributes to discard, report the Opulent agent's adjudication of the text. Do not present keyword mismatch output as the final semantic decision.
 - For rows that survive the extra pass, include why they were kept and aggregate recommendations for strengthening survey questions so vague or gameable answers are forced into a clearer framework.
 - For every run, convert kept review rows into critical next-pass signals. Say which signals should be added to first-pass scoring, which signals need project mapping, and which signals must stay review-only.
+- Always include these kept-row patterns in the next-pass workflow when they appear: weak or unclear narrative answers, speed-only plausible answers, short factor-list answers, semantic keyword false positives, and survey-feedback wording. Each pattern must produce both a survey-question or parameter recommendation and a suggested quality parameter.
 - Return a subset of reviewed rows with deeper semantic analysis. Include the final decision, raw evidence, language assessment, trust basis, next action, and the learning that should change the next pass.
 - Independently audit all source rows before final delivery. Compare the full-row audit against the scorer and agent review outputs. If the audit finds a missed possible discard, update the agent judgment artifacts and explain the fix.
 - Put the highest-severity rows before lower-priority review examples.

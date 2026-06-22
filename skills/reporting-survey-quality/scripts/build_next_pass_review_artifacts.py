@@ -86,6 +86,56 @@ def theme_rule(theme: str) -> dict[str, str]:
             "default_status": "review_for_discard",
             "escalation_rule": "Escalate direct refusal or hostile content when it appears in a required open-end field.",
         }
+    if "weak or unclear" in lower and "narrative" in lower:
+        return {
+            "signal_id": "narrative_pm_depth_calibration",
+            "critical_signal": "Weak or unclear narrative answers need PM examples before the scorer can treat them as removal evidence.",
+            "first_pass_change": "Add PM examples of acceptable and unacceptable narrative answers to the next first-pass context before scoring answer depth.",
+            "analysis_factor": "Separate unclear wording from clear non-response. Use the prompt, field role, and examples before deciding severity.",
+            "evidence_needed": "Prompt text, raw narrative answer, PM examples of acceptable and unacceptable answers, and whether the field is required or optional.",
+            "default_status": "needs_pm_examples",
+            "escalation_rule": "Keep weak narrative answers as PM calibration examples unless another strong signal appears.",
+        }
+    if "speed-only plausible" in lower:
+        return {
+            "signal_id": "speed_only_review_guardrail",
+            "critical_signal": "Fast completion did not prove poor quality when the narrative answer was plausible.",
+            "first_pass_change": "Keep qtime as a routing signal and require a weak narrative, duplicate cluster, straightlining, or another quality issue before discard.",
+            "analysis_factor": "Separate rushed but plausible completes from fast completes with weak or evasive answers.",
+            "evidence_needed": "Total qtime, section timing if available, raw high-value answers, source, duplicate context, and straightlining checks.",
+            "default_status": "review_only",
+            "escalation_rule": "Speed-only rows should stay review-only.",
+        }
+    if "thin but" in lower and ("product-adjacent" in lower or "topic-adjacent" in lower or "narrative" in lower):
+        return {
+            "signal_id": "critical_narrative_minimum_depth_rule",
+            "critical_signal": "Short answers can still be valid when they name a plausible factor, but critical narrative fields may need a minimum-depth rule.",
+            "first_pass_change": "Create a minimum-depth rule for critical narrative fields after PM decides whether short factor lists are acceptable.",
+            "analysis_factor": "Separate short factor-list answers from evasive, generic, or non-cooperative answers.",
+            "evidence_needed": "Prompt text, field criticality, raw answer, PM minimum-depth examples, and whether the answer names a plausible factor.",
+            "default_status": "review_only_until_pm_depth_rule",
+            "escalation_rule": "Short factor answers should be review-only unless paired with another strong signal.",
+        }
+    if "generic survey-feedback" in lower or "survey feedback" in lower:
+        return {
+            "signal_id": "survey_feedback_narrative_classifier",
+            "critical_signal": "Some narrative answers describe the survey or idea instead of answering the substantive prompt.",
+            "first_pass_change": "Classify survey-feedback wording separately from topic relevance before scoring narrative fields.",
+            "analysis_factor": "Split open ends into substantive answers, qualification answers, other-specify answers, and survey-feedback answers.",
+            "evidence_needed": "Question label, field name, prompt text, raw answer, and examples of survey-feedback wording.",
+            "default_status": "pm_calibration_for_required_narratives",
+            "escalation_rule": "Do not escalate survey-feedback wording by itself. Escalate only when the field requires a substantive answer and another strong quality signal appears.",
+        }
+    if "product-adjacent keyword false positive" in lower or "topic-adjacent keyword false positive" in lower:
+        return {
+            "signal_id": "semantic_topic_map_before_keyword_scoring",
+            "critical_signal": "Respondents used relevant adjacent wording that was outside the seed keyword map.",
+            "first_pass_change": "Build a project-specific semantic topic map from the Datamap, prompt text, and sampled open ends before scoring topic mismatch.",
+            "analysis_factor": "Capture category terms, benefits, use cases, and common respondent wording before topic scoring.",
+            "evidence_needed": "Datamap prompt, raw open-end text, accepted examples, rejected examples, and project topic terms.",
+            "default_status": "keyword_mismatch_is_review_routing",
+            "escalation_rule": "Use keyword mismatch as review routing only until semantic relevance is confirmed.",
+        }
     if "keyword false positive" in lower:
         return {
             "signal_id": "semantic_topic_relevance_replace_keyword_miss",
@@ -96,17 +146,7 @@ def theme_rule(theme: str) -> dict[str, str]:
             "default_status": "review_only_until_validated",
             "escalation_rule": "Escalate only when semantic review confirms non-response and another strong quality signal is present.",
         }
-    if "outro survey feedback" in lower:
-        return {
-            "signal_id": "outro_feedback_exclusion_from_topic_scoring",
-            "critical_signal": "Outro survey feedback was treated as product-topic evidence.",
-            "first_pass_change": "Classify outro fields before scoring. Survey feedback should not be product topic mismatch evidence.",
-            "analysis_factor": "Split open ends into product answers, qualification answers, other-specify answers, and survey-feedback answers.",
-            "evidence_needed": "Question label, field name, prompt text when available, and sample values.",
-            "default_status": "do_not_score_for_product_topic",
-            "escalation_rule": "Do not escalate from outro feedback unless the project requires a substantive product recap.",
-        }
-    if "product-adjacent" in lower:
+    if "product-adjacent" in lower or "topic-adjacent" in lower:
         return {
             "signal_id": "product_adjacent_vocabulary_expansion",
             "critical_signal": "Relevant product-adjacent wording missed the seed keywords.",
@@ -247,7 +287,10 @@ def next_pass_config(inventory: pd.DataFrame) -> dict[str, object]:
         "rules": rules,
         "guardrails": [
             "Treat keyword topic mismatch as candidate evidence until semantic review confirms it.",
-            "Do not score survey-feedback outro fields as product topic mismatch.",
+            "Map field roles before scoring unfamiliar datasets.",
+            "Do not score survey-feedback narrative fields as topic mismatch.",
+            "Keep weak or unclear narrative answers as PM calibration examples unless another strong signal appears.",
+            "Keep short factor-list answers review-only until PM defines a minimum-depth rule for critical fields.",
             "Do not escalate speed-only or duplicate-only rows without another strong quality signal.",
             "Require question-level context before low-effort open ends become discard evidence.",
         ],

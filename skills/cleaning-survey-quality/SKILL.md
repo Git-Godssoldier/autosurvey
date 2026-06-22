@@ -56,6 +56,7 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - `next_pass_first_pass_config.json`: proposed next-pass rules, evidence needs, and escalation guardrails.
    - `deep_semantic_review_sample.md`: a small set of reviewed rows with deeper semantic reasoning and next-pass learning.
    - `agent_final_review_dashboard.html` and `agent_final_visual_findings_report.md`: final dashboard, charts, tables, findings, and artifact index for content review.
+   - Use `build_agent_review_artifacts.py` after the independent full-response audit to create the agent judgment table, discard set, kept-review synthesis, and verified quality brief.
 9. Before starting the next run, read `next_pass_signal_inventory.csv` and decide which signals can be added to the first-pass context, which signals need PM examples, and which signals should remain review-only.
 
 ## Generated Criteria And Scoring Policy
@@ -194,6 +195,14 @@ The synthesis must include:
 - survey-question improvements, such as shorter grids, clearer prompts, concrete-example requirements, structured reason codes, reverse-coded items, and follow-up prompts
 - survey parameter improvements, such as section-level timers, attention checks, soft warnings, minimum exposure requirements, and thresholds that remain review-only unless corroborated
 - explicit guardrail that keyword mismatch is only a candidate review signal; semantic relevance must be agent-adjudicated
+
+The synthesis must always preserve these reusable patterns when they appear:
+
+- weak or unclear narrative answers: add PM examples of acceptable and unacceptable answers to the next first-pass context
+- speed-only plausible answers: keep qtime as routing evidence and require another quality issue before discard
+- short factor-list answers: create a minimum-depth rule only after PM decides whether short factor lists are acceptable
+- semantic keyword false positives: build a project-specific topic map from the Datamap and sampled open ends before scoring topic mismatch
+- survey-feedback wording: classify feedback about the survey or idea separately from substantive prompt answers
 
 ## When To Read References
 
