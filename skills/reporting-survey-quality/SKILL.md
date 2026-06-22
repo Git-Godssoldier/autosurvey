@@ -44,6 +44,8 @@ Produce three report layers:
    - structured discard table with agent rationale and source evidence
    - full semantic decision table for all rows the agent investigated
    - kept-review synthesis table with survey-question and parameter recommendations
+   - next-pass signal inventory that states what should change before the next first-pass scoring run
+   - deep semantic review sample that shows a subset of reviewed rows with the full reasoning and next-pass learning
    - editorial figure captions, source notes, callouts, and artifact navigation for fast content review
    - artifact index linking the CSV, Markdown, and dashboard outputs
 
@@ -65,12 +67,25 @@ Use outputs from `run_quality_loop.py`:
 - `agent_discard_set.csv`
 - `agent_kept_review_synthesis.md`
 - `agent_kept_review_synthesis_table.csv`
+- `next_pass_signal_inventory.csv`
+- `next_pass_signal_inventory.md`
+- `next_pass_first_pass_config.json`
+- `deep_semantic_review_sample.csv`
+- `deep_semantic_review_sample.md`
+- `workflow_improvement_log.md`
 - `respondent_review_table.md`
 
 Build PM and client briefs:
 
 ```bash
 python3 scripts/build_quality_brief.py \
+  --run-dir /path/to/outputs/rubric-evolution-seed
+```
+
+Build next-pass learning artifacts:
+
+```bash
+python3 scripts/build_next_pass_review_artifacts.py \
   --run-dir /path/to/outputs/rubric-evolution-seed
 ```
 
@@ -96,6 +111,8 @@ python3 scripts/build_visual_dashboard.py \
 - For discard candidates, include rich semantic analysis, linguistic fluency assessment, and trust rationale; do not make readers reconstruct the judgment from flags and scores.
 - If semantic relevance or linguistic quality contributes to discard, report the Opulent agent's adjudication of the text. Do not present keyword mismatch output as the final semantic decision.
 - For rows that survive the extra pass, include why they were kept and aggregate recommendations for strengthening survey questions so vague or gameable answers are forced into a clearer framework.
+- For every run, convert kept review rows into critical next-pass signals. Say which signals should be added to first-pass scoring, which signals need project mapping, and which signals must stay review-only.
+- Return a subset of reviewed rows with deeper semantic analysis. Include the final decision, raw evidence, language assessment, trust basis, next action, and the learning that should change the next pass.
 - Put the highest-severity rows before lower-priority review examples.
 - Do not expose raw open-end responses externally unless approved.
 - Do not claim respondents are fraudulent solely because of AI-likelihood scores.

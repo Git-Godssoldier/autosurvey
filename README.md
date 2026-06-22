@@ -27,6 +27,23 @@ python3 skills/cleaning-survey-quality/scripts/run_quality_loop.py \
 python3 skills/reporting-survey-quality/scripts/build_quality_brief.py \
   --run-dir /path/to/private_outputs/run
 
+python3 skills/reporting-survey-quality/scripts/build_next_pass_review_artifacts.py \
+  --run-dir /path/to/private_outputs/run
+
 python3 skills/reporting-survey-quality/scripts/build_visual_dashboard.py \
   --run-dir /path/to/private_outputs/run
 ```
+
+The run is not complete until an agent has reviewed the flagged rows and the output
+folder contains:
+
+- `agent_review_judgment_table.csv`
+- `agent_discard_set.csv`
+- `agent_kept_review_synthesis_table.csv`
+- `next_pass_signal_inventory.csv`
+- `next_pass_first_pass_config.json`
+- `deep_semantic_review_sample.md`
+
+Use `next_pass_signal_inventory.csv` and `next_pass_first_pass_config.json`
+before the next scoring run. These files record which signals should be scored,
+which signals should stay review-only, and what extra evidence is needed.

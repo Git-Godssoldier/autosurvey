@@ -81,12 +81,17 @@ Sections:
    - agent review judgment table
    - agent discard set
    - kept-review synthesis table
+   - next-pass signal inventory
+   - next-pass first-pass config
+   - deep semantic review sample
    - PM-facing Markdown sample
 13. Final visual review package
    - KPI cards: total responses, review-tagged rows, agent discard rows, kept review rows
    - bar charts: action counts, second-pass disposition, agent review decisions, kept-review themes, supplier/source concentrations
    - discard table with agent rationale and source evidence
    - kept-review synthesis table with survey-question and parameter recommendations
+   - next-pass signals to feed into the next first-pass analysis
+   - deep semantic sample with row-level reasoning and learning for the next pass
    - final guidance on what to discard, what to keep, and what to improve in the survey instrument
 
 ## Required Table Fields
@@ -169,6 +174,31 @@ Sections:
 - quality parameter recommendation
 - issue pattern
 
+`next_pass_signal_inventory.csv` should include:
+
+- theme
+- support rows
+- critical signal
+- first-pass change
+- analysis factor
+- evidence needed
+- default status
+- escalation rule
+- survey-question or parameter recommendation
+
+`deep_semantic_review_sample.md` should include:
+
+- respondent key
+- final agent decision
+- review theme
+- observed evidence
+- raw text reviewed
+- semantic analysis
+- language assessment
+- trust basis
+- next action
+- learning for the next pass
+
 `agent_final_review_dashboard.html` and `agent_final_visual_findings_report.md` should include:
 
 - publication-style visual KPI summary
@@ -181,6 +211,8 @@ Sections:
 - agent discard set
 - full semantic decision table for every agent-reviewed row
 - kept-review synthesis
+- next-pass signal inventory
+- deep semantic review sample
 - citations for all run-specific and method-specific claims
 - clear artifact index for content review
 

@@ -125,6 +125,12 @@ def artifact_links(run_dir: Path) -> list[tuple[str, str]]:
         "agent_discard_set.csv",
         "agent_kept_review_synthesis.md",
         "agent_kept_review_synthesis_table.csv",
+        "next_pass_signal_inventory.md",
+        "next_pass_signal_inventory.csv",
+        "next_pass_first_pass_config.json",
+        "deep_semantic_review_sample.md",
+        "deep_semantic_review_sample.csv",
+        "workflow_improvement_log.md",
         "respondent_review_table.csv",
         "response_criteria_evidence_table.csv",
         "agent_annotation_table.csv",
@@ -143,6 +149,8 @@ def citation_map(run_dir: Path) -> list[tuple[str, str, str]]:
         ("C4", "Criterion evidence table", str(run_dir / "response_criteria_evidence_table.csv")),
         ("C5", "Agent judgment table", str(run_dir / "agent_review_judgment_table.csv")),
         ("C6", "Kept review synthesis", str(run_dir / "agent_kept_review_synthesis_table.csv")),
+        ("C11", "Next-pass signal inventory", str(run_dir / "next_pass_signal_inventory.csv")),
+        ("C12", "Deep semantic review sample", str(run_dir / "deep_semantic_review_sample.md")),
         ("C7", "CBRE figures report format reference", "https://mktgdocs.cbre.com/2299/12439527-d1a2-46eb-b485-4fd377f0d618-223048296/European_Data_Centres_Figures_.pdf"),
         ("C8", "Plain writing skill", "https://github.com/shreyashankar/plain-writing-skill"),
         ("C9", "Recharts documentation", "https://recharts.org/"),
@@ -281,7 +289,7 @@ def observations(respondent: pd.DataFrame, judgments: pd.DataFrame, criteria: pd
         open_topic = criteria[criteria["criterion_id"].astype(str).str.contains("open_end_relevance|open_end_topic|relevance", case=False, regex=True)]
         if not open_topic.empty:
             support = int(pd.to_numeric(open_topic["support_rows"], errors="coerce").fillna(0).max())
-            notes.append(f"Topic mismatch was a broad discovery signal with as many as {support} supported rows, but it was not used as a final semantic decision. The agent kept rows when the raw language was still about gas stations, convenience stores, pumps, rewards, or service. [C2][C5]")
+            notes.append(f"Topic mismatch was a broad discovery signal with as many as {support} supported rows, but it was not used as a final semantic decision. The agent kept rows when the raw language was still about the project topic or when the flagged field was only survey-experience feedback. [C2][C5]")
     if not kept_synthesis.empty:
         for _, row in kept_synthesis.iterrows():
             notes.append(f"{int(row['kept_review_rows'])} kept rows fell under '{row['theme']}'. The report turns those rows into survey design guidance instead of discard actions. [C6]")
@@ -418,6 +426,7 @@ def main() -> None:
     judgments = read_csv(run_dir / "agent_review_judgment_table.csv")
     discard = read_csv(run_dir / "agent_discard_set.csv")
     kept_synthesis = read_csv(run_dir / "agent_kept_review_synthesis_table.csv")
+    next_pass_signals = read_csv(run_dir / "next_pass_signal_inventory.csv")
     criteria = read_csv(run_dir / "generated_criteria_catalog.csv")
     evidence = read_csv(run_dir / "response_criteria_evidence_table.csv")
     discovery = read_json(run_dir / "discovery_profiles.json")
@@ -659,6 +668,10 @@ def main() -> None:
         "<section class='panel'><h2>Kept review synthesis</h2>",
         table_html(kept_synthesis, ["theme", "kept_review_rows", "why_kept", "survey_question_or_parameter_recommendation", "suggested_quality_parameter"], 10),
         "</section>",
+        "<section class='panel'><h2>Next-pass signals</h2>",
+        table_html(next_pass_signals, ["signal_id", "support_rows", "critical_signal", "first_pass_change", "evidence_needed", "escalation_rule"], 12),
+        "<div class='source'>Source: next-pass signal inventory. [C11]</div>",
+        "</section>",
         "<section class='panel'><h2>Citations</h2>",
         citations_html(citations),
         "</section>",
@@ -736,6 +749,9 @@ def main() -> None:
         "",
         "## Survey improvement synthesis",
         *markdown_table(kept_synthesis, ["theme", "kept_review_rows", "why_kept", "survey_question_or_parameter_recommendation", "suggested_quality_parameter"], 10),
+        "",
+        "## Next-pass signals",
+        *markdown_table(next_pass_signals, ["signal_id", "support_rows", "critical_signal", "first_pass_change", "evidence_needed", "escalation_rule"], 12),
         "",
         "## Final review rule",
         "Use scoring to find candidates. Use the agent to make the final semantic discard decision. Use kept review rows to improve the next survey. [C5][C6]",

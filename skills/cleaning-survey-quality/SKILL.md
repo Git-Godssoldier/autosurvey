@@ -46,7 +46,11 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - `agent_review_judgment_table.csv`: all review-tagged rows with agent decisions.
    - `agent_discard_set.csv`: only rows the agent judged should be escalated for removal.
    - `agent_kept_review_synthesis.md` and `.csv`: synthesis of kept review-flagged candidates into survey-question and parameter improvements.
+   - `next_pass_signal_inventory.csv`: critical signals that should shape the next first-pass analysis.
+   - `next_pass_first_pass_config.json`: proposed next-pass rules, evidence needs, and escalation guardrails.
+   - `deep_semantic_review_sample.md`: a small set of reviewed rows with deeper semantic reasoning and next-pass learning.
    - `agent_final_review_dashboard.html` and `agent_final_visual_findings_report.md`: final dashboard, charts, tables, findings, and artifact index for content review.
+8. Before starting the next run, read `next_pass_signal_inventory.csv` and decide which signals can be added to the first-pass context, which signals need PM examples, and which signals should remain review-only.
 
 ## Generated Criteria And Scoring Policy
 
@@ -59,6 +63,8 @@ Each run must produce:
 - generated action thresholds
 - second-pass disposition and discard-only escalation routing
 - agent-generated semantic annotations for escalations and survivor decisions
+- next-pass signal inventory from agent-reviewed rows
+- deep semantic review sample for a subset of reviewed rows
 - evaluation metrics when adjudicated labels exist
 
 Weights are trial artifacts, not policy. They should evolve from discoveries, PM findings, adjudicated examples, and feedback. Do not auto-remove respondents from this skill alone. Output discard-candidate escalations with evidence and row-level justifications only after a second pass has found converging discard evidence. Treat programmatic scoring as the evidence substrate, not the reader-facing judgment.
