@@ -24,7 +24,7 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
 2. Profile the workbook:
    - Identify the main respondent sheet, usually `A1`.
    - Confirm respondent key columns such as `uuid`, `record`, or `RID`.
-   - Discover raw quality signals: qtime/duration, IP address, matrix grids, open-ended columns, brand/preference/recommendation candidates, and AI-likelihood columns when present.
+   - Discover raw quality signals: qtime/duration, fielding start/date/timestamp fields, IP address, matrix grids, open-ended columns, brand/preference/recommendation candidates, and AI-likelihood columns when present.
    - Detect and ignore graded/review helper columns when building the raw-data discovery profile.
 3. Run the scoring loop:
    ```bash
@@ -47,7 +47,7 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - `response_criteria_evidence_table.csv`: one row per respondent criterion with observed value, source column, generated points, explanation, weight rationale, second-pass disposition, and agent annotation context.
    - `agent_annotation_table.csv`: focused Opulent annotation surface for semantic analysis, linguistic fluency assessment, trust rationale, and next steps.
    - `respondent_review_table.md`: PM-facing Markdown sample sorted by severity/score.
-6. Review `discovery_profiles.json` to confirm detected qtime, IP, matrix, open-end, brand-consistency, and AI-authenticity candidate analyses.
+6. Review `discovery_profiles.json` to confirm detected qtime, fielding timestamp, IP, matrix, open-end, brand-consistency, and AI-authenticity candidate analyses.
 7. Route rows using `second_pass_decision` first, then `severity_level`, `escalation_owner`, and `escalation_reason`.
    - Escalate only rows marked `discard_candidate` after the extra pass.
    - Keep rows marked `keep_with_recommendation` or `keep_no_issue`; aggregate their survivor rationales and survey-question recommendations.
@@ -146,6 +146,10 @@ On unannotated files, the script can score:
 
 The script also discovers brand/preference/recommendation columns, but it reports those as candidate mappings unless a project-specific consistency rule exists. Do not infer brand inconsistency from column names alone.
 
+The script also discovers fielding timestamp fields such as `date`, `start_date`, `start_time`, `started_at`, or comparable export fields. Odd-hour starts and concentrated start bursts are fielding-pattern evidence by default. Report them by supplier/source and timestamp bucket, but do not turn them into row-level discard evidence unless the final agent sees corroborating respondent-quality problems or the project has an approved fielding rule.
+
+Client-annotated workbooks are the minimum benchmark, not the target. If a prior workbook contains columns such as `qtime_Under_4_Minutes`, brand inconsistency, grid straightline detail, open-end topic relevance, duplicate IP, `Respondent Flags`, `Respondent Score`, or `Recommended_Action`, autosurvey must preserve the equivalent audit surface and then surpass it with full-chain semantic reasoning, counterevidence, kept-row learning, survey-improvement guidance, and readable analyst prose.
+
 ## Open-End Evaluation Method
 
 For open-ended responses:
@@ -178,6 +182,7 @@ Every raw-data run must also produce generated candidate criteria:
 Required analysis families:
 
 - completion-time quality
+- fielding start/date pattern quality
 - duplicate technical signals
 - matrix straightlining
 - open-end quality

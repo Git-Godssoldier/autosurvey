@@ -49,6 +49,7 @@ Produce three report layers:
    - deep semantic review sample that shows a subset of reviewed rows with the full reasoning and next-pass learning
    - independent full-response audit that checks every row, not just rows surfaced by the scorer
    - deep findings memo that states the main findings, limits, discard recommendations, and workflow changes
+   - annotated-workbook benchmark coverage: qtime, fielding start/date patterns, brand consistency, grid straightlining, open-end topic relevance, duplicate technical signals, respondent flags, respondent score, and recommended action
    - editorial figure captions, source notes, callouts, and artifact navigation for fast content review
    - artifact index linking the CSV, Markdown, and dashboard outputs
 
@@ -140,6 +141,8 @@ python3 scripts/build_visual_dashboard.py \
 - Include justifications for each scoring criterion.
 - Include respondent metadata in review tables wherever source fields are available.
 - Include the stitched question chain and full response chain before final semantic review. The final agent judgment table must carry `response_chain_field_count` and `full_response_chain`, and the final discard decision must be based on that chain plus the surfaced evidence.
+- Treat client-annotated Excel review files as the minimum audit surface. The report should match their practical columns and counts where relevant, then go further with prose analysis, chain-level semantic judgment, verifier counterevidence, kept-row learning, and next-pass signal updates.
+- Always report fielding start/date/timestamp discoveries when the source file contains them. Odd-hour starts and start bursts are fielding-context findings unless corroborating evidence or project rules make them row-level evidence.
 - Treat scoring criteria as the initial case file. The final agent layer must act as a critic and verifier that can supersede static checks when the full chain gives a meaningful semantic explanation.
 - Show verifier counterevidence and semantic discard basis for final decisions. A row should not be discarded only because a programmatic check fired.
 - Produce readable prose analysis for the best and worst full response chains. The prose must explain what the agent saw, why strong rows are strong, why bad rows remain bad after full-chain review, and where the workflow should challenge itself.
@@ -176,5 +179,6 @@ python3 scripts/build_visual_dashboard.py \
 ## When To Read References
 
 - Read `references/report-templates.md` before writing PM or client summaries.
+- Read `references/client-annotation-benchmark.md` when using client-provided annotated workbooks as examples or calibration material.
 - Read `references/escalation-reporting.md` before changing escalation sections.
 - Read `references/visual-dashboard-design.md` before changing final dashboard or chart generation.

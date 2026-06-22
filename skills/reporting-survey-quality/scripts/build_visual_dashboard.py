@@ -181,6 +181,8 @@ def discovery_summary(discovery: dict) -> dict[str, object]:
     profile = next(iter(discovery.values())) if len(discovery) == 1 else discovery
     return {
         "qtime_columns": profile.get("qtime_columns", []),
+        "fielding_timestamp_columns": profile.get("fielding_timestamp_columns", []),
+        "fielding_timestamp_stats": profile.get("fielding_timestamp_stats", {}),
         "ip_columns": profile.get("ip_columns", []),
         "matrix_group_count": len(profile.get("matrix_groups", {})),
         "matrix_groups": list(profile.get("matrix_groups", {}).keys()),
@@ -213,6 +215,7 @@ def discovery_html(summary: dict[str, object]) -> str:
     return (
         "<div class='fact-grid'>"
         f"<div><strong>Duration fields</strong><span>{html.escape(', '.join(summary.get('qtime_columns', [])) or 'none')}</span></div>"
+        f"<div><strong>Fielding timestamp fields</strong><span>{html.escape(', '.join(summary.get('fielding_timestamp_columns', [])) or 'none')}</span></div>"
         f"<div><strong>IP fields</strong><span>{html.escape(', '.join(summary.get('ip_columns', [])) or 'none')}</span></div>"
         f"<div><strong>Matrix groups</strong><span>{html.escape(str(summary.get('matrix_group_count', 0)))}</span></div>"
         f"<div><strong>Open-end fields</strong><span>{html.escape(', '.join(summary.get('open_end_columns', [])) or 'none')}</span></div>"
@@ -748,6 +751,7 @@ def main() -> None:
         "",
         "## New discoveries from the raw export",
         f"- Duration fields: {', '.join(discoveries.get('qtime_columns', [])) or 'none'} [C3]",
+        f"- Fielding timestamp fields: {', '.join(discoveries.get('fielding_timestamp_columns', [])) or 'none'} [C3]",
         f"- IP fields: {', '.join(discoveries.get('ip_columns', [])) or 'none'} [C3]",
         f"- Matrix groups: {discoveries.get('matrix_group_count', 0)} [C3]",
         f"- Open-end fields: {', '.join(discoveries.get('open_end_columns', [])) or 'none'} [C3]",

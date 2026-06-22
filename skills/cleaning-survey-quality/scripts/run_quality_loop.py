@@ -38,6 +38,12 @@ TECHNICAL_RESPONSE_FIELD_RE = re.compile(
     re.I,
 )
 
+FIELDING_TIMESTAMP_RE = re.compile(
+    r"(^|_)(date|start_date|starttime|start_time|started|started_at|begin|began|"
+    r"timestamp|completed_at|completion_date|end_date)$|start.?date|start.?time",
+    re.I,
+)
+
 
 METHODOLOGY_CONFIG: dict[str, Any] = {
     "version": "discovery-methodology-2026-06-17",
@@ -226,6 +232,8 @@ def field_role(column: str, profile: dict[str, Any]) -> str:
         return "review_helper"
     if column in KEY_CANDIDATES or lower in {"record", "uuid", "rid", "session"}:
         return "respondent_identifier"
+    if column in profile.get("fielding_timestamp_columns", []) or FIELDING_TIMESTAMP_RE.search(column):
+        return "fielding_timestamp"
     if column in profile.get("qtime_columns", []) or re.search(r"time|duration|elapsed", lower):
         return "timing_field"
     if column in profile.get("ip_columns", []) or re.search(r"ip|device|browser|useragent", lower):
@@ -266,6 +274,7 @@ def question_chain_map(source_name: str, workbook: Path, sheet_name: str, df: pd
                 not in {
                     "respondent_identifier",
                     "timing_field",
+                    "fielding_timestamp",
                     "ip_or_device_field",
                     "supplier_or_source_field",
                     "review_helper",
@@ -610,10 +619,45 @@ def duplicate_cluster_stats(df: pd.DataFrame, ip_col: str) -> dict[str, dict[str
     return stats
 
 
+def fielding_timestamp_stats(df: pd.DataFrame, timestamp_columns: list[str]) -> dict[str, dict[str, Any]]:
+    stats: dict[str, dict[str, Any]] = {}
+    for col in timestamp_columns:
+        if col not in df.columns:
+            continue
+        raw = df[col]
+        parsed = pd.to_datetime(raw, errors="coerce")
+        valid = parsed.dropna()
+        if valid.empty:
+            stats[col] = {
+                "nonempty_rows": int(raw.map(lambda item: bool(norm(item))).sum()),
+                "parsed_rows": 0,
+                "odd_hour_start_rows": 0,
+                "top_minute_bursts": [],
+            }
+            continue
+        odd_hours = valid[(valid.dt.hour >= 22) | (valid.dt.hour < 4)]
+        minute_counts = valid.dt.floor("min").value_counts().head(5)
+        stats[col] = {
+            "nonempty_rows": int(raw.map(lambda item: bool(norm(item))).sum()),
+            "parsed_rows": int(len(valid)),
+            "odd_hour_start_rows": int(len(odd_hours)),
+            "top_minute_bursts": [
+                {"minute": str(index), "rows": int(value)} for index, value in minute_counts.items() if int(value) > 1
+            ],
+        }
+    return stats
+
+
 def discover_profile(df: pd.DataFrame, topic_keywords: list[str], feedback_config: dict[str, Any] | None = None) -> dict[str, Any]:
     columns = [str(c) for c in df.columns]
     raw_columns = [c for c in columns if c not in REVIEW_HELPER_COLUMNS and not c.endswith("_AI_Likelihood")]
     qtime_columns = [c for c in raw_columns if re.search(r"(^|_)q?time$|duration|elapsed|completion.?time", c, re.I)]
+    fielding_timestamp_columns = [
+        c
+        for c in raw_columns
+        if FIELDING_TIMESTAMP_RE.search(c) and c not in qtime_columns
+    ]
+    timestamp_stats = fielding_timestamp_stats(df, fielding_timestamp_columns)
 
     ip_columns = [c for c in raw_columns if re.search(r"(^|_)ip(address)?$|ipaddress|ip_address", c, re.I)]
     duplicate_values: dict[str, dict[str, int]] = {}
@@ -661,6 +705,12 @@ def discover_profile(df: pd.DataFrame, topic_keywords: list[str], feedback_confi
             "meaning": "Find respondents whose completion duration is too short for credible attention.",
         },
         {
+            "analysis_id": "fielding_start_pattern_quality",
+            "status": "needs_context" if fielding_timestamp_columns else "not_available",
+            "candidate_columns": fielding_timestamp_columns,
+            "meaning": "Find odd-hour starts and concentrated start bursts that may indicate fielding or supplier-quality issues before treating them as row-level evidence.",
+        },
+        {
             "analysis_id": "duplicate_technical_signal",
             "status": "scorable" if ip_columns else "not_available",
             "candidate_columns": ip_columns,
@@ -703,6 +753,25 @@ def discover_profile(df: pd.DataFrame, topic_keywords: list[str], feedback_confi
                 "source_columns": [col],
                 "rationale": "Generated from discovered duration field; flags candidates whose completion time is implausibly short for attentive completion.",
             }
+        )
+    for col in fielding_timestamp_columns:
+        generated_candidate_criteria.extend(
+            [
+                {
+                    "criterion_id": f"odd_hour_start::{col}",
+                    "status": "needs_context",
+                    "tags": ["fielding_time", "odd_hour", "source_quality", "review_only"],
+                    "source_columns": [col],
+                    "rationale": "Generated from discovered fielding timestamp; starts between 22:00 and 04:00 should be reported as fielding context and only scored with project approval or corroborating evidence.",
+                },
+                {
+                    "criterion_id": f"start_burst::{col}",
+                    "status": "needs_context",
+                    "tags": ["fielding_time", "start_burst", "supplier_quality", "review_only"],
+                    "source_columns": [col],
+                    "rationale": "Generated from discovered fielding timestamp; concentrated start bursts should be aggregated by supplier/source before any respondent-level discard logic is considered.",
+                },
+            ]
         )
     for col in ip_columns:
         generated_candidate_criteria.append(
@@ -773,6 +842,8 @@ def discover_profile(df: pd.DataFrame, topic_keywords: list[str], feedback_confi
 
     return {
         "qtime_columns": qtime_columns,
+        "fielding_timestamp_columns": fielding_timestamp_columns,
+        "fielding_timestamp_stats": timestamp_stats,
         "ip_columns": ip_columns,
         "duplicate_ip_values": duplicate_values,
         "duplicate_ip_cluster_stats": duplicate_cluster_values,
@@ -1271,6 +1342,8 @@ def metadata_columns(df: pd.DataFrame) -> list[str]:
         "record",
         "uuid",
         "date",
+        "start_date",
+        "start_time",
         "status",
         "qc",
         "markers",
@@ -1624,7 +1697,7 @@ def write_report(
             "",
             "## Discovery Notes",
             "- The loop treats annotated helper columns as optional calibration fields.",
-            "- On unannotated workbooks it discovers qtime, IP, matrix-grid, open-end, AI-likelihood, and brand-consistency candidate columns.",
+            "- On unannotated workbooks it discovers qtime, fielding timestamps, IP, matrix-grid, open-end, AI-likelihood, and brand-consistency candidate columns.",
             "- Brand consistency is reported as a candidate mapping unless a configured helper column or project-specific mapping is present.",
             "",
             "## Governance Notes",

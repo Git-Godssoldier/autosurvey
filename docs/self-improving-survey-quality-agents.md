@@ -39,6 +39,7 @@ The process is deliberately discovery-first. Research on data-to-dashboard syste
 A new Decipher export arrives during fielding. It has no `Respondent Score`, no `Recommended_Action`, and no hand-annotated flag columns. Opulent inspects the workbook and identifies the usable signals:
 
 - `qtime` as completion duration
+- `date`, `start_date`, or comparable timestamp fields as fielding-pattern context
 - `ipAddress` as a duplicate technical signal
 - `q32_Lr...` columns as rating-grid groups
 - `qEthnicr8oe`, `qcoe1`, `q9r10oe`, `q43r11oe`, and `outro` as open-ended fields
@@ -53,6 +54,7 @@ Opulent then generates candidate criteria rather than assuming a fixed scoring p
 - `open_end_effort::*`, `open_end_relevance::*`, and `open_end_completeness::*` criteria for discovered open-ended fields
 - `brand_consistency::project_mapping`, tagged `brand_consistency`, `logic_mapping`, and `survey_specific`
 - trend, supplier concentration, and fielding-window observations for reporting rather than direct discard
+- `odd_hour_start::*` and `start_burst::*`, tagged as fielding-time context that needs project rules or corroborating evidence before it affects row-level discard decisions
 
 Each criterion has a status: `scorable`, `needs_context`, `needs_mapping`, or `needs_feedback`. The system generates provisional weights only after it sees the current dataset, observed support, evidence type, available adjudication, and PM feedback. Those weights are trial artifacts, not permanent policy.
 
@@ -81,6 +83,8 @@ The useful part is that the correction is now structured. Opulent can see which 
 The escalation rule is intentionally narrow. Scoring can route rows for review, but only the Opulent agent makes the final discard judgment. It investigates the review-tagged candidates, reads the full response chain, looks for semantic counterevidence, and writes a discard set only when the evidence supports throwing the row out. Rows that survive the extra pass are kept with recommendations, not buried. Those survivor patterns are aggregated into survey-design guidance: clearer prompts, structured reason codes, minimum exposure timers, better matrix design, better brand mapping, and stricter follow-up requirements when vague answers can be gamed.
 
 This workflow fails if it becomes only programmatic execution. Scores, flags, clusters, and charts are the evidence layer. They are not the final product. The final product must include agentic prose analysis that tells the human what the agent saw, why it trusted or rejected the row, where the static checks were misleading, and what the next pass should learn.
+
+Client annotation workbooks are useful baselines because they show the practical review surface PMs expect: qtime speeders, start-date or odd-hour fielding checks, grid straightlining, brand consistency, open-end topic relevance, duplicate technical identifiers, respondent flags, scores, and recommended actions. Opulent must meet that surface and then surpass it. A run is not elite if it only recreates those columns. It has to read the full response chain, challenge weak discard calls, preserve counterevidence, explain kept rows, and turn survivor patterns into better survey questions and first-pass signals.
 
 This distinction matters. A keyword mismatch can be useful as a discovery signal, but it should not become the final semantic decision. A single straightlined matrix can be useful as a review signal, but it should not automatically remove a respondent when open-ended context is recoverable. A short duration can be useful as a timing signal, but it should not decide the case without corroborating evidence.
 

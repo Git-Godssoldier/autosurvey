@@ -100,6 +100,15 @@ Sections:
    - full-chain analyst readout explaining the best and worst examples in prose
    - deep findings memo with final interpretation and workflow audit
    - final guidance on what to discard, what to keep, and what to improve in the survey instrument
+14. Annotated-workbook benchmark coverage
+   - qtime speeders and long-duration outliers
+   - fielding start/date patterns, odd-hour starts, and concentrated start bursts
+   - grid straightlining or near-straightlining
+   - brand/preference/consideration/recommendation consistency, with mapping status
+   - open-end topic relevance and open-end authenticity concerns
+   - duplicate IP or comparable technical identifiers, with independent-cluster context
+   - respondent flags, score, and recommended action equivalents
+   - explanation of where autosurvey went beyond the annotated workbook through full-chain semantic reasoning, verifier counterevidence, kept-row learning, and next-pass signal updates
 
 ## Required Table Fields
 
@@ -161,6 +170,7 @@ Sections:
 - generated weight
 - weight rationale
 - support rows and support rate
+- report-only candidate criteria such as odd-hour starts and start bursts when timestamp fields exist
 
 `agent_review_judgment_table.csv` should include:
 
