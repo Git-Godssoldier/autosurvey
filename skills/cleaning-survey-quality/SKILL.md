@@ -15,6 +15,7 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
 
 1. Frame the run before writing or running scoring scripts:
    - Read `references/agentic-escalation-path.md`.
+   - Read `references/client-terminology-glossary.md` and use it to define client, PM, survey, and quality terms before writing final artifacts.
    - State the definition of done for this dataset in plain words.
    - Identify the source files, expected final artifacts, and what would block final delivery.
    - If the run includes internal comments, PM notes, client annotations, or prior criteria, read `references/internal-signal-learning.md`.
@@ -144,6 +145,21 @@ For each major finding, the agent should state:
 Do not over-polish uncertainty into confidence. If a claim is indirect, say that it appears likely or needs PM review. If a source was unavailable, name the gap.
 
 The final discard call should be stronger than the initial score. It should reflect the score, the Datamap, the response chain, internal comments, counterevidence, and the agent's own semantic read.
+
+## Majority Skill, Minority Template
+
+The workflow should be mostly agent judgment and writing, with a small fixed artifact contract. Required files, row counts, citations, and reconciliation checks are fixed. The analysis inside those artifacts is not a form to fill in.
+
+Use templates only to define:
+
+- which artifacts must exist
+- the minimum evidence a reviewer needs
+- which local tables or rows must be cited
+- which delivery gates block completion
+
+Do not use templates to replace the analyst's own reading. The agent must read the workbook, Datamap, field-role map, full response chains, independent audit, judgment table, demographic summary, signal bank, and prior-run lessons, then write the findings in natural prose. If a report sounds like fields stitched into paragraphs, rewrite it before delivery.
+
+Each final run should include at least one discovery that was not prewritten in a template. It may be a field-role discovery, a false-positive guardrail, a respondent-chain pattern, a demographic or aggregate interpretation, a survey-design weakness, or a next-pass signal. If no new discovery exists, say so and explain what evidence made the run straightforward.
 
 ## Evidence Rules
 

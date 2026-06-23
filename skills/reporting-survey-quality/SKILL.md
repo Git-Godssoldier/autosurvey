@@ -13,6 +13,8 @@ Reports should make clear whether the run was:
 - candidate-vs-final rubric calibration
 - final PM adjudication summary
 
+Before writing PM-facing or client-facing prose, read `../cleaning-survey-quality/references/client-terminology-glossary.md`. Define any client-specific shorthand, study fields, quality terms, PM terms, or internal criteria before using them in final artifacts.
+
 ## Report Shape
 
 Produce three report layers:
@@ -145,6 +147,8 @@ Then do the findings essay pass before the dashboard is built. This is not a rot
 
 The essay can have whatever sections best explain the run. Do not force it into fixed row-note fields. Scripts may carry this prose into HTML, but scripts must not be treated as the author of the reasoning. The prose should explain the exploration, field-role discoveries, response-chain reading, discard recommendations, kept-row lessons, demographic and aggregate context, and any correction cycles where the first pass was too broad or too narrow. If this essay is missing, the run is not ready for client or PM review.
 
+Use a majority skill, minority template standard. The required artifact list, citation requirements, and proof gates are fixed. The content must be authored from the run evidence. A report fails review if it only fills slots such as theme, score, or next action without explaining what the evidence means and why the recommendation is trustworthy.
+
 Then:
 
 ```bash
@@ -182,6 +186,7 @@ python3 scripts/build_visual_dashboard.py \
 - Show full-chain counterevidence and semantic discard basis for final decisions. A row should not be discarded only because an early screening check fired.
 - Produce readable prose analysis for the best and worst full response chains. The prose must explain what the agent saw, why strong rows are strong, why bad rows remain bad after full-chain review, and where the workflow should challenge itself.
 - Do not treat generated tables, charts, or flags as the final communication layer. They support analysis, but the report must include agent-written interpretation for the human reviewer.
+- Treat templates as scaffolding, not the product. The final essay, escalation packet, positive insights report, and dashboard prose must include fresh run-specific insight, client terminology definitions where needed, and citations to the evidence that produced each claim.
 - Keep long reasoning out of wide tables. Tables may summarize identifiers, decisions, themes, scores, and next action. Full explanations, response-chain interpretation, and workflow learning must appear in natural prose sections or linked Markdown artifacts.
 - Never dump a raw stitched response chain into a dashboard card or visible wide table. Convert it into a focused chain read, then explain why those answers support discard, retention, calibration, or a next-pass rule.
 - The dashboard must remain readable at desktop and mobile widths. If a section contains long prose, use publication prose blocks or cards with stable widths, not narrow table cells that force one-character wrapping.
@@ -217,6 +222,7 @@ python3 scripts/build_visual_dashboard.py \
 - Cite every important claim. Use local artifact citations for run-specific claims, such as respondent counts, criteria support, discoveries, semantic judgments, and kept-row synthesis. Use external citations for design, charting, and writing-method guidance.
 - The final citation list must include at least the respondent review table, generated criteria catalog, discovery profile, criterion evidence table, agent judgment table, kept review synthesis, visual design reference, plain-writing reference, and charting reference.
 - Before the final assistant response, preview the main artifacts. Inspect the findings essay, positive insights report, escalation packet, internal signal bank, dashboard, visual findings report, discard set, final judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
+- Reject placeholder or stitched prose before delivery. Search the final Markdown and dashboard for unresolved placeholders, template notes, repeated boilerplate, one-character table wrapping, and row cards that merely concatenate field values. Rewrite those sections as coherent analyst prose before final response.
 - The final assistant response must be client-facing and email-ready. It should read as one cohesive review system, using language such as "we discovered," "we reviewed," and "we recommend." Do not write "the agent final pass" or similar internal process language in client-facing copy.
 - The final assistant response must include a clear narrative of core discoveries, core discard recommendations with respondent keys and row or cell-level citations when available, positive findings and strong-response examples, key statistics from the run, brief descriptions of important artifacts, a verified-artifact statement, and next-pass signals. Do not only say that scripts ran.
 - Keep running cycles on the next available datasets when the user asks for improvement over time. Each cycle must begin by reading the prior findings essay, escalation packet, signal bank, and next-pass inventory. Each cycle must end by saying which signals improved the first pass, which failed, which false-positive guardrails protected good rows, and what should change before the next dataset.
@@ -224,6 +230,7 @@ python3 scripts/build_visual_dashboard.py \
 ## When To Read References
 
 - Read `references/report-templates.md` before writing PM or client summaries.
+- Read `../cleaning-survey-quality/references/client-terminology-glossary.md` before using client, PM, or survey-quality shorthand in final prose.
 - Read `references/client-annotation-benchmark.md` when using client-provided annotated workbooks as examples or calibration material.
 - Read `references/escalation-reporting.md` before changing escalation sections.
 - Read `references/visual-dashboard-design.md` before changing final dashboard or chart generation.

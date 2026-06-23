@@ -56,6 +56,18 @@ valid for the prompt. If an early pass over-reviews or over-discards because the
 topic map was incomplete, rerun the review after improving the map and record
 the correction in the internal signal bank.
 
+The skills use a majority skill, minority template standard. Templates define
+required artifacts, citations, and proof gates. They do not replace agent
+analysis. Final prose must be written after reading the workbook, Datamap,
+response chains, all-row audit, judgment tables, demographic summaries, signal
+bank, and prior-run lessons. If a report reads like placeholders or fields were
+stitched together, rewrite it before delivery.
+
+Use `skills/cleaning-survey-quality/references/client-terminology-glossary.md`
+before final reporting. Client-specific terms, PM shorthand, survey field names,
+quality terms, and internal criteria should be explained in plain language when
+they affect interpretation or decisions.
+
 ```bash
 python3 skills/cleaning-survey-quality/scripts/run_quality_loop.py \
   --input-file /path/to/unannotated_export.xlsx \

@@ -10,6 +10,7 @@ Use these principles.
 
 - Evidence before narrative. Collect the facts before telling the story.
 - Exploration before scripting. Understand the workbook, Datamap, comments, and field roles before writing or running scoring logic.
+- Majority skill, minority template. Required artifacts, proof gates, and citations are fixed; the interpretation must be agent-written after reading the evidence.
 - Static checks are the case file. The final discard call comes from critic review.
 - Field roles are discovered, not assumed. The role or qualification context may be named `qcoe1`, `qIndustry`, `CLASSIFY`, a buyer-role field, a use-case field, or something project-specific.
 - Short text is not automatically weak. If the prompt asks for a physical item, location, product use, brand, or short factor, a short noun phrase may be a complete answer.
@@ -17,6 +18,8 @@ Use these principles.
 - Every important claim needs a citation to a local artifact, workbook field, row key, or generated table.
 - A verdict can be `verified`, `not verified`, or `inconclusive`. Inconclusive is not a discard.
 - When a lesson repeats, encode it in the workflow or signal bank. Do not leave it as memory.
+
+Use `client-terminology-glossary.md` before drafting final prose. Define client-specific terms in plain language and update the local run context when the workbook uses a term differently.
 
 ## Phase 1. Frame the run
 
@@ -155,6 +158,8 @@ Write `agent_escalation_packet.md` with:
 - what the next pass should do differently
 
 If there are no discards, the packet should still exist and explain why the escalation path ended with no row-level removals.
+
+The packet should not read like a filled template. It should read like a senior analyst explaining what happened, which evidence mattered, which benign explanations were considered, and how the next pass should improve. Keep the structure stable, but write the reasoning fresh from the run materials.
 
 ## Phase 8. Prove the package
 

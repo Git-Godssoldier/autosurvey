@@ -1,5 +1,9 @@
 # Report Templates
 
+These templates define the minimum artifact shape. They are not the analysis. The report should be majority agent-written insight and minority fixed template. Use the structure below so every run is complete, but write the conclusions from the workbook, Datamap, response chains, audit outputs, demographic summaries, and prior learning.
+
+Before using client, PM, or survey-quality shorthand, read `../../cleaning-survey-quality/references/client-terminology-glossary.md` and define ambiguous terms in the report.
+
 ## PM Operations Summary
 
 Title: Survey Quality Cleaning Summary
@@ -236,6 +240,10 @@ The essay should do the following in whatever structure best serves the dataset:
 
 Do not turn this essay into a list of required fields. The point is to let the agent reason in prose after reading the evidence. Tables can support the essay, but they are not the analysis.
 
+The essay should include a short glossary or definitions paragraph when the run uses client-specific shorthand, survey field names, PM terms, or quality terms that a new reviewer may not know. Do not over-explain common words. Explain only terms that affect interpretation or decisions.
+
+The essay should also include at least one run-specific discovery that was not already present in the template. If the evidence does not support a new discovery, say that the run confirmed prior expectations and cite the artifacts that support that conclusion.
+
 `agent_positive_insights_report.md` should be written as the companion to the discard and escalation materials. It exists because a great survey-quality review should preserve and explain good data, not only find removals.
 
 The report should explain:
@@ -249,6 +257,8 @@ The report should explain:
 - what the next pass should learn from the good rows, not only from the weak rows
 
 A helper script can seed this file from the run artifacts, but the agent is responsible for reading it and improving the prose before delivery. It should not sound like a table was stitched into paragraphs. It should read like a senior analyst explaining why the usable data is usable and how that improves confidence in the review.
+
+Use this report to prove that quality review did not become discard-only. It should explain what was learned from usable responses, what good response chains look like, and which false-positive guardrails should remain active.
 
 `agent_escalation_packet.md` should be written by the agent after final semantic review. It is the PM-ready operational artifact. It should let a reviewer act without reading every CSV.
 

@@ -14,6 +14,7 @@ Final survey-quality artifacts should feel like a compact research publication, 
 - Treat tables as ledgers, not prose containers. Do not put long semantic judgments, trust rationales, or response-chain text into narrow table cells.
 - Add an agent findings essay section from `agent_findings_essay.md`. This section is required for delivery and should read like a senior analyst wrote it after studying the run.
 - Add a positive findings section from `agent_positive_insights_report.md`. It should explain strong retained response chains, useful research findings, false-positive guardrails, and what the next pass should learn from good data. Display it as readable prose, not as a cramped table.
+- Add a concise terminology note when the dashboard uses client-specific shorthand, PM terms, quality terms, or field names that are not self-explanatory. Use the glossary in `../../cleaning-survey-quality/references/client-terminology-glossary.md`.
 - Link `agent_escalation_packet.md` and `internal_quality_signal_bank.md` in the artifact index. Summarize them in prose when they change the final decision. Do not turn internal learning into client-facing accusation language.
 - Use row examples only when they help the narrative. They should read as human prose that explains what the full chain means, why the row stayed or was discarded, and what the next pass learns. Do not force them into a fixed annotation schema.
 - Never show a raw stitched response chain in the dashboard body. Show a short chain readout and link to the audit artifacts for the full chain.
@@ -46,6 +47,7 @@ Wrap charts in `ResponsiveContainer` and include `Tooltip`, axis labels where us
 - For discard rows, write an expert judgment memo: semantic pattern, language quality, source evidence, benign alternative considered, and final recommended action.
 - For kept review rows, explain why the row survived and what question design or fielding parameter should improve.
 - For dashboard editorial prose, write in complete analysis paragraphs. Do not stitch together field values or populate a rigid template. State what the agent saw, what it means, why the conclusion is trustworthy, and what should happen next.
+- Keep templates in the minority. The dashboard must have stable sections and verified artifacts, but the prose should be written from the run evidence rather than assembled from static fields.
 - Never let keyword mismatch, AI-likelihood, or supplier/source concentration read as a final semantic decision.
 - Use plain writing. Prefer common words. Use complete sentences. Remove filler. Avoid jargon unless you explain it. Do not hide the decision behind phrases such as "may indicate" when the agent has made a final judgment.
 - Cite every material claim. Counts should cite local tables. Criteria should cite the generated criteria catalog or criterion evidence table. Agent decisions should cite the agent judgment table. Design and writing choices should cite the design and writing references.
@@ -58,6 +60,7 @@ Before delivery, verify that the dashboard:
 - includes discovery, expanded scorer criteria, response analysis criteria, dataset observations, and a citation table
 - remains readable at desktop and mobile widths
 - contains no overlapping text, one-character column wrapping, or prose squeezed into narrow table cells
+- contains no unresolved placeholders, template notes, lorem text, repeated boilerplate, or row cards that only concatenate field values
 - includes `agent_findings_essay.md` prose, or clearly blocks delivery until the agent writes it
 - includes `agent_positive_insights_report.md` prose, or clearly blocks delivery until the agent writes it
 - links the escalation packet and internal signal bank when they exist
