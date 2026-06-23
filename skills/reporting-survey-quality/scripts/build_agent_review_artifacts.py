@@ -33,7 +33,7 @@ CATEGORY_CONTEXT_TERMS = re.compile(
     re.I,
 )
 TOOL_BRAND_CONTEXT_TERMS = re.compile(
-    r"dewalt|de walt|dewault|dreamt|milwaukee|milwaulkee|milwuakee|craftsman|ryobi|makita|nakita|bosch|"
+    r"dewalt|de walt|dewault|dreamt|milwaukee|milwakee|milwaukie|milwaulkee|milwuakee|craftsman|craftsmen|ryobi|makita|nakita|bosch|"
     r"black ?\\+? ?decker|black and decker|black decker|ridgid|rigid|hilti|stanley|husky|kobalt|"
     r"tool|tools|drill|saw|impact|driver|hammer|nail gun|battery|batteries|pack out|toolbox|tool box|"
     r"dependable|reliable|durable|built to last|last forever|quality|powerful|cuts|wireless|charged|"
@@ -60,7 +60,7 @@ NON_RESPONSE_TERMS = re.compile(
     r"^(na|n/a|none|nothing|no comment|dont know|don't know|no idea|not sure|asdf|qwerty|test)$",
     re.I,
 )
-ABUSIVE_OR_HOSTILE_TERMS = re.compile(r"fuck|shit|piece[s]? of shit", re.I)
+ABUSIVE_OR_HOSTILE_TERMS = re.compile(r"fuck|piece[s]? of shit", re.I)
 PLACEHOLDER_FRAGMENT_RE = re.compile(
     r"\b(?:test|asdf|qwerty|n/?a|dont know|don't know|no idea|not sure)\b",
     re.I,
