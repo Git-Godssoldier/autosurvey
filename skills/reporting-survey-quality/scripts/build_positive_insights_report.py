@@ -68,6 +68,14 @@ def citation(path: Path) -> str:
     return f"`{path.name}`"
 
 
+def readable_label(value: object) -> str:
+    raw = text(value)
+    if not raw:
+        return "not classified"
+    label = raw.replace("_", " ").replace("-", " ")
+    return " ".join(label.split())
+
+
 def response_key(row: pd.Series) -> str:
     for column in ("respondent_key", "uuid", "record", "RID"):
         if column in row and text(row[column]):
@@ -218,6 +226,8 @@ def main() -> None:
     lines: list[str] = [
         "# Positive findings and response-quality report",
         "",
+        "> Draft evidence note. A script assembled the counts, citations, and example rows below. The agent must read the evidence and rewrite the final client-facing analysis before delivery.",
+        "",
         "## Read this first",
         (
             f"We reviewed {total or 'the available'} source responses. {reviewed} rows received final semantic review, "
@@ -239,14 +249,15 @@ def main() -> None:
         for _, row in examples.iterrows():
             key = response_key(row)
             decision = text(row.get("agent_final_decision")) or text(row.get("independent_suggested_action")) or "kept"
+            readable_decision = readable_label(decision)
             basis = truncate(row.get("rank_basis") or row.get("verifier_counterevidence") or row.get("independent_risk_factors"), 260)
             excerpt = chain_excerpt(row.get("full_response_chain"))
             lines.extend(
                 [
                     f"### {key}",
                     (
-                        f"This response chain is useful because it was retained as `{decision}` and gives the review a concrete example "
-                        f"of readable, project-relevant participation. {basis or 'The chain contains enough context to support retention.'} "
+                        f"This row is a useful calibration example because the review found a defensible reason to keep it: {readable_decision}. "
+                        f"{basis or 'The chain contains enough context to support retention.'} "
                         f"Representative chain read: \"{excerpt}\" Source: {citation(run_dir / 'full_chain_best_worst_examples.csv')}."
                     ),
                     "",
@@ -256,7 +267,7 @@ def main() -> None:
     lines.extend(["## Positive research signals", ""])
     for theme, count in top_themes(audit, "narrative_quality", 6):
         lines.append(
-            f"- `{theme}` appeared in {count} full-chain audit rows. This helps separate usable concise answers from true non-response. "
+            f"- {readable_label(theme).capitalize()} appeared in {count} full-chain audit rows. This helps separate usable concise answers from true non-response. "
             f"Source: {citation(run_dir / 'independent_full_response_audit.csv')}."
         )
     if not kept.empty:
@@ -267,7 +278,7 @@ def main() -> None:
             count = text(row.get("kept_review_rows"))
             why = truncate(row.get("why_kept"), 260)
             recommendation = truncate(row.get("survey_question_or_parameter_recommendation"), 260)
-            lines.append(f"- `{theme}` covered {count or 'some'} retained rows. {why} Recommended next step: {recommendation}")
+            lines.append(f"- {readable_label(theme).capitalize()} covered {count or 'some'} retained rows. {why} Recommended next step: {recommendation}")
 
     lines.extend(["", "## Demographic and aggregate context", ""])
     lines.extend(demographic_lines(demo))
@@ -285,7 +296,7 @@ def main() -> None:
         if "agent_final_decision" in judgments:
             retained = judgments[judgments["agent_final_decision"].astype(str).ne("discard")]
         for theme, count in top_themes(retained, "review_theme", 5):
-            lines.append(f"- Retained theme `{theme}` appeared in {count} reviewed rows.")
+            lines.append(f"- Retained theme {readable_label(theme)} appeared in {count} reviewed rows.")
 
     lines.extend(["", "## Independent exclusion-decision audit", ""])
     if audit_reconciles:

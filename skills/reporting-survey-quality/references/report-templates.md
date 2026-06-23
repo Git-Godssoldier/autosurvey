@@ -8,6 +8,8 @@ For reruns and multi-dataset cycles, read `../../cleaning-survey-quality/referen
 
 Before writing final prose, read `analyst-prose-standard.md`. The report must use statistics to support a finding, not replace the finding. Helper scripts can stage evidence, but they cannot satisfy the prose artifacts by themselves.
 
+Generated evidence packets should tell the agent what to inspect and what to explain. They should not decide the final wording. Final reports must be written after the agent reads the workbook exploration, field-role map, full response-chain artifacts, final judgment table, discard set, retained-row synthesis, demographic summary, and dashboard.
+
 ## PM Operations Summary
 
 Title: Survey Quality Cleaning Summary

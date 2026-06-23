@@ -32,8 +32,31 @@ def count_series(df: pd.DataFrame, column: str) -> pd.Series:
     return df[column].fillna("missing").astype(str).value_counts()
 
 
+def chart_label(value: object) -> str:
+    raw = plain_text(value)
+    labels = {
+        "keep_no_issue": "Keep, no issue",
+        "keep_with_recommendation": "Keep with recommendation",
+        "discard_candidate": "Discard candidate",
+        "keep_with_review_note": "Kept after review",
+        "discard": "Recommended exclusion",
+    }
+    if raw in labels:
+        return labels[raw]
+    words = raw.replace("_", " ").replace("-", " ").split()
+    fixed = []
+    for word in words:
+        if word.lower() == "pm":
+            fixed.append("PM")
+        elif word.islower():
+            fixed.append(word.capitalize())
+        else:
+            fixed.append(word)
+    return " ".join(fixed) or "Missing"
+
+
 def chart_records(series: pd.Series) -> list[dict[str, int | str]]:
-    return [{"name": str(index), "value": int(value)} for index, value in series.items()]
+    return [{"name": chart_label(index), "value": int(value)} for index, value in series.items()]
 
 
 def pct(value: int, total: int) -> str:
@@ -726,7 +749,7 @@ def main() -> None:
     *{box-sizing:border-box}html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}body{font-family:Inter,Arial,sans-serif;margin:0;background:var(--sand);color:var(--ink);letter-spacing:0;line-height:1.4}
     header{position:relative;background:var(--paper);padding:46px 64px 34px;border-bottom:1px solid var(--rule);overflow:hidden}
     header:before{content:"";position:absolute;left:0;top:0;bottom:0;width:18px;background:var(--aqua)}
-    .eyebrow{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:18px}
+    .eyebrow{font-size:13px;font-weight:700;letter-spacing:0;text-transform:uppercase;color:var(--muted);margin-bottom:18px}
     h1{font-family:Georgia,serif;color:var(--forest);font-weight:500;font-size:58px;line-height:1;margin:0;max-width:980px;text-wrap:balance}
     .deck{font-size:20px;line-height:1.45;color:var(--muted);max-width:1040px;margin:20px 0 0;text-wrap:pretty}
     main{padding:34px 64px 54px;max-width:1560px;margin:auto}.section-title{font-size:25px;font-weight:500;color:var(--ink);margin:44px 0 15px;clear:both;text-wrap:balance}
@@ -734,7 +757,7 @@ def main() -> None:
     .kpi{background:var(--paper);border-top:3px solid var(--aqua);padding:20px 22px 24px;min-height:150px;min-width:0;overflow:hidden}
     .kpi-label{font-size:12px;text-transform:uppercase;color:var(--muted);font-weight:700}.kpi-value{font-family:Georgia,serif;color:var(--forest);font-size:50px;font-weight:500;margin:14px 0 8px;font-variant-numeric:tabular-nums}.kpi-detail{font-size:14px;line-height:1.35;color:var(--muted);text-wrap:pretty}
     .report-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:24px;align-items:start;margin-bottom:24px}.wide-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;margin-bottom:24px}.panel{background:var(--paper);border-top:1px solid var(--rule);padding:22px 24px;margin-bottom:0;min-width:0;overflow:hidden;display:flex;flex-direction:column}
-    .panel.soft{background:#edf3f1;border:0}.panel h2{font-size:13px;line-height:1.3;margin:0 0 16px;font-weight:800;text-transform:uppercase;color:var(--charcoal)}
+    .panel.soft{background:#edf3f1;border:0}.panel h2{font-size:20px;line-height:1.25;margin:0 0 16px;font-weight:650;text-transform:none;color:var(--forest);text-wrap:balance}.chart-kicker{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;margin-bottom:6px}
     .chart{height:330px;min-height:0;min-width:0;max-width:100%;overflow:hidden;position:relative;margin-bottom:14px}.chart.tall{height:430px}.chart.short{height:280px}.chart.fallback-rendered{height:auto;max-height:430px;overflow:auto;padding-right:8px;overscroll-behavior:contain}.chart svg{display:block;max-width:100%}.source{font-size:11px;color:var(--muted);margin-top:auto;padding-top:8px}.callout{background:var(--paper);border-left:6px solid var(--aqua);padding:18px 22px;margin:24px 0;font-size:16px;line-height:1.45;text-wrap:pretty}
     .narrative{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:12px}.text-box{background:#eaf1ef;padding:18px 20px;line-height:1.46;color:var(--charcoal)}
     .text-box strong{display:block;margin-bottom:8px;color:var(--forest)}.panel p{font-size:15px;line-height:1.45;color:var(--charcoal);margin:0 0 14px;text-wrap:pretty}
@@ -742,7 +765,7 @@ def main() -> None:
     .observation-list{margin:0;padding-left:18px}.observation-list li{font-size:15px;line-height:1.5;margin:10px 0;color:var(--charcoal)}
     .memo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px}.memo{background:var(--paper);border-left:5px solid var(--mint);padding:22px 24px;border-top:1px solid var(--rule);min-width:0}.memo.discard{border-left-color:var(--coral)}.memo h3{font-size:15px;margin:0 0 6px;color:var(--forest);overflow-wrap:break-word}.memo-meta{font-size:12px;color:var(--muted);margin-bottom:14px;font-variant-numeric:tabular-nums}.memo p{font-size:13px;line-height:1.55;margin:10px 0;text-wrap:pretty}.chain-read{margin:12px 0 14px;padding-left:18px}.chain-read li{font-size:13px;line-height:1.5;margin:7px 0;color:var(--charcoal);overflow-wrap:break-word}
     .editorial{border-left:6px solid var(--forest);padding:28px 32px}.prose{max-width:980px;min-width:0;overflow-wrap:anywhere}.prose h2{font-family:Georgia,serif;font-size:32px;line-height:1.1;text-transform:none;color:var(--forest);margin:0 0 16px;font-weight:500}.prose h3{font-size:16px;line-height:1.35;text-transform:none;color:var(--charcoal);margin:24px 0 8px}.prose h4{font-size:14px;line-height:1.35;color:var(--forest);margin:18px 0 6px}.prose p,.prose li{font-size:16px;line-height:1.55;color:var(--charcoal);text-wrap:pretty;overflow-wrap:anywhere}.prose code,.artifact td{overflow-wrap:anywhere;word-break:break-word}.prose ul{margin:8px 0 16px;padding-left:20px}
-    .fallback-row{display:grid;grid-template-columns:minmax(140px,240px) minmax(80px,1fr) 54px;gap:12px;align-items:center;margin:10px 0;min-width:0}.fallback-label{font-size:12px;line-height:1.25;color:var(--charcoal);min-width:0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.fallback-track{height:16px;background:#e7eeeb;min-width:0}.fallback-fill{height:100%;background:var(--mint)}.fallback-value{text-align:right;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}.fallback-more{font-size:12px;color:var(--muted);margin-top:10px}
+    .fallback-row{display:grid;grid-template-columns:minmax(140px,240px) minmax(80px,1fr) 54px;gap:12px;align-items:center;margin:10px 0;min-width:0}.fallback-label{font-size:12px;line-height:1.25;color:var(--charcoal);min-width:0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.fallback-track{height:16px;background:#e7eeeb;min-width:0}.fallback-fill{height:100%;background:var(--mint)}.fallback-value{text-align:right;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}.fallback-more{font-size:12px;color:var(--muted);margin-top:10px}.chart-tooltip{background:var(--paper);box-shadow:0 0 0 1px rgba(0,0,0,.08),0 8px 20px rgba(0,0,0,.08);padding:10px 12px;max-width:300px;color:var(--charcoal)}.tooltip-title{font-weight:800;color:var(--forest);margin-bottom:6px}.tooltip-line{font-size:12px;line-height:1.35;margin-top:3px;font-variant-numeric:tabular-nums}
     .table-scroll{width:100%;overflow-x:auto;overscroll-behavior-x:contain}.table-scroll table{min-width:980px}table{width:100%;border-collapse:collapse;font-size:12px;line-height:1.35;table-layout:auto}th,td{border-bottom:1px solid #dfe7e4;padding:9px 10px;text-align:left;vertical-align:top;overflow-wrap:break-word;word-break:normal}th{color:var(--muted);font-weight:800;text-transform:uppercase;font-size:10px;background:#f7faf9}
     .semantic-table{min-width:1040px}.artifact td:first-child{font-weight:700}.footer{border-top:1px solid var(--rule);color:var(--muted);font-size:12px;margin-top:28px;padding-top:16px}
     @media(max-width:980px){header,main{padding-left:26px;padding-right:26px}h1{font-size:42px}.kpi-grid,.report-grid,.narrative,.memo-grid,.fact-grid{grid-template-columns:1fr}.chart{height:300px}.fallback-row{grid-template-columns:minmax(0,1fr);gap:6px}.fallback-value{text-align:left}}
@@ -780,11 +803,43 @@ def main() -> None:
         return;
       }}
       const e = React.createElement;
-      const tooltip = e(R.Tooltip, {{ wrapperStyle: {{ border: '1px solid #d7dfdc' }}, contentStyle: {{ borderRadius: 0, color: '#263738' }} }});
+      function CustomTooltip(props) {{
+        const active = props && props.active;
+        const payload = props && props.payload ? props.payload : [];
+        if (!active || !payload.length) return null;
+        const row = payload[0].payload || {{}};
+        const title = row.respondent || row.name || props.label || payload[0].name || 'Selected point';
+        const lines = [];
+        payload.forEach((item) => {{
+          if (item && item.name && item.value !== undefined) {{
+            const label = item.name === 'value' ? 'Count' : item.name;
+            lines.push(`${{label}}: ${{item.value}}`);
+          }}
+        }});
+        if (row.supplier) lines.push(`Supplier: ${{row.supplier}}`);
+        if (row.theme) lines.push(`Theme: ${{row.theme}}`);
+        return e('div', {{ className: 'chart-tooltip' }},
+          e('div', {{ className: 'tooltip-title' }}, String(title)),
+          lines.slice(0, 7).map((line, index) => e('div', {{ className: 'tooltip-line', key: index }}, String(line)))
+        );
+      }}
+      const tooltip = e(R.Tooltip, {{ content: CustomTooltip, cursor: {{ fill: 'rgba(127,191,175,.14)', stroke: '#607074', strokeDasharray: '3 3' }} }});
       function mount(id, chart) {{
         const el = document.getElementById(id);
         if (!el) return;
         ReactDOM.createRoot(el).render(e(R.ResponsiveContainer, {{ width: '100%', height: '100%' }}, chart));
+      }}
+      function RadialPanel(id, data) {{
+        if (!R.RadialBarChart || !R.RadialBar) {{
+          BarPanel(id, data, 'horizontal');
+          return;
+        }}
+        const radial = data.map((row, index) => Object.assign({{}}, row, {{ fill: colors[index % colors.length] }}));
+        const chart = e(R.RadialBarChart, {{ data: radial, innerRadius: '22%', outerRadius: '96%', startAngle: 90, endAngle: -270, margin: {{ top: 0, right: 24, bottom: 0, left: 0 }} }},
+          e(R.RadialBar, {{ dataKey: 'value', background: true, cornerRadius: 4 }}),
+          e(R.Legend, {{ iconSize: 10, verticalAlign: 'middle', align: 'right', layout: 'vertical', wrapperStyle: {{ fontSize: 12, color: '#263738' }} }}),
+          tooltip);
+        mount(id, chart);
       }}
       function BarPanel(id, data, layout='vertical') {{
         const chart = layout === 'vertical'
@@ -793,13 +848,13 @@ def main() -> None:
               e(R.XAxis, {{ dataKey: 'name', tick: {{ fill: '#607074', fontSize: 11 }}, interval: 0 }}),
               e(R.YAxis, {{ tick: {{ fill: '#607074', fontSize: 11 }}, allowDecimals: false }}),
               tooltip,
-              e(R.Bar, {{ dataKey: 'value', fill: '#7fbfaf', label: {{ position: 'top', fill: '#263738', fontSize: 12 }} }}))
+              e(R.Bar, {{ dataKey: 'value', fill: '#7fbfaf', radius: [4, 4, 0, 0], label: {{ position: 'top', fill: '#263738', fontSize: 12 }} }}))
           : e(R.BarChart, {{ data, layout: 'vertical', margin: {{ top: 6, right: 28, left: 16, bottom: 6 }} }},
               e(R.CartesianGrid, {{ stroke: '#d7dfdc', horizontal: false }}),
               e(R.XAxis, {{ type: 'number', tick: {{ fill: '#607074', fontSize: 11 }}, allowDecimals: false }}),
               e(R.YAxis, {{ type: 'category', dataKey: 'name', width: 210, tick: {{ fill: '#607074', fontSize: 11 }} }}),
               tooltip,
-              e(R.Bar, {{ dataKey: 'value', fill: '#7fbfaf', label: {{ position: 'right', fill: '#263738', fontSize: 12 }} }}));
+              e(R.Bar, {{ dataKey: 'value', fill: '#7fbfaf', radius: [0, 4, 4, 0], label: {{ position: 'right', fill: '#263738', fontSize: 12 }} }}));
         mount(id, chart);
       }}
       function DonutPanel(id, data) {{
@@ -818,7 +873,7 @@ def main() -> None:
           e(R.YAxis, {{ yAxisId: 'right', orientation: 'right', tick: {{ fill: '#607074', fontSize: 11 }}, allowDecimals: false }}),
           tooltip,
           e(R.Legend, {{ wrapperStyle: {{ fontSize: 12 }} }}),
-          e(R.Bar, {{ yAxisId: 'left', dataKey: 'total', fill: '#d8cf8c', name: 'All responses' }}),
+          e(R.Area, {{ yAxisId: 'left', type: 'monotone', dataKey: 'total', fill: '#d8cf8c', stroke: '#b6a84f', fillOpacity: .35, name: 'All responses' }}),
           e(R.Line, {{ yAxisId: 'right', type: 'monotone', dataKey: 'review', stroke: '#354244', strokeWidth: 2, dot: true, name: 'Review rows' }}),
           e(R.Line, {{ yAxisId: 'right', type: 'monotone', dataKey: 'discard', stroke: '#d87855', strokeWidth: 2, dot: true, name: 'Recommended exclusions' }}));
         mount(id, chart);
@@ -830,8 +885,8 @@ def main() -> None:
           e(R.YAxis, {{ type: 'category', dataKey: 'name', width: 210, tick: {{ fill: '#607074', fontSize: 11 }} }}),
           tooltip,
           e(R.Legend, {{ wrapperStyle: {{ fontSize: 12 }} }}),
-          e(R.Bar, {{ dataKey: 'keep_with_review_note', stackId: 'a', fill: '#7fbfaf', name: 'Kept after review' }}),
-          e(R.Bar, {{ dataKey: 'discard', stackId: 'a', fill: '#d87855', name: 'Recommended exclusion' }}));
+          e(R.Bar, {{ dataKey: 'keep_with_review_note', stackId: 'a', fill: '#7fbfaf', radius: [0, 0, 0, 0], name: 'Kept after review' }}),
+          e(R.Bar, {{ dataKey: 'discard', stackId: 'a', fill: '#d87855', radius: [0, 4, 4, 0], name: 'Recommended exclusion' }}));
         mount(id, chart);
       }}
       function ClusterPanel(id, series) {{
@@ -845,10 +900,10 @@ def main() -> None:
           series.map((item) => e(R.Scatter, {{ key: item.name, name: item.name, data: item.data, fill: item.color }})));
         mount(id, chart);
       }}
-      BarPanel('chart-actions', window.__SURVEY_CHARTS__.actions);
-      BarPanel('chart-dispositions', window.__SURVEY_CHARTS__.dispositions);
+      RadialPanel('chart-actions', window.__SURVEY_CHARTS__.actions);
+      BarPanel('chart-dispositions', window.__SURVEY_CHARTS__.dispositions, 'horizontal');
       DonutPanel('chart-agentDecisions', window.__SURVEY_CHARTS__.agentDecisions);
-      DonutPanel('chart-allThemes', window.__SURVEY_CHARTS__.allThemes);
+      BarPanel('chart-allThemes', window.__SURVEY_CHARTS__.allThemes, 'horizontal');
       BarPanel('chart-keptThemes', window.__SURVEY_CHARTS__.keptThemes, 'horizontal');
       BarPanel('chart-suppliers', window.__SURVEY_CHARTS__.suppliers, 'horizontal');
       TrendPanel('chart-trend', window.__SURVEY_CHARTS__.trend);
@@ -863,7 +918,7 @@ def main() -> None:
         "<!doctype html><html><head><meta charset='utf-8'><title>Survey Quality Dashboard</title>",
         "<meta name='viewport' content='width=device-width, initial-scale=1'>",
         f"<style>{css}</style></head><body>",
-        "<header><div class='eyebrow'>Figures | Survey Quality Intelligence | Final Review</div>",
+        "<header><div class='eyebrow'>Survey Quality Intelligence | Final Review</div>",
         "<h1>Survey Quality Review</h1>",
         "<p class='deck'>This report explains what we found in the data, which rows we recommend for exclusion review, and which retained rows should improve the next survey pass.</p>",
         f"<div class='sub'>Run directory: {html.escape(str(run_dir))}</div></header><main>",
@@ -880,21 +935,21 @@ def main() -> None:
         "<div class='text-box'><strong>Survey design rule</strong>Rows that survive review become recommendations for better questions and clearer fielding controls.</div>",
         "</section>",
         "<h2 class='section-title'>Decision funnel</h2><section class='report-grid'>",
-        "<section class='panel'><h2>Figure 1: Scoring action counts</h2><div id='chart-actions' class='chart'></div><div class='source'>Source: Opulent scoring artifacts. [C1]</div></section>",
-        "<section class='panel'><h2>Figure 2: Second pass disposition</h2><div id='chart-dispositions' class='chart'></div><div class='source'>Source: respondent review table. [C1]</div></section>",
+        "<section class='panel'><div class='chart-kicker'>Chart 1</div><h2>Scoring actions</h2><div id='chart-actions' class='chart'></div><div class='source'>Source: Opulent scoring artifacts. [C1]</div></section>",
+        "<section class='panel'><div class='chart-kicker'>Chart 2</div><h2>Second-pass disposition</h2><div id='chart-dispositions' class='chart'></div><div class='source'>Source: respondent review table. [C1]</div></section>",
         "</section><section class='report-grid'>",
-        "<section class='panel soft'><h2>Figure 3: Final review decisions</h2><div id='chart-agentDecisions' class='chart'></div><div class='source'>Source: final judgment table. [C5]</div></section>",
-        "<section class='panel soft'><h2>Figure 4: Review themes</h2><div id='chart-allThemes' class='chart'></div><div class='source'>Source: final judgment table. [C5]</div></section>",
+        "<section class='panel soft'><div class='chart-kicker'>Chart 3</div><h2>Final review decisions</h2><div id='chart-agentDecisions' class='chart'></div><div class='source'>Source: final judgment table. [C5]</div></section>",
+        "<section class='panel soft'><div class='chart-kicker'>Chart 4</div><h2>Review themes</h2><div id='chart-allThemes' class='chart'></div><div class='source'>Source: final judgment table. [C5]</div></section>",
         "</section>",
         "<h2 class='section-title'>Trends and clusters</h2><section class='report-grid'>",
-        f"<section class='panel'><h2>Figure 5: Fielding trend</h2><div id='chart-trend' class='chart'></div><p>{html.escape(trend_note)}</p><div class='source'>Source: respondent date field and final decisions. [C1][C5]</div></section>",
-        f"<section class='panel'><h2>Figure 6: Review candidate cluster</h2><div id='chart-clusters' class='chart'></div><p>{html.escape(cluster_note)}</p><div class='source'>X axis is qtime. Y axis is generated score. Point color is final decision.</div></section>",
+        f"<section class='panel'><div class='chart-kicker'>Chart 5</div><h2>Fielding trend</h2><div id='chart-trend' class='chart'></div><p>{html.escape(trend_note)}</p><div class='source'>Source: respondent date field and final decisions. [C1][C5]</div></section>",
+        f"<section class='panel'><div class='chart-kicker'>Chart 6</div><h2>Review candidate cluster</h2><div id='chart-clusters' class='chart'></div><p>{html.escape(cluster_note)}</p><div class='source'>X axis is qtime. Y axis is generated score. Point color is final decision.</div></section>",
         "</section>",
         "<h2 class='section-title'>Supplier and improvement views</h2><section class='report-grid'>",
-        "<section class='panel'><h2>Figure 7: Supplier review stack</h2><div id='chart-supplierStack' class='chart'></div><div class='source'>Supplier concentration is context. It is not proof of poor quality. [C5]</div></section>",
-        "<section class='panel'><h2>Figure 8: Kept review themes</h2><div id='chart-keptThemes' class='chart'></div><div class='source'>Rows kept after review are used to improve questions and fielding controls. [C6]</div></section>",
+        "<section class='panel'><div class='chart-kicker'>Chart 7</div><h2>Supplier review stack</h2><div id='chart-supplierStack' class='chart'></div><div class='source'>Supplier concentration is context. It is not proof of poor quality. [C5]</div></section>",
+        "<section class='panel'><div class='chart-kicker'>Chart 8</div><h2>Kept review themes</h2><div id='chart-keptThemes' class='chart'></div><div class='source'>Rows kept after review are used to improve questions and fielding controls. [C6]</div></section>",
         "</section><section class='wide-grid'>",
-        "<section class='panel'><h2>Figure 9: Review rows by supplier</h2><div id='chart-suppliers' class='chart short'></div><div class='source'>Source: final judgment table. [C5]</div></section>",
+        "<section class='panel'><div class='chart-kicker'>Chart 9</div><h2>Review rows by supplier</h2><div id='chart-suppliers' class='chart short'></div><div class='source'>Source: final judgment table. [C5]</div></section>",
         "</section>",
         "<h2 class='section-title'>Discovery and scorer criteria</h2>",
         "<section class='panel'><h2>New discoveries from the raw export</h2>",
@@ -949,7 +1004,8 @@ def main() -> None:
         "<div class='footer'>Generated from the final review artifacts. Final PM labels, when present, are validation data and not decision input.</div>",
         "<script src='https://unpkg.com/react@18/umd/react.production.min.js'></script>",
         "<script src='https://unpkg.com/react-dom@18/umd/react-dom.production.min.js'></script>",
-        "<script src='https://unpkg.com/recharts/umd/Recharts.min.js'></script>",
+        "<script src='https://cdn.jsdelivr.net/npm/prop-types@15.8.1/prop-types.min.js'></script>",
+        "<script src='https://cdn.jsdelivr.net/npm/recharts@2.15.3/umd/Recharts.min.js'></script>",
         f"<script>{chart_js}</script>",
         "</main></body></html>",
     ]
@@ -969,16 +1025,16 @@ def main() -> None:
         f"- Recommended exclusion-review rows: {discard_total} ({pct(discard_total, total)})",
         f"- Kept review rows used for survey improvements: {kept_review_total}",
         "",
-        "## Figure guide",
-        "- Figure 1 shows action counts from the scoring pass.",
-        "- Figure 2 shows the second pass disposition before final recommendations.",
-        "- Figure 3 shows the final review decisions.",
-        "- Figure 4 shows the review themes.",
-        "- Figure 5 shows review and discard volume by fielding date.",
-        "- Figure 6 plots review candidates by completion time and generated score.",
-        "- Figure 7 shows review outcomes by supplier.",
-        "- Figure 8 shows kept review themes.",
-        "- Figure 9 shows review rows by supplier.",
+        "## Chart guide",
+        "- Scoring actions shows the first-pass action mix.",
+        "- Second-pass disposition shows the review status before final recommendations.",
+        "- Final review decisions shows the rows kept or recommended for exclusion after semantic review.",
+        "- Review themes shows the main patterns found during review.",
+        "- Fielding trend shows review and discard volume by date.",
+        "- Review candidate cluster plots completion time against generated score.",
+        "- Supplier review stack shows final outcomes by source.",
+        "- Kept review themes shows retained rows that became survey-improvement guidance.",
+        "- Review rows by supplier shows source concentration for review routing.",
         "",
         "## Trend analysis",
         trend_note,

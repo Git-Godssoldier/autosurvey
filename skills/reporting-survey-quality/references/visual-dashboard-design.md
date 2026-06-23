@@ -1,12 +1,12 @@
 # Visual Dashboard Design
 
-Final survey-quality artifacts should feel like a compact research publication, not a raw script output. The reference direction is open-design-style craft applied to a CBRE-quality figures report: disciplined hierarchy, high information density, confident whitespace, clear figure numbering, strong source notes, and charts that a reviewer can trust without reopening the CSV.
+Final survey-quality artifacts should feel like a compact research publication, not a raw script output. The reference direction is open-design-style craft applied to a CBRE-quality figures report: disciplined hierarchy, high information density, confident whitespace, clear chart titles, strong source notes, and charts that a reviewer can trust without reopening the CSV.
 
 ## Design Principles
 
 - Start with a publication header: uppercase metadata line, concise report title, one-sentence deck, run/source note, and a restrained brand accent.
 - Use KPI cards for the decision funnel: total responses, review-tagged rows, agent discard rows, and kept review rows.
-- Use figure captions in the format `Figure N: Plain-English Chart Name`.
+- Use title-first chart headers. The main heading should say what the chart means, such as "Scoring actions" or "Final review decisions." A small secondary label such as `Chart 1` is acceptable. Do not make `Figure 1` the main heading.
 - Add source notes below every chart. State whether the chart comes from scoring artifacts, second-pass disposition, or final agent judgment artifacts.
 - Use a restrained palette with a strong dark text color, a deep green or charcoal anchor, one mint/teal accent, and one or two secondary colors. Do not make the page a single-hue gradient theme.
 - Keep tables dense but readable: small uppercase headers, clear row rules, top-aligned cells, and only the columns needed for adjudication.
@@ -27,12 +27,12 @@ Final survey-quality artifacts should feel like a compact research publication, 
 
 Use Recharts in HTML dashboards when React is available:
 
-- Action counts: `BarChart` with total row counts.
-- Second-pass disposition: `BarChart` showing `discard_candidate`, `keep_with_recommendation`, and `keep_no_issue`.
+- Action counts: radial bar or compact part-to-whole chart with total row counts when there are few categories.
+- Second-pass disposition: horizontal `BarChart` showing `discard_candidate`, `keep_with_recommendation`, and `keep_no_issue`.
 - Agent review decisions: `PieChart` or donut chart showing final agent discard versus keep-with-review-note decisions.
 - Kept review themes: horizontal `BarChart` so long theme names remain readable.
 - Supplier/source concentrations: horizontal `BarChart` limited to the highest-count sources, with a note that supplier concentration is directional context and not proof.
-- Trend analysis: `ComposedChart` with total response volume and review/discard lines by fielding date.
+- Trend analysis: `ComposedChart` or area-plus-line view with total response volume and review/discard lines by fielding date.
 - Candidate clusters: `ScatterChart` that plots review candidates by completion time and generated score. Color points by final agent decision.
 - Supplier decision mix: stacked `BarChart` with kept review rows and agent discard rows by supplier/source.
 - Full semantic decision table: one compact ledger row for every candidate the agent investigated. Include identifiers, final decision, theme, counts, score, and next action. Move long semantic judgment, language quality, trust rationale, and response-chain interpretation into row cards or Markdown artifacts.
@@ -41,6 +41,10 @@ Use Recharts in HTML dashboards when React is available:
 - Every dense criteria or discovery table must have a short analyst readout before it. The readout should say what the table proves, what changed the review, and which criteria or fields need action.
 
 Wrap charts in `ResponsiveContainer` and include `Tooltip`, axis labels where useful, and `Legend` for donut charts. Avoid chart decorations that do not help the reviewer make a cleaning decision.
+
+Use a diverse but disciplined chart mix. A finished dashboard should not be nine versions of the same bar chart. It should normally include KPI cards, one part-to-whole chart, one donut chart, one time trend, one scatter or bubble chart, one stacked bar chart, and horizontal bars for long labels.
+
+Hover states should add useful evidence. Tooltips should show the category, count, and relevant row context, such as respondent key, supplier, theme, score, or completion time. Hover states should not reveal raw parameter strings.
 
 ## Writing Style
 

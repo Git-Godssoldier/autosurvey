@@ -27,6 +27,13 @@ def plain(value: object) -> str:
     return re.sub(r"\s+", " ", text(value)).strip()
 
 
+def readable_label(value: object) -> str:
+    raw = plain(value)
+    if not raw:
+        return "not classified"
+    return " ".join(raw.replace("_", " ").replace("-", " ").split())
+
+
 def truncate(value: object, limit: int = 900) -> str:
     raw = plain(value)
     if len(raw) <= limit:
@@ -183,8 +190,9 @@ def selected_examples(run_dir: Path, sample_size: int) -> pd.DataFrame:
                 "group": "best",
                 "selection_type": "best clean full-chain example",
                 "rank_basis": (
-                    f"best_score={int(row['best_score'])}; narrative={text(row.get('narrative_quality'))}; "
-                    f"words={int(row.get('n_words', 0))}; risks={text(row.get('independent_risk_factors'))}"
+                    "Selected because the independent audit found no quality issue, the narrative was "
+                    f"{readable_label(row.get('narrative_quality'))}, and the answer had "
+                    f"{int(row.get('n_words', 0))} words. Risk notes: {readable_label(row.get('independent_risk_factors'))}."
                 ),
                 "respondent_key": text(row.get("respondent_key")),
                 "agent_final_decision": "keep_no_issue_from_independent_audit",
@@ -223,8 +231,9 @@ def selected_examples(run_dir: Path, sample_size: int) -> pd.DataFrame:
                 "group": "worst",
                 "selection_type": "confirmed discard" if is_discard else "highest-risk survivor",
                 "rank_basis": (
-                    f"worst_score={int(row['worst_score'])}; theme={text(row.get('review_theme'))}; "
-                    f"criteria={text(row.get('criteria_triggered'))}"
+                    f"Selected because the final decision was {readable_label(row.get('agent_final_decision'))}, "
+                    f"the review theme was {readable_label(row.get('review_theme'))}, and the triggered criteria were "
+                    f"{readable_label(row.get('criteria_triggered'))}."
                 ),
                 "respondent_key": text(row.get("respondent_key")),
                 "agent_final_decision": text(row.get("agent_final_decision")),

@@ -12,6 +12,17 @@ The agent must read the run artifacts, decide what the evidence means, and write
 
 Do not solve weak reporting by adding more phrase templates to scripts. Improve the instructions, then have the agent author the analysis from the evidence.
 
+Script output should name itself as draft evidence when it contains generated prose. It should tell the agent what evidence exists and what must be explained. It should not pretend to be the finished client narrative.
+
+The final analysis should answer these questions in prose:
+
+1. What did we discover after mapping the fields and reading the full response chains?
+2. Which patterns justify exclusion review, and which patterns only justify review or survey improvement?
+3. Which rows are the best evidence for each recommendation?
+4. What did the strong retained rows teach us about good participation?
+5. What statistics change the interpretation, and what statistics are only routing context?
+6. What should change in the next pass?
+
 ## What good looks like
 
 The report should combine statistics with clear analyst writing. Counts should answer "how big is the pattern." Prose should answer "what does the pattern mean."
