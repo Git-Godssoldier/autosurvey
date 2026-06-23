@@ -533,15 +533,11 @@ def focused_chain_read(chain: object) -> list[str]:
     if not segments:
         return ["No focused response chain was available."]
     notes: list[str] = []
-    for label, pattern in [
-        ("Service experience", r"^qcoe1$"),
-        ("Preferred store", r"^(q9|q9r10oe|PIPEINTOQ10)$"),
-        ("Reason for preference", r"^q10$"),
-        ("Purchase behavior", r"^q43"),
-        ("Survey recap", r"^outro$"),
-    ]:
+    for pattern in [r"^qcoe1$", r"^qc6$", r"^(q9|q9r10oe|PIPEINTOQ10)$", r"^q10$", r"^q43", r"^q44", r"^q45", r"^outro$"]:
         segment = first_matching_segment(segments, pattern)
         if segment and segment["answer"]:
+            prompt = plain_truncate(segment.get("prompt"), 80)
+            label = segment["column"] if not prompt else f"{segment['column']} ({prompt})"
             notes.append(f"{label}: {plain_truncate(segment['answer'], 180)}")
     q32 = q32_summary(segments)
     if q32:

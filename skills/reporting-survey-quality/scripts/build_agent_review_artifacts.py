@@ -32,6 +32,18 @@ CATEGORY_CONTEXT_TERMS = re.compile(
     r"wet area|all over|everywhere|licker|liquor|file|desk|drawers",
     re.I,
 )
+TOOL_BRAND_CONTEXT_TERMS = re.compile(
+    r"dewalt|de walt|dewault|dreamt|milwaukee|milwaulkee|milwuakee|craftsman|ryobi|makita|nakita|bosch|"
+    r"black ?\\+? ?decker|black and decker|black decker|ridgid|rigid|hilti|stanley|husky|kobalt|"
+    r"tool|tools|drill|saw|impact|driver|hammer|nail gun|battery|batteries|pack out|toolbox|tool box|"
+    r"dependable|reliable|durable|built to last|last forever|quality|powerful|cuts|wireless|charged|"
+    r"favorite brand|best in the game",
+    re.I,
+)
+TOOL_BRAND_MISPLACED_TERMS = re.compile(
+    r"wifi code|ribs and chicken|rest in peace|rest up|scooby doo|^very much$|^new jersey$|^the only way i could do$",
+    re.I,
+)
 PROJECT_ANSWER_TERMS = re.compile(
     r"paint|painting|repaint|floor|flooring|tile|kitchen|bedroom|bathroom|basement|porch|deck|gazebo|"
     r"fireplace|fire place|driveway|sidewalk|patio|padio|pool|pond|cabinet|countertop|sink|stove|"
@@ -142,24 +154,15 @@ def chain_readout(full_chain: str) -> str:
     if not segments:
         return "The focused chain did not include readable section answers."
     parts: list[str] = []
-    qcoe = first_chain_answer(segments, r"^qcoe1$")
-    q9 = first_chain_answer(segments, r"^(q9|q9r10oe|PIPEINTOQ10)$")
-    q10 = first_chain_answer(segments, r"^q10$")
-    q43 = first_chain_answer(segments, r"^q43")
-    outro = first_chain_answer(segments, r"^outro$")
-    q32_count = sum(1 for segment in segments if re.match(r"q32", segment.get("column", ""), re.I))
-    if qcoe:
-        parts.append(f"service example: {short_answer(qcoe)}")
-    if q9:
-        parts.append(f"preferred store: {short_answer(q9)}")
-    if q10:
-        parts.append(f"reason: {short_answer(q10)}")
-    if q43:
-        parts.append(f"purchase behavior: {short_answer(q43)}")
-    if q32_count:
-        parts.append(f"Q32 had {q32_count} answered matrix fields")
-    if outro:
-        parts.append(f"survey recap: {short_answer(outro)}")
+    focus = re.compile(r"^(qcoe1|qc6|q9|q10|q32|q43|q44|q45|outro)", re.I)
+    for segment in segments:
+        column = segment.get("column", "")
+        answer = text(segment.get("answer"))
+        if not answer or not focus.search(column):
+            continue
+        prompt = short_answer(segment.get("prompt"), 90)
+        label = column if not prompt else f"{column} ({prompt})"
+        parts.append(f"{label}: {short_answer(answer)}")
     if not parts:
         return "The focused chain had fields, but none gave a compact narrative answer."
     return "The focused chain showed " + "; ".join(parts[:6]) + "."
@@ -173,17 +176,21 @@ def has_substantive_context(value: str) -> bool:
     return bool(SUBSTANTIVE_TERMS.search(value))
 
 
+def has_tool_brand_context(value: str) -> bool:
+    return bool(TOOL_BRAND_CONTEXT_TERMS.search(value))
+
+
 def has_meaningful_narrative_context(value: str) -> bool:
     clean = re.sub(r"\s+", " ", value).strip()
     if not clean:
         return False
     if NON_RESPONSE_TERMS.fullmatch(clean) or PLACEHOLDER_FRAGMENT_RE.search(clean) or CONTACT_OR_MISPLACED_TEXT_RE.search(clean):
         return False
-    if CATEGORY_CONTEXT_TERMS.search(clean):
+    if CATEGORY_CONTEXT_TERMS.search(clean) or TOOL_BRAND_CONTEXT_TERMS.search(clean):
         return True
     if severe_weak_narrative(clean) or gibberish_or_misplaced_text(clean):
         return False
-    return bool(SUBSTANTIVE_TERMS.search(clean) or CATEGORY_CONTEXT_TERMS.search(clean))
+    return bool(SUBSTANTIVE_TERMS.search(clean) or CATEGORY_CONTEXT_TERMS.search(clean) or TOOL_BRAND_CONTEXT_TERMS.search(clean))
 
 
 def has_plausible_project_answer(value: str) -> bool:
@@ -259,12 +266,18 @@ def semantic_verifier_profile(audit_row: pd.Series, review_row: pd.Series, raw_t
     narrative_answers = narrative_answers_from_chain(full_chain)
     narrative_answer_text = " ".join(narrative_answers)
     combined_text = f"{raw_text} {answer_text}"
+    narrative_column = text(audit_row.get("narrative_column"))
+    focused_prompt_text = " ".join(
+        segment.get("prompt", "") for segment in parsed_chain_segments(full_chain) if segment.get("column", "").lower() == narrative_column.lower()
+    )
+    tool_brand_prompt = bool(re.search(r"favorite tool brand|tool brand", focused_prompt_text, re.I))
 
     early_screening_discard = action == "review_for_possible_discard" or second_pass == "discard_candidate"
     counterevidence: list[str] = []
     discard_basis: list[str] = []
     patterns: list[str] = []
     meaningful_narratives = [item for item in narrative_answers if has_meaningful_narrative_context(item)]
+    raw_has_tool_brand_context = has_tool_brand_context(raw_text)
 
     expressive_repetition = repeated_character_expression(raw_text) or repeated_character_expression(answer_text)
     if expressive_repetition:
@@ -274,8 +287,10 @@ def semantic_verifier_profile(audit_row: pd.Series, review_row: pd.Series, raw_t
 
     if narrative in {"topic_relevant", "substantive_narrative", "product_relevant"}:
         counterevidence.append("The audited narrative is usable in context.")
+    if tool_brand_prompt and raw_has_tool_brand_context:
+        counterevidence.append("The required tool-brand answer names a plausible brand, tool, or tool-use reason in context.")
     if meaningful_narratives:
-        counterevidence.append("The full response chain contains a concrete store, product, service, or evaluation answer.")
+        counterevidence.append("The full response chain contains a concrete project, product, service, brand, or evaluation answer.")
     if len(segments) >= 8:
         patterns.append(f"The verifier reviewed nonempty answers across {len(segments)} fields before judging discard.")
 
@@ -304,13 +319,17 @@ def semantic_verifier_profile(audit_row: pd.Series, review_row: pd.Series, raw_t
         discard_basis.append("Independent duplicate evidence combines with straightlining and no full-chain counterevidence was found.")
     if "matrix_straightline" in criteria and "low_effort_open_end" in criteria and not counterevidence:
         discard_basis.append("Straightlining combines with low-effort text and no full-chain counterevidence was found.")
+    if tool_brand_prompt and not raw_has_tool_brand_context:
+        raw_clean = re.sub(r"\s+", " ", raw_text).strip()
+        if TOOL_BRAND_MISPLACED_TERMS.search(raw_clean) or severe_weak_narrative(raw_clean) or gibberish_or_misplaced_text(raw_clean):
+            discard_basis.append("The required tool-brand answer is non-responsive or misplaced, and the answer itself does not name a plausible brand, tool, or tool-use reason.")
 
-    if not early_screening_discard:
-        final = "keep_with_review_note"
-        reason = "Early screening routed the row for review, but it did not recommend discard."
-    elif discard_basis:
+    if discard_basis:
         final = "discard"
         reason = "Full-chain review found a semantic discard basis after reading the response chain."
+    elif not early_screening_discard:
+        final = "keep_with_review_note"
+        reason = "Early screening routed the row for review, but it did not recommend discard."
     else:
         final = "keep_with_review_note"
         reason = "Full-chain review did not find enough semantic evidence to support discard."
