@@ -110,7 +110,7 @@ Sections:
    - open-end topic relevance and open-end authenticity concerns
    - duplicate IP or comparable technical identifiers, with independent-cluster context
    - respondent flags, score, and recommended action equivalents
-   - explanation of where autosurvey went beyond the annotated workbook through full-chain semantic reasoning, verifier counterevidence, kept-row learning, and next-pass signal updates
+   - explanation of where autosurvey went beyond the annotated workbook through full-chain semantic reasoning, counterevidence, kept-row learning, and next-pass signal updates
 15. Demographic and aggregate insights
    - `qGender`
    - `qager1` and `age`
@@ -197,8 +197,8 @@ Sections:
 - respondent metadata and observed evidence
 - full response chain field count
 - focused semantic review chain and field count for the key review sections
-- programmatic discard recommendation
-- verifier counterevidence
+- early screening discard recommendation
+- full-chain counterevidence
 - semantic discard basis
 
 `full_chain_analyst_readout.md` should include:
@@ -221,6 +221,8 @@ The essay should do the following in whatever structure best serves the dataset:
 - state the real quality conclusion, not just the counts
 - explain what we discovered during data exploration and field-role mapping
 - explain how the Datamap and stitched response chains changed the final read
+- explain any project-specific field-role discoveries, including role or qualification fields that were not named like prior surveys
+- explain the project-specific topic and answer map, especially when short physical-item, location, brand, product-use, or factor-list answers are valid
 - state that the independent full-response audit covered every source row, or explain why the run is blocked
 - summarize what the all-row audit found outside the first-pass review queue
 - interpret the strongest semantic patterns found in the full chains
@@ -230,6 +232,7 @@ The essay should do the following in whatever structure best serves the dataset:
 - include demographic and aggregate context that affects survey interpretation, while keeping it separate from row-level discard evidence
 - explain next-pass improvements and why they matter before the next first-pass scoring run
 - critique the workflow itself, including places where static checks were too broad, too narrow, or too dependent on missing field-role mapping
+- describe any rerun or correction cycle in plain language: what the first pass misunderstood, how the final review caught it, what changed, and how the next dataset should benefit
 
 Do not turn this essay into a list of required fields. The point is to let the agent reason in prose after reading the evidence. Tables can support the essay, but they are not the analysis.
 
@@ -270,7 +273,7 @@ The bank can be free-form prose. The agent should retire or demote misleading si
 - final agent decision
 - review theme
 - open-end focus
-- verifier counterevidence
+- full-chain counterevidence
 - semantic discard basis
 - response chain field count
 - full response chain

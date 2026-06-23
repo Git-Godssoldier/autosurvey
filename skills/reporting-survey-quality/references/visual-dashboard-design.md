@@ -10,12 +10,14 @@ Final survey-quality artifacts should feel like a compact research publication, 
 - Add source notes below every chart. State whether the chart comes from scoring artifacts, second-pass disposition, or final agent judgment artifacts.
 - Use a restrained palette with a strong dark text color, a deep green or charcoal anchor, one mint/teal accent, and one or two secondary colors. Do not make the page a single-hue gradient theme.
 - Keep tables dense but readable: small uppercase headers, clear row rules, top-aligned cells, and only the columns needed for adjudication.
-- Use narrative callouts sparingly for the main policy: programmatic scoring finds candidates; the agent makes final semantic discard judgments; kept review rows become survey-improvement guidance.
+- Use narrative callouts sparingly for the main policy: early scoring finds candidates; full-chain semantic review makes final discard judgments; kept review rows become survey-improvement guidance.
 - Treat tables as ledgers, not prose containers. Do not put long semantic judgments, trust rationales, or response-chain text into narrow table cells.
 - Add an agent findings essay section from `agent_findings_essay.md`. This section is required for delivery and should read like a senior analyst wrote it after studying the run.
 - Link `agent_escalation_packet.md` and `internal_quality_signal_bank.md` in the artifact index. Summarize them in prose when they change the final decision. Do not turn internal learning into client-facing accusation language.
 - Use row examples only when they help the narrative. They should read as human prose that explains what the full chain means, why the row stayed or was discarded, and what the next pass learns. Do not force them into a fixed annotation schema.
 - Never show a raw stitched response chain in the dashboard body. Show a short chain readout and link to the audit artifacts for the full chain.
+- Do not put long reasoning into narrow table cells. If a table needs identifiers and decisions, keep it compact. Put the actual explanation in prose blocks, row memos, or linked Markdown artifacts.
+- If the run corrected a first-pass assumption, such as a missing field-role map or incomplete topic map, include a clear narrative note about the correction and the next-pass lesson.
 - End with an artifact index so reviewers can move from the dashboard to the CSV and Markdown evidence.
 
 ## Required Visualizations

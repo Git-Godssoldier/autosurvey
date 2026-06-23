@@ -19,11 +19,20 @@ Use `skills/cleaning-survey-quality/references/project-context-template.md` for 
 ## Basic Flow
 
 Before running the scoring script, explore the workbook. Read the sheet names,
-row count, column count, Datamap or codebook, and examples from each open-ended
-field family. Map field roles first. Do not run topic mismatch or low-effort
-scoring until you know whether a field is a job-role screener, brand list,
-narrative open end, other-specify field, survey-feedback field, timing field,
+row count, column count, Datamap or codebook, and examples from every response
+family. Map field roles first. Do not run topic mismatch or low-effort scoring
+until you know whether a field is a job-role screener, brand list, narrative
+open end, other-specify field, survey-feedback field, timing field,
 supplier/source field, identifier field, or review/helper field.
+
+Field-role mapping must adapt to the workbook. Do not assume that role context
+is always named `qcoe1`. A study may use fields such as `qIndustry`, `CLASSIFY`,
+buyer-role fields, use-case fields, or product-involvement fields. Treat those
+as role and qualification context before scoring topic relevance. If the prompt
+asks for a physical item, location, product use, or short factor, short noun
+phrases can be valid answers. Build a project-specific topic and answer map
+from the Datamap and sampled accepted responses before treating short text as
+weak.
 
 The run must also build question and response chains. First stitch the ordered
 question chain from the Datamap or codebook when it is present. If prompt text is
@@ -39,11 +48,13 @@ writeups first, but it cannot replace the all-row read. If source rows,
 `row_scores.csv`, `respondent_review_table.csv`, and
 `independent_full_response_audit.csv` do not reconcile, the run is blocked.
 
-The final agent review is a critic and verifier layer. The criteria create the
-case file, but they do not decide discard on their own. The agent must look for
+The final review is an intelligent critic layer. The criteria create the case
+file, but they do not decide discard on their own. The reviewer must look for
 semantic counterevidence in the full response chain, including meaningful but
 awkward wording, enthusiastic repeated characters, and short answers that are
-valid for the prompt.
+valid for the prompt. If an early pass over-reviews or over-discards because the
+topic map was incomplete, rerun the review after improving the map and record
+the correction in the internal signal bank.
 
 ```bash
 python3 skills/cleaning-survey-quality/scripts/run_quality_loop.py \

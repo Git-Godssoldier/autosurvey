@@ -88,6 +88,8 @@ Watch for these families, then interpret them in context:
 - direct non-response or repeated placeholder text in a required high-value open end, especially when the full chain does not recover usable context
 - duplicate IP, device, or session clusters where supposedly independent respondents also share weak answer chains or the same non-response pattern
 - first-pass topic mismatches caused by a missing project-specific topic map
+- field-role mapping gaps where a role, qualification, or use-case field was named differently than prior surveys, such as `qIndustry`, `CLASSIFY`, buyer-role fields, or product-involvement fields
+- short physical item, location, brand, or factor answers that are valid because the prompt asks for exactly that kind of response
 
 These are not automatic discard rules. The agent must still read the full response chain and consider benign alternatives.
 
@@ -106,6 +108,8 @@ Common false positives:
 - keyword misses caused by a weak project topic map
 - direct speed flags when the chain is coherent and the substantive answer is plausible
 - weak narrative answers that remain PM calibration examples until another strong signal appears
+- short noun phrases that answer the prompt because the prompt asks for a location, physical item, product use, brand, simple reason, or factor list
+- generic role-missing warnings caused by an unmapped role field rather than a missing respondent answer
 
 False positive guardrails should be fed into the next first pass before harsher criteria are added.
 
@@ -126,3 +130,8 @@ signals into the first-pass context, keep false-positive guardrails active,
 and then test whether the signals still work on a new dataset. If the new run
 shows that a signal is too broad, demote it. If it catches a pattern that the
 scorer missed and the full-chain read confirms it, promote it.
+
+When a run needs correction, record the correction plainly. The signal bank
+should say what the first pass misunderstood, which rows or themes exposed the
+problem, what changed in the rerun, and how the next dataset should avoid the
+same mistake. A correction cycle is a quality improvement, not an error to hide.

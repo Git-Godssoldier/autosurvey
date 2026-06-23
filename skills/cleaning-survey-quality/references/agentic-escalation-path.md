@@ -11,6 +11,8 @@ Use these principles.
 - Evidence before narrative. Collect the facts before telling the story.
 - Exploration before scripting. Understand the workbook, Datamap, comments, and field roles before writing or running scoring logic.
 - Static checks are the case file. The final discard call comes from critic review.
+- Field roles are discovered, not assumed. The role or qualification context may be named `qcoe1`, `qIndustry`, `CLASSIFY`, a buyer-role field, a use-case field, or something project-specific.
+- Short text is not automatically weak. If the prompt asks for a physical item, location, product use, brand, or short factor, a short noun phrase may be a complete answer.
 - A benign alternative must be considered before discard. If a plausible benign read survives, keep the row with a note.
 - Every important claim needs a citation to a local artifact, workbook field, row key, or generated table.
 - A verdict can be `verified`, `not verified`, or `inconclusive`. Inconclusive is not a discard.
@@ -51,6 +53,13 @@ Do not start with a scorer. First identify:
 - fields that may look like evidence but are only context
 
 Write down what each field family can and cannot prove. This is important on unfamiliar datasets because a field name can mislead the scorer.
+
+Build the topic and answer map from the project itself. Use the Datamap, value
+labels, prompt wording, and sampled accepted responses to learn which terms,
+short phrases, product uses, locations, roles, and brands are actually on topic.
+Do this before topic mismatch or answer-depth scoring. If the first pass later
+proves that the map was incomplete, fix the map, rerun the review, and record
+the correction as a false-positive guardrail or promoted signal.
 
 Also define how the run will prove that every row was read. The independent
 full-response audit must include every source respondent, the full chain count,
@@ -99,6 +108,9 @@ agent must also read the independent full-response audit for the whole dataset
 before finalizing the discard set. This second read is where the agent checks
 for missed patterns, overbroad static checks, copied response chains, repeated
 placeholders, direct non-responses, and benign rows that should be protected.
+The final review should explicitly ask whether the early evidence was wrong
+because field roles, short-answer expectations, or project vocabulary were
+misread.
 
 The review should answer:
 
@@ -110,6 +122,10 @@ The review should answer:
 - What is the strongest benign explanation?
 - What would make the row safe to keep?
 - What would make the row unsafe to keep?
+
+If a row is kept because the full chain recovered meaning, write the lesson in
+plain language. A kept row can be just as important as a discard because it
+teaches the next pass what not to over-penalize.
 
 The agent should be willing to overrule a static check. It should also be willing to escalate a row that a static threshold missed when the full chain shows a strong bad-response pattern.
 

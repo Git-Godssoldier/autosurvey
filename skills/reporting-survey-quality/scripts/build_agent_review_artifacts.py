@@ -260,7 +260,7 @@ def semantic_verifier_profile(audit_row: pd.Series, review_row: pd.Series, raw_t
     narrative_answer_text = " ".join(narrative_answers)
     combined_text = f"{raw_text} {answer_text}"
 
-    programmatic_discard = action == "review_for_possible_discard" or second_pass == "discard_candidate"
+    early_screening_discard = action == "review_for_possible_discard" or second_pass == "discard_candidate"
     counterevidence: list[str] = []
     discard_basis: list[str] = []
     patterns: list[str] = []
@@ -305,18 +305,18 @@ def semantic_verifier_profile(audit_row: pd.Series, review_row: pd.Series, raw_t
     if "matrix_straightline" in criteria and "low_effort_open_end" in criteria and not counterevidence:
         discard_basis.append("Straightlining combines with low-effort text and no full-chain counterevidence was found.")
 
-    if not programmatic_discard:
+    if not early_screening_discard:
         final = "keep_with_review_note"
-        reason = "Static criteria routed the row for review, but they did not recommend discard."
+        reason = "Early screening routed the row for review, but it did not recommend discard."
     elif discard_basis:
         final = "discard"
-        reason = "The verifier found a semantic discard basis after reading the full response chain."
+        reason = "Full-chain review found a semantic discard basis after reading the response chain."
     else:
         final = "keep_with_review_note"
-        reason = "The verifier did not find enough semantic evidence to support discard after reading the full response chain."
+        reason = "Full-chain review did not find enough semantic evidence to support discard."
 
     return {
-        "programmatic_discard_recommendation": programmatic_discard,
+        "early_screening_discard_recommendation": early_screening_discard,
         "agent_verifier_mode": "full_chain_critic_verifier",
         "agent_final_decision": final,
         "verifier_reason": reason,
@@ -564,7 +564,7 @@ def build(run_dir: Path) -> None:
                 "full_response_chain": full_chain,
                 "semantic_review_chain_field_count": ar.get("semantic_review_chain_field_count", ""),
                 "semantic_review_chain": semantic_chain,
-                "programmatic_discard_recommendation": verifier["programmatic_discard_recommendation"],
+                "early_screening_discard_recommendation": verifier["early_screening_discard_recommendation"],
                 "agent_verifier_mode": verifier["agent_verifier_mode"],
                 "verifier_reason": verifier["verifier_reason"],
                 "verifier_counterevidence": verifier["verifier_counterevidence"],

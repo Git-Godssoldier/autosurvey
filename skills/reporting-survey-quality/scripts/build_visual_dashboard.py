@@ -470,7 +470,7 @@ def semantic_rows(judgments: pd.DataFrame) -> pd.DataFrame:
         "full_response_chain",
         "semantic_review_chain_field_count",
         "semantic_review_chain",
-        "programmatic_discard_recommendation",
+        "early_screening_discard_recommendation",
         "agent_verifier_mode",
         "verifier_counterevidence",
         "semantic_discard_basis",
@@ -480,6 +480,12 @@ def semantic_rows(judgments: pd.DataFrame) -> pd.DataFrame:
         "agent_trust_rationale",
         "agent_recommended_next_step",
     ]
+    if (
+        "early_screening_discard_recommendation" not in judgments.columns
+        and "programmatic_discard_recommendation" in judgments.columns
+    ):
+        judgments = judgments.copy()
+        judgments["early_screening_discard_recommendation"] = judgments["programmatic_discard_recommendation"]
     available = [col for col in columns if col in judgments.columns]
     return judgments[available].copy()
 
@@ -639,7 +645,7 @@ def main() -> None:
     semantic_display = semantic.rename(
         columns={
             "agent_final_decision": "final_decision",
-            "programmatic_discard_recommendation": "scoring_discard_recommendation",
+            "early_screening_discard_recommendation": "early_screening_discard_recommendation",
             "agent_recommended_next_step": "recommended_next_step",
             "agent_semantic_judgment": "review_explanation",
             "agent_trust_rationale": "evidence_rationale",

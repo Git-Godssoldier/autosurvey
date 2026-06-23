@@ -9,7 +9,7 @@ Use this skill to run a reproducible survey quality pass on unannotated Decipher
 
 The default input is raw respondent data. The skill autonomously discovers meaningful candidate analyses, evaluates which analyses are safe to score, writes row-level justifications, generates agent annotations for intelligence and linguistic fluency, and reports which criteria need project-specific mapping.
 
-This skill must favor data-analysis discovery and rigorous evaluation over flat programmatic rubric scoring. Scoring is one output of the process, not the method itself.
+This skill must favor data-analysis discovery and rigorous evaluation over flat scripted rubric scoring. Scoring is one output of the process, not the method itself.
 
 ## Workflow
 
@@ -25,12 +25,14 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - Read any internal comments, review notes, client annotations, prior quality essays, prior escalation packets, prior signal inventories, and prior signal banks that are available for the same client, survey family, or product area.
    - Parse the Datamap before scoring. Extract prompt text, value labels, field groups, and response options. Treat Datamap parsing as the source of truth for field-role mapping when it is available.
    - Map field roles before scoring. At minimum, separate job-role screeners, brand-list fields, narrative open ends, other-specify fields, survey-feedback fields, timing fields, supplier/source fields, respondent identifiers, IP/device fields, and review/helper fields.
+   - Field-role mapping must adapt to the workbook's actual language. Do not assume that role context is always named `qcoe1`. Treat fields such as `qIndustry`, `CLASSIFY`, buyer-role fields, product-involvement fields, use-case fields, and eligibility fields as role or qualification context when the Datamap shows that is their purpose.
    - Map demographics separately from quality evidence. Required demographic fields include `qGender`, `qager1`, `age`, `qEthnic*`, `qEd`, `qStateVer`, `qEmploy`, `qUSHHI`, `q44`, `q45`, and `qPolitics` when present.
    - Stitch the full question chain before scoring. Use the Datamap or codebook prompt text when available. Fall back to ordered source columns when prompt text is not available.
    - Stitch each respondent's full response chain from all nonempty respondent-answer fields before final semantic review. Also build a focused semantic chain around `qcoe1`, `q9`, `q9r10oe`, `q10`, `q32`, `q43`, and `outro` when those fields exist. The final discard decision must review these chains, not just the field that triggered a flag.
    - Plan for a whole-population read from the start. The final package must include an independent full-response audit with one row per source respondent and a stitched chain for every row. Signal discovery can prioritize deeper review, but it cannot be the only review surface.
    - Decide which fields can be scored in the first pass, which fields need PM mapping, and which fields should only produce review notes.
    - Do not run topic mismatch or low-effort scoring until the field role is clear. A job-role screener should not be scored like a product-topic open end. An unaided brand-list field should not penalize short valid brand names.
+   - Build a project-specific topic and answer map from the Datamap, prompt wording, value labels, and sampled open ends before topic or answer-depth scoring. If a prompt asks for a physical item, location, product use, brand, simple reason, or short factor, short noun phrases may be complete answers. Protect those rows unless the full chain remains non-responsive, nonsensical, or contradicted by other strong evidence.
 3. Build quality hypotheses from exploration:
    - State which bad-response or fabricated-response patterns are plausible in this dataset.
    - State what evidence would confirm each pattern and what evidence would make it a false positive.
@@ -67,13 +69,15 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
 9. Route rows using `second_pass_decision` first, then `severity_level`, `escalation_owner`, and `escalation_reason`.
    - Escalate only rows marked `discard_candidate` after the extra pass.
    - Keep rows marked `keep_with_recommendation` or `keep_no_issue`; aggregate their survivor rationales and survey-question recommendations.
-10. Run the agent critic review over every possible discard:
+10. Run the agent critic review over every possible discard and read the all-row audit before finalizing:
    - Treat the generated criteria as the case file.
-   - Read the full response chain and focused semantic chain.
+   - Read the full response chain and focused semantic chain for each candidate.
+   - Read enough of the all-row audit to understand every response family, not just the rows surfaced by the first pass.
    - Consider the strongest benign explanation.
    - Decide whether evidence is verified, not verified, or inconclusive.
    - Promote rows into the final discard set only when the agent can explain the discard in plain language with citations.
    - Read the independent full-response audit across all rows before finalizing. Look for missed bad-response patterns, copied chains, direct non-responses, weak repeated placeholders, and false positives that the scorer either missed or over-weighted.
+   - If the final read exposes a bad first-pass assumption, such as a missing field-role map or incomplete topic map, rerun the review with corrected context and write the correction into the internal signal bank.
 11. After the agent has investigated review-tagged rows, generate a final visual review package through `reporting-survey-quality`:
    - `agent_review_judgment_table.csv`: all review-tagged rows with agent decisions.
    - `agent_discard_set.csv`: only rows the agent judged should be escalated for removal.
@@ -121,7 +125,7 @@ Each run must produce:
 - deep semantic review sample for a subset of reviewed rows
 - evaluation metrics when adjudicated labels exist
 
-Weights are trial artifacts, not policy. They should evolve from discoveries, PM findings, adjudicated examples, and feedback. Do not auto-remove respondents from this skill alone. Output discard-candidate escalations with evidence and row-level justifications only after a second pass has found converging discard evidence. Treat programmatic scoring as the evidence substrate, not the reader-facing judgment.
+Weights are trial artifacts, not policy. They should evolve from discoveries, PM findings, adjudicated examples, and feedback. Do not auto-remove respondents from this skill alone. Output discard-candidate escalations with evidence and row-level justifications only after a second pass has found converging discard evidence. Treat scripted scoring as the evidence substrate, not the reader-facing judgment.
 
 ## Research-Grade Analysis Standard
 
@@ -169,9 +173,9 @@ Internal comments and criteria must be cited separately from raw respondent evid
 
 Generate annotations as a separate Opulent judgment pass after scoring and second-pass disposition. The annotation pass should use the score, tags, source evidence, respondent metadata, and open-ended text context, but it should not simply restate deterministic criteria.
 
-The final review layer must act as a critic and verifier, not as a rubber stamp for criteria. Static checks create the case file. The agent then reads the full response chain, looks for benign explanations, expressive language, recoverable context, and semantic patterns that static rules cannot see, and only then decides whether discard is justified. For example, repeated characters or punctuation should not trigger discard when the full answer is an enthusiastic or spirited but meaningful response.
+The final review layer must act as a critic and analyst, not as a rubber stamp for criteria. Static checks create the case file. The agent then reads the full response chain, looks for benign explanations, expressive language, recoverable context, and semantic patterns that static rules cannot see, and only then decides whether discard is justified. For example, repeated characters or punctuation should not trigger discard when the full answer is an enthusiastic or spirited but meaningful response.
 
-The workflow fails if it stops at programmatic execution. Scores, flags, tables, and charts are only the evidence substrate. The deliverable must include prose analysis that explains the patterns, gives examples, challenges weak discard calls, and teaches the next pass what should change.
+The workflow fails if it stops at scripted execution. Scores, flags, tables, and charts are only the evidence substrate. The deliverable must include prose analysis that explains the patterns, gives examples, challenges weak discard calls, and teaches the next pass what should change.
 
 For each row with evidence, especially every possible `discard_candidate`, write:
 
@@ -179,7 +183,7 @@ For each row with evidence, especially every possible `discard_candidate`, write
 - `agent_linguistic_fluency_assessment`: whether the respondent's language is fluent, generic, evasive, off-topic, low-information, or otherwise suspicious, without treating polish alone as quality.
 - `agent_trust_rationale`: why the recommendation is defensible from source evidence and not just a rigid score.
 - `agent_recommended_next_step`: what the PM or Data Quality Lead should do next.
-- verifier fields that show whether the programmatic layer recommended discard, what counterevidence the agent found, and what semantic basis remains for discard.
+- review fields that show whether early screening recommended discard, what counterevidence the agent found, and what semantic basis remains for discard.
 
 Escalation annotations must give readers enough trust and depth that they can adjudicate the discard decision directly. They should not force the reader to reconstruct the reasoning from flags and points.
 

@@ -139,7 +139,7 @@ def selected_examples(run_dir: Path, sample_size: int) -> pd.DataFrame:
         judgments,
         [
             "agent_final_decision",
-            "programmatic_discard_recommendation",
+            "early_screening_discard_recommendation",
             "semantic_discard_basis",
             "verifier_counterevidence",
             "review_theme",
@@ -152,6 +152,11 @@ def selected_examples(run_dir: Path, sample_size: int) -> pd.DataFrame:
             "criteria_triggered",
         ],
     )
+    if (
+        "early_screening_discard_recommendation" not in judgments.columns
+        and "programmatic_discard_recommendation" in judgments.columns
+    ):
+        judgments["early_screening_discard_recommendation"] = judgments["programmatic_discard_recommendation"]
 
     audit["qtime_num"] = pd.to_numeric(audit["qtime"], errors="coerce")
     audit["chain_count_num"] = pd.to_numeric(audit["response_chain_field_count"], errors="coerce").fillna(0)
@@ -198,7 +203,7 @@ def selected_examples(run_dir: Path, sample_size: int) -> pd.DataFrame:
     judgments["chain_count_num"] = pd.to_numeric(judgments["response_chain_field_count"], errors="coerce").fillna(0)
     judgments["worst_score"] = 0
     judgments.loc[judgments["agent_final_decision"].astype(str).eq("discard"), "worst_score"] += 100
-    judgments.loc[judgments["programmatic_discard_recommendation"].astype(str).str.lower().eq("true"), "worst_score"] += 10
+    judgments.loc[judgments["early_screening_discard_recommendation"].astype(str).str.lower().eq("true"), "worst_score"] += 10
     judgments.loc[~judgments["semantic_discard_basis"].astype(str).str.startswith("No semantic discard"), "worst_score"] += 25
     judgments.loc[
         judgments["review_theme"].astype(str).str.contains(
@@ -282,10 +287,12 @@ def write_memo(run_dir: Path, examples: pd.DataFrame) -> None:
     discard_count = int(judgment.get("agent_final_decision", pd.Series(dtype=str)).astype(str).eq("discard").sum())
     reviewed_count = int(len(judgment))
     rescued = 0
-    if {"programmatic_discard_recommendation", "agent_final_decision"} <= set(judgment.columns):
+    if "early_screening_discard_recommendation" not in judgment.columns and "programmatic_discard_recommendation" in judgment.columns:
+        judgment["early_screening_discard_recommendation"] = judgment["programmatic_discard_recommendation"]
+    if {"early_screening_discard_recommendation", "agent_final_decision"} <= set(judgment.columns):
         rescued = int(
             (
-                judgment["programmatic_discard_recommendation"].astype(str).str.lower().eq("true")
+                judgment["early_screening_discard_recommendation"].astype(str).str.lower().eq("true")
                 & judgment["agent_final_decision"].astype(str).ne("discard")
             ).sum()
         )
@@ -297,9 +304,9 @@ def write_memo(run_dir: Path, examples: pd.DataFrame) -> None:
         "",
         "## Read this first",
         "",
-        "This memo is the human-facing reasoning layer for the full response-chain review. The scoring criteria narrowed the review list. The critic-verifier then read the stitched response chain and decided whether the row still had a semantic basis for discard.",
+        "This memo is the human-facing reasoning layer for the full response-chain review. The scoring criteria narrowed the review list. The final review then read the stitched response chain and decided whether the row still had a semantic basis for discard.",
         "",
-        f"Rows reviewed in detail: {reviewed_count}. Recommended exclusions: {discard_count}. Programmatic discard recommendations rescued by full-chain review: {rescued}.",
+        f"Rows reviewed in detail: {reviewed_count}. Recommended exclusions: {discard_count}. Early exclusion flags rescued by full-chain review: {rescued}.",
         "",
         "## What the best chains show",
         "",
