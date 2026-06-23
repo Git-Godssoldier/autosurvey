@@ -21,6 +21,7 @@ Final survey-quality artifacts should feel like a compact research publication, 
 - Do not put long reasoning into narrow table cells. If a table needs identifiers and decisions, keep it compact. Put the actual explanation in prose blocks, row memos, or linked Markdown artifacts.
 - If the run corrected a first-pass assumption, such as a missing field-role map or incomplete topic map, include a clear narrative note about the correction and the next-pass lesson.
 - End with an artifact index so reviewers can move from the dashboard to the CSV and Markdown evidence.
+- For reruns and workflow-hardening cycles, show the terminal state and next action in a short workflow note. Do not expose internal activity logs. Link the workflow improvement log when it exists.
 
 ## Required Visualizations
 
@@ -67,3 +68,4 @@ Before delivery, verify that the dashboard:
 - does not require PMs to reopen CSV files to understand the main findings
 - clearly marks final discard decisions as agent-generated semantic judgments
 - preserves source artifacts rather than mutating evidence files
+- states whether the final package is success, clean no-op, blocked, approval required, or no-progress stop when the run is part of an iterative cycle

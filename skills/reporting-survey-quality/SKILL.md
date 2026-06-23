@@ -15,6 +15,8 @@ Reports should make clear whether the run was:
 
 Before writing PM-facing or client-facing prose, read `../cleaning-survey-quality/references/client-terminology-glossary.md`. Define any client-specific shorthand, study fields, quality terms, PM terms, or internal criteria before using them in final artifacts.
 
+When reporting a rerun, next-dataset pass, or workflow-hardening cycle, also read `../cleaning-survey-quality/references/dataset-cycle-loop.md`. Use it to state the terminal state, learning records, and next action without turning the client-facing report into an internal log.
+
 ## Report Shape
 
 Produce three report layers:
@@ -50,6 +52,7 @@ Produce three report layers:
    - positive findings report that explains strong retained responses, useful research findings, false-positive guardrails, and what good data looks like in the run
    - agent escalation packet that completes the PM review path, including discard rows, hard kept cases, uncertain cases, citations, and next actions
    - internal quality signal bank that captures comments, criteria, bad-response patterns, fabricated-response patterns, false positives, and next-run signal status
+   - compact learning records for lessons that change the next dataset cycle
    - kept-review synthesis table with survey-question and parameter recommendations
    - next-pass signal inventory that states what should change before the next first-pass scoring run
    - deep semantic review sample that shows a subset of reviewed rows with the full reasoning and next-pass learning
@@ -223,6 +226,8 @@ python3 scripts/build_visual_dashboard.py \
 - The final citation list must include at least the respondent review table, generated criteria catalog, discovery profile, criterion evidence table, agent judgment table, kept review synthesis, visual design reference, plain-writing reference, and charting reference.
 - Before the final assistant response, preview the main artifacts. Inspect the findings essay, positive insights report, escalation packet, internal signal bank, dashboard, visual findings report, discard set, final judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
 - Reject placeholder or stitched prose before delivery. Search the final Markdown and dashboard for unresolved placeholders, template notes, repeated boilerplate, one-character table wrapping, and row cards that merely concatenate field values. Rewrite those sections as coherent analyst prose before final response.
+- Challenge the final package before delivery. Try to disprove the discard set, kept-row rationale, statistical interpretation, next-pass signal inventory, and dashboard readability. Repair the smallest material weakness and rerun only the affected checks.
+- State the run's terminal state in the final assistant response. Use success, clean no-op, blocked, approval required, or no-progress stop. If the state is not success, name the exact artifact, decision, or approval that remains.
 - The final assistant response must be client-facing and email-ready. It should read as one cohesive review system, using language such as "we discovered," "we reviewed," and "we recommend." Do not write "the agent final pass" or similar internal process language in client-facing copy.
 - The final assistant response must include a clear narrative of core discoveries, core discard recommendations with respondent keys and row or cell-level citations when available, positive findings and strong-response examples, key statistics from the run, brief descriptions of important artifacts, a verified-artifact statement, and next-pass signals. Do not only say that scripts ran.
 - Keep running cycles on the next available datasets when the user asks for improvement over time. Each cycle must begin by reading the prior findings essay, escalation packet, signal bank, and next-pass inventory. Each cycle must end by saying which signals improved the first pass, which failed, which false-positive guardrails protected good rows, and what should change before the next dataset.
@@ -231,6 +236,7 @@ python3 scripts/build_visual_dashboard.py \
 
 - Read `references/report-templates.md` before writing PM or client summaries.
 - Read `../cleaning-survey-quality/references/client-terminology-glossary.md` before using client, PM, or survey-quality shorthand in final prose.
+- Read `../cleaning-survey-quality/references/dataset-cycle-loop.md` before summarizing reruns, next-dataset cycles, workflow hardening, terminal states, or learning records.
 - Read `references/client-annotation-benchmark.md` when using client-provided annotated workbooks as examples or calibration material.
 - Read `references/escalation-reporting.md` before changing escalation sections.
 - Read `references/visual-dashboard-design.md` before changing final dashboard or chart generation.

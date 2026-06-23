@@ -16,10 +16,12 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
 1. Frame the run before writing or running scoring scripts:
    - Read `references/agentic-escalation-path.md`.
    - Read `references/client-terminology-glossary.md` and use it to define client, PM, survey, and quality terms before writing final artifacts.
+   - Read `references/dataset-cycle-loop.md` when the run is part of an improvement cycle, a rerun, a multi-dataset pass, or a workflow-hardening request.
    - State the definition of done for this dataset in plain words.
    - Identify the source files, expected final artifacts, and what would block final delivery.
    - If the run includes internal comments, PM notes, client annotations, or prior criteria, read `references/internal-signal-learning.md`.
    - Start a short decision trail for non-obvious choices. The trail can be Markdown or TSV, but it must cite the artifact or command that supports each decision.
+   - If a missing decision would change safety, scope, or final authority, ask one short question with a recommended default. If the answer can be discovered from available files, discover it instead of asking.
 2. Explore the workbook before writing or running scoring scripts:
    - Read the sheet names, row count, column count, and Datamap or codebook when present.
    - Inspect representative raw rows and nonempty examples from every open-ended field family.
@@ -79,6 +81,7 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - Promote rows into the final discard set only when the agent can explain the discard in plain language with citations.
    - Read the independent full-response audit across all rows before finalizing. Look for missed bad-response patterns, copied chains, direct non-responses, weak repeated placeholders, and false positives that the scorer either missed or over-weighted.
    - If the final read exposes a bad first-pass assumption, such as a missing field-role map or incomplete topic map, rerun the review with corrected context and write the correction into the internal signal bank.
+   - Challenge the run before final delivery. Try to disprove the discard set, the kept-row rationale, the topic map, the field-role map, and the dashboard narrative. Repair the smallest material weakness and rerun only the checks affected by the repair.
 11. After the agent has investigated review-tagged rows, generate a final visual review package through `reporting-survey-quality`:
    - `agent_review_judgment_table.csv`: all review-tagged rows with agent decisions.
    - `agent_discard_set.csv`: only rows the agent judged should be escalated for removal.
@@ -100,10 +103,12 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - Reconcile counts across respondent review, agent judgment, discard set, kept synthesis, essay, escalation packet, and dashboard.
    - Verify that every discard row appears in the escalation packet.
    - Verify that the dashboard renders without unreadable tables or overlapping prose.
+   - Assign a terminal state from `references/dataset-cycle-loop.md`: success, clean no-op, blocked, approval required, or no-progress stop. Do not treat missing artifacts, unreconciled counts, unreadable dashboards, or errors as success.
    - Preview the main artifacts before responding to the user. Inspect the findings essay, positive insights report, escalation packet, internal signal bank, dashboard, visual findings report, discard set, final judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
    - The final assistant response must be client-facing and email-ready. It should read as one cohesive review system, using language such as "we discovered," "we reviewed," and "we recommend." Do not describe the close-out as tool execution or as "the agent final pass."
    - The final assistant response must include a clear narrative of core discoveries, core discard recommendations with respondent keys and row or cell-level citations when available, positive findings and strong-response examples, key statistics from the run, brief descriptions of important artifacts, a verified-artifact statement, and the next-pass signals.
 13. Before starting the next run, read the prior `agent_findings_essay.md`, `agent_escalation_packet.md`, `next_pass_signal_inventory.csv`, and `internal_quality_signal_bank.md`. Decide which signals can be added to the first-pass context, which signals need PM examples, which signals are false-positive guardrails, and which signals should remain agent-only. Keep cycling through new datasets and reruns until the row-count gates, artifact gates, dashboard checks, prose checks, and escalation reconciliation checks pass without defects.
+   - Each cycle should record one to five compact learning records in the signal bank or workflow improvement log when the run changes future behavior. Do not write activity logs. Write only lessons that change the next pass.
 
 ## Generated Criteria And Scoring Policy
 
@@ -145,6 +150,8 @@ For each major finding, the agent should state:
 Do not over-polish uncertainty into confidence. If a claim is indirect, say that it appears likely or needs PM review. If a source was unavailable, name the gap.
 
 The final discard call should be stronger than the initial score. It should reflect the score, the Datamap, the response chain, internal comments, counterevidence, and the agent's own semantic read.
+
+Definitions of done must be checkable and demanding. A phase is not done because a script finished. It is done when the expected artifact exists, the count or citation gate passes, and the agent has read the material needed to make the next decision.
 
 ## Majority Skill, Minority Template
 

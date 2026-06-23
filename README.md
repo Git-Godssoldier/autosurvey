@@ -68,6 +68,13 @@ before final reporting. Client-specific terms, PM shorthand, survey field names,
 quality terms, and internal criteria should be explained in plain language when
 they affect interpretation or decisions.
 
+Use `skills/cleaning-survey-quality/references/dataset-cycle-loop.md` for
+reruns, next-dataset passes, and workflow hardening. Each cycle should observe
+fresh evidence, choose one high-value action, act, verify, record the lesson,
+and stop or continue under a named terminal state. The valid terminal states
+are success, clean no-op, blocked, approval required, and no-progress stop.
+Errors and missing artifacts are not success.
+
 ```bash
 python3 skills/cleaning-survey-quality/scripts/run_quality_loop.py \
   --input-file /path/to/unannotated_export.xlsx \
@@ -146,6 +153,11 @@ promoted signals, keep false-positive guardrails active, and retire signals that
 proved misleading. Continue dataset cycles until all artifact gates pass, the
 dashboard is readable, the prose is client-ready, every row has been audited,
 and any remaining open questions are true PM or client judgment calls.
+
+Each cycle should also write compact learning records into the internal signal
+bank or workflow improvement log when a lesson changes future behavior. The
+record should say what changed, why it matters, and what the next run should do
+differently. Do not record routine script execution as a lesson.
 
 Kept review rows must feed the next run. The workflow now treats these patterns
 as standard signals on any dataset:

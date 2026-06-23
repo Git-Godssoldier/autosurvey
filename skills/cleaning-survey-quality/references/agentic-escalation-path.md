@@ -11,6 +11,7 @@ Use these principles.
 - Evidence before narrative. Collect the facts before telling the story.
 - Exploration before scripting. Understand the workbook, Datamap, comments, and field roles before writing or running scoring logic.
 - Majority skill, minority template. Required artifacts, proof gates, and citations are fixed; the interpretation must be agent-written after reading the evidence.
+- Bounded loop. Each improvement cycle observes fresh evidence, chooses one high-value action, acts, verifies, records the lesson, and stops or repeats under a named terminal state.
 - Static checks are the case file. The final discard call comes from critic review.
 - Field roles are discovered, not assumed. The role or qualification context may be named `qcoe1`, `qIndustry`, `CLASSIFY`, a buyer-role field, a use-case field, or something project-specific.
 - Short text is not automatically weak. If the prompt asks for a physical item, location, product use, brand, or short factor, a short noun phrase may be a complete answer.
@@ -20,6 +21,8 @@ Use these principles.
 - When a lesson repeats, encode it in the workflow or signal bank. Do not leave it as memory.
 
 Use `client-terminology-glossary.md` before drafting final prose. Define client-specific terms in plain language and update the local run context when the workbook uses a term differently.
+
+Use `dataset-cycle-loop.md` when a run is repeated, compared to prior datasets, or used to harden the workflow.
 
 ## Phase 1. Frame the run
 
@@ -40,6 +43,8 @@ At minimum, done means:
 - the dashboard and Markdown report render without unreadable table or layout failures
 
 If any item is missing, say what is missing and whether it blocks final delivery.
+
+When a needed answer can be found in available files, inspect the files instead of asking the user. Ask one short question only when the answer changes safety, scope, or final authority.
 
 ## Phase 2. Explore before scoring
 
@@ -176,3 +181,5 @@ Check:
 - visible tables do not squeeze prose into unreadable cells
 
 If a check is inconclusive, name it. Do not call the run complete.
+
+End with a terminal state: success, clean no-op, blocked, approval required, or no-progress stop. If the cycle changed future behavior, write a compact learning record in the internal signal bank or workflow improvement log.

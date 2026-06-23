@@ -4,6 +4,8 @@ These templates define the minimum artifact shape. They are not the analysis. Th
 
 Before using client, PM, or survey-quality shorthand, read `../../cleaning-survey-quality/references/client-terminology-glossary.md` and define ambiguous terms in the report.
 
+For reruns and multi-dataset cycles, read `../../cleaning-survey-quality/references/dataset-cycle-loop.md`. Report the terminal state and learning records in the workflow improvement log. Keep client-facing prose focused on findings, recommendations, evidence, and next actions.
+
 ## PM Operations Summary
 
 Title: Survey Quality Cleaning Summary
@@ -288,6 +290,8 @@ The bank should preserve:
 
 The bank can be free-form prose. The agent should retire or demote misleading signals instead of keeping an append-only list.
 
+The bank should also include compact learning records when a run changes future behavior. Each record should state what changed, why it matters, and what the next run should do differently, with an artifact, row key, field, or count citation. Do not turn learning records into an activity log.
+
 `full_chain_best_worst_examples.csv` should include:
 
 - respondent key
@@ -347,6 +351,15 @@ The bank can be free-form prose. The agent should retire or demote misleading si
 - trust basis
 - next action
 - learning for the next pass
+
+`workflow_improvement_log.md` should include:
+
+- terminal state for the cycle
+- checks that passed
+- checks that failed or remained inconclusive
+- smallest repair made after challenge review
+- compact learning records or links to the internal signal bank
+- handoff paragraph for interrupted or long-running work, with artifact paths and next action
 
 `independent_full_response_audit.csv` should include:
 
