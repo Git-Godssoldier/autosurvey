@@ -23,7 +23,13 @@ SUBSTANTIVE_TERMS = re.compile(
 CATEGORY_CONTEXT_TERMS = re.compile(
     r"gas|fuel|pump|station|convenience|store|racetrac|raceway|7-eleven|circle k|quiktrip|\\bqt\\b|wawa|"
     r"speedway|casey|murphy|food|drink|coffee|snack|slurpee|bathroom|restroom|parking|clean|staff|"
-    r"employee|cashier|receipt|reward|loyalty|app|checkout|price|cheap|cheaper|deal|inside|road|visit",
+    r"employee|cashier|receipt|reward|loyalty|app|checkout|price|cheap|cheaper|deal|inside|road|visit|"
+    r"padlock|keyed|lock|locked|locking|security|gate|facility|equipment|storage|toolbox|tool box|tools|"
+    r"jobsite|worksite|construction site|warehouse|wherehouse|office|room|entrance|door|trailer|cabinet|"
+    r"drawer|safe|cage|shed|garage|locker|fence|chain|access|pharmacy|parking lot|dumpster|building|shop|"
+    r"rust|weather|shackle|keyway|steel|brass|outdoor|marine|body cover|vault|mailbox|electrical|device|"
+    r"utilities|utility|property|intruder|medication|basement|school|plant|club ?house|corporate|garbage|"
+    r"wet area|all over|everywhere|licker|liquor|file|desk|drawers",
     re.I,
 )
 PROJECT_ANSWER_TERMS = re.compile(
@@ -171,6 +177,10 @@ def has_meaningful_narrative_context(value: str) -> bool:
     clean = re.sub(r"\s+", " ", value).strip()
     if not clean:
         return False
+    if NON_RESPONSE_TERMS.fullmatch(clean) or PLACEHOLDER_FRAGMENT_RE.search(clean) or CONTACT_OR_MISPLACED_TEXT_RE.search(clean):
+        return False
+    if CATEGORY_CONTEXT_TERMS.search(clean):
+        return True
     if severe_weak_narrative(clean) or gibberish_or_misplaced_text(clean):
         return False
     return bool(SUBSTANTIVE_TERMS.search(clean) or CATEGORY_CONTEXT_TERMS.search(clean))
@@ -429,9 +439,9 @@ def next_step(decision: str, theme: str) -> str:
 def synthesis_for_theme(theme: str, group: pd.DataFrame) -> dict[str, object]:
     lower = theme.lower()
     if "kept after critic verification" in lower:
-        why = "Static criteria suggested discard, but the verifier found recoverable semantic context in the full response chain."
-        recommendation = "Keep these cases as examples where final review must supersede programmatic checks after reading the full chain."
-        parameter = "Programmatic discard recommendations require critic-verifier confirmation before exclusion."
+        why = "Early screening suggested exclusion, but full-chain semantic review found recoverable context."
+        recommendation = "Keep these cases as examples where final review must read the full response chain before excluding a respondent."
+        parameter = "Early exclusion flags require full-chain semantic confirmation before removal."
     elif "weak or unclear" in lower:
         why = "Rows were weak or unclear but did not meet an automatic discard threshold without PM depth rules."
         recommendation = "Add PM examples of acceptable and unacceptable answers to the next first-pass context."
