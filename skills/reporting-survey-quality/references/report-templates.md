@@ -6,6 +6,8 @@ Before using client, PM, or survey-quality shorthand, read `../../cleaning-surve
 
 For reruns and multi-dataset cycles, read `../../cleaning-survey-quality/references/dataset-cycle-loop.md`. Report the terminal state and learning records in the workflow improvement log. Keep client-facing prose focused on findings, recommendations, evidence, and next actions.
 
+Before writing final prose, read `analyst-prose-standard.md`. The report must use statistics to support a finding, not replace the finding. Helper scripts can stage evidence, but they cannot satisfy the prose artifacts by themselves.
+
 ## PM Operations Summary
 
 Title: Survey Quality Cleaning Summary
@@ -259,9 +261,11 @@ The report should explain:
 - whether the current discard set still looks right after comparing the final judgment table, discard set, escalation packet, and independent all-row audit
 - what the next pass should learn from the good rows, not only from the weak rows
 
-A helper script can seed this file from the run artifacts, but the agent is responsible for reading it and improving the prose before delivery. It should not sound like a table was stitched into paragraphs. It should read like a senior analyst explaining why the usable data is usable and how that improves confidence in the review.
+A helper script can seed this file from the run artifacts, but the agent is responsible for reading it and improving the prose before delivery. The agent may discard seeded text when it reads as a template. It should not sound like a table was stitched into paragraphs. It should read like a senior analyst explaining why the usable data is usable and how that improves confidence in the review.
 
 Use this report to prove that quality review did not become discard-only. It should explain what was learned from usable responses, what good response chains look like, and which false-positive guardrails should remain active.
+
+The positive report must not expose parameter strings from helper tables. Do not write `best_score=`, `risk=`, `narrative=`, `keep_no_issue_from_independent_audit`, or similar raw status labels. Translate them into clear language about why the row is usable, what statistic matters, and what the next pass should learn.
 
 `agent_escalation_packet.md` should be written by the agent after final semantic review. It is the PM-ready operational artifact. It should let a reviewer act without reading every CSV.
 

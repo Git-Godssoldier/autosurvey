@@ -17,6 +17,8 @@ Before writing PM-facing or client-facing prose, read `../cleaning-survey-qualit
 
 When reporting a rerun, next-dataset pass, or workflow-hardening cycle, also read `../cleaning-survey-quality/references/dataset-cycle-loop.md`. Use it to state the terminal state, learning records, and next action without turning the client-facing report into an internal log.
 
+Before writing final prose, read `references/analyst-prose-standard.md`. Use its standard for blending statistics, evidence, and readable explanation. This is an agent authoring requirement, not a script-generation requirement.
+
 ## Report Shape
 
 Produce three report layers:
@@ -180,6 +182,7 @@ python3 scripts/build_visual_dashboard.py \
 ## Reporting Rules
 
 - Explain criteria in business language, not model language.
+- Use statistics inside analyst prose. State what the count means before showing detailed tables. Do not dump rows, criteria, or parameter fields as the report itself.
 - Explain that criteria and provisional weights were generated from discovery, trial evidence, findings, and feedback.
 - Include justifications for each scoring criterion.
 - Include respondent metadata in review tables wherever source fields are available.
@@ -203,6 +206,10 @@ python3 scripts/build_visual_dashboard.py \
 - Produce readable prose analysis for the best and worst full response chains. The prose must explain what the agent saw, why strong rows are strong, why bad rows remain bad after full-chain review, and where the workflow should challenge itself.
 - Do not treat generated tables, charts, or flags as the final communication layer. They support analysis, but the report must include agent-written interpretation for the human reviewer.
 - Treat templates as scaffolding, not the product. The final essay, escalation packet, positive insights report, and dashboard prose must include fresh run-specific insight, client terminology definitions where needed, and citations to the evidence that produced each claim.
+- Treat every script-produced prose block as draft evidence, not final copy. Scripts may stage counts, examples, citations, charts, and tables. The agent must author or rewrite the final findings essay, positive report, escalation packet, dashboard prose, and visual findings report after reading the run evidence.
+- Do not solve poor prose by teaching scripts to fill nicer templates. The repair is agent authoring: read the artifacts, decide what the evidence means, write the explanation, and cite the supporting table or row.
+- Never expose raw parameter strings in client-facing prose, such as `best_score=`, `risk=`, `narrative=`, `support_rate=`, `keep_no_issue_from_independent_audit`, or raw source-column dumps. Translate them into plain analyst language before delivery.
+- Dense tables are allowed only after a short readout explains what the table proves and how the reviewer should use it.
 - Keep long reasoning out of wide tables. Tables may summarize identifiers, decisions, themes, scores, and next action. Full explanations, response-chain interpretation, and workflow learning must appear in natural prose sections or linked Markdown artifacts.
 - Never dump a raw stitched response chain into a dashboard card or visible wide table. Convert it into a focused chain read, then explain why those answers support discard, retention, calibration, or a next-pass rule.
 - The dashboard must remain readable at desktop and mobile widths. If a section contains long prose, use publication prose blocks or cards with stable widths, not narrow table cells that force one-character wrapping.
@@ -240,6 +247,7 @@ python3 scripts/build_visual_dashboard.py \
 - The final citation list must include at least the respondent review table, generated criteria catalog, discovery profile, criterion evidence table, agent judgment table, kept review synthesis, visual design reference, plain-writing reference, and charting reference.
 - Before the final assistant response, preview the main artifacts. Inspect the findings essay, positive insights report, escalation packet, internal signal bank, dashboard, visual findings report, discard set, final judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
 - Reject placeholder or stitched prose before delivery. Search the final Markdown and dashboard for unresolved placeholders, template notes, repeated boilerplate, one-character table wrapping, and row cards that merely concatenate field values. Rewrite those sections as coherent analyst prose before final response.
+- Reject parameterized prose before delivery. Search for `best_score=`, `risk=`, `narrative=`, `support_rate=`, raw status values, and unconverted internal labels in client-facing files. Rewrite the section if any appear.
 - Challenge the final package before delivery. Try to disprove the discard set, kept-row rationale, statistical interpretation, next-pass signal inventory, and dashboard readability. Repair the smallest material weakness and rerun only the affected checks.
 - State the run's terminal state in the final assistant response. Use success, clean no-op, blocked, approval required, or no-progress stop. If the state is not success, name the exact artifact, decision, or approval that remains.
 - The final assistant response must be client-facing and email-ready. It should read as one cohesive review system, using language such as "we discovered," "we reviewed," and "we recommend." Do not write "the agent final pass" or similar internal process language in client-facing copy.
@@ -249,6 +257,7 @@ python3 scripts/build_visual_dashboard.py \
 ## When To Read References
 
 - Read `references/report-templates.md` before writing PM or client summaries.
+- Read `references/analyst-prose-standard.md` before writing client-facing findings, positive insights, dashboard prose, or visual findings reports.
 - Read `../cleaning-survey-quality/references/client-terminology-glossary.md` before using client, PM, or survey-quality shorthand in final prose.
 - Read `../cleaning-survey-quality/references/dataset-cycle-loop.md` before summarizing reruns, next-dataset cycles, workflow hardening, terminal states, or learning records.
 - Read `references/client-annotation-benchmark.md` when using client-provided annotated workbooks as examples or calibration material.

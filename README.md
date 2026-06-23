@@ -145,6 +145,8 @@ The final assistant response must include:
 
 The response should be ready to paste into a client email after removing local file paths if needed. It should summarize what was found, what should be done, and why the evidence supports the recommendation.
 
+Client-facing prose must combine statistics with interpretation. Scripts can stage evidence, but the final analysis must be agent-authored after reading the run artifacts. Do not ship parameterized text such as `best_score=`, `risk=`, `narrative=`, `support_rate=`, or raw internal status labels. Dense criteria tables must be preceded by a short analyst readout that explains what the table means and what should happen next.
+
 Use `next_pass_signal_inventory.csv` and `next_pass_first_pass_config.json`
 before the next scoring run. These files record which signals should be scored,
 which signals should stay review-only, and what extra evidence is needed.

@@ -38,17 +38,20 @@ Use Recharts in HTML dashboards when React is available:
 - Full semantic decision table: one compact ledger row for every candidate the agent investigated. Include identifiers, final decision, theme, counts, score, and next action. Move long semantic judgment, language quality, trust rationale, and response-chain interpretation into row cards or Markdown artifacts.
 - Discovery and criteria tables: show new analyses, candidate fields, generated criteria, support, weight, decision role, and citation.
 - Dataset observations: include a list of plain-language findings about semantic patterns, trend patterns, supplier/source patterns, and survey improvements.
+- Every dense criteria or discovery table must have a short analyst readout before it. The readout should say what the table proves, what changed the review, and which criteria or fields need action.
 
 Wrap charts in `ResponsiveContainer` and include `Tooltip`, axis labels where useful, and `Legend` for donut charts. Avoid chart decorations that do not help the reviewer make a cleaning decision.
 
 ## Writing Style
 
+- Dashboard prose must come from agent-authored Markdown artifacts or from a manual rewrite after reading those artifacts. Generated blocks are placeholders until reviewed.
 - Use concise research-report language: `Finding`, `Decision Rule`, `Design Implication`, `Source`.
 - Lead with the decision, then explain the evidence. Do not make readers infer meaning from scores alone.
 - For discard rows, write an expert judgment memo: semantic pattern, language quality, source evidence, benign alternative considered, and final recommended action.
 - For kept review rows, explain why the row survived and what question design or fielding parameter should improve.
 - For dashboard editorial prose, write in complete analysis paragraphs. Do not stitch together field values or populate a rigid template. State what the agent saw, what it means, why the conclusion is trustworthy, and what should happen next.
 - Keep templates in the minority. The dashboard must have stable sections and verified artifacts, but the prose should be written from the run evidence rather than assembled from static fields.
+- Do not expose raw parameter strings in prose. Translate model labels, status values, support rates, and source-column lists into readable findings.
 - Never let keyword mismatch, AI-likelihood, or supplier/source concentration read as a final semantic decision.
 - Use plain writing. Prefer common words. Use complete sentences. Remove filler. Avoid jargon unless you explain it. Do not hide the decision behind phrases such as "may indicate" when the agent has made a final judgment.
 - Cite every material claim. Counts should cite local tables. Criteria should cite the generated criteria catalog or criterion evidence table. Agent decisions should cite the agent judgment table. Design and writing choices should cite the design and writing references.
@@ -62,6 +65,7 @@ Before delivery, verify that the dashboard:
 - remains readable at desktop and mobile widths
 - contains no overlapping text, one-character column wrapping, or prose squeezed into narrow table cells
 - contains no unresolved placeholders, template notes, lorem text, repeated boilerplate, or row cards that only concatenate field values
+- contains no raw parameter phrases such as `best_score=`, `risk=`, `narrative=`, `support_rate=`, or unconverted internal status labels in client-facing prose
 - includes `agent_findings_essay.md` prose, or clearly blocks delivery until the agent writes it
 - includes `agent_positive_insights_report.md` prose, or clearly blocks delivery until the agent writes it
 - links the escalation packet and internal signal bank when they exist
