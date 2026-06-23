@@ -40,9 +40,22 @@ def chart_label(value: object) -> str:
         "discard_candidate": "Discard candidate",
         "keep_with_review_note": "Kept after review",
         "discard": "Recommended exclusion",
+        "general_review_signal_kept_for_pm_calibration": "General kept signal",
+        "weak_or_unclear_narrative_kept_for_pm_calibration": "Weak narrative kept",
+        "topic-adjacent_keyword_false_positive_on_narrative_text": "Topic wording kept",
+        "topic_adjacent_keyword_false_positive_on_narrative_text": "Topic wording kept",
+        "speed-only_plausible_narrative_answer_kept_with_note": "Fast valid answer kept",
+        "speed_only_plausible_narrative_answer_kept_with_note": "Fast valid answer kept",
+        "generic_survey-feedback_narrative_kept_for_pm_calibration": "Survey feedback kept",
+        "generic_survey_feedback_narrative_kept_for_pm_calibration": "Survey feedback kept",
+        "technical_duplicate_cluster_kept_for_pm_context": "Duplicate context kept",
+        "speed_plus_weak_or_evasive_narrative_discard_candidate": "Fast weak recap",
     }
     if raw in labels:
         return labels[raw]
+    raw_key = raw.lower().replace("-", "_").replace(" ", "_")
+    if raw_key in labels:
+        return labels[raw_key]
     words = raw.replace("_", " ").replace("-", " ").split()
     fixed = []
     for word in words:
@@ -417,7 +430,8 @@ def observations(respondent: pd.DataFrame, judgments: pd.DataFrame, criteria: pd
     total = max(1, len(respondent))
     review_total = len(judgments)
     discard_total = int(judgments.get("agent_final_decision", pd.Series(dtype=str)).astype(str).eq("discard").sum()) if not judgments.empty else 0
-    notes.append(f"We reviewed {review_total} of {len(respondent)} rows after the scoring pass. That is {pct(review_total, total)} of all responses. We recommend {discard_total} rows for exclusion review. [C1][C5]")
+    discard_unit = "row" if discard_total == 1 else "rows"
+    notes.append(f"We reviewed {review_total} of {len(respondent)} rows after the scoring pass. That is {pct(review_total, total)} of all responses. We recommend {discard_total} {discard_unit} for exclusion review. [C1][C5]")
     if not criteria.empty and "support_rows" in criteria:
         open_topic = criteria[criteria["criterion_id"].astype(str).str.contains("open_end_relevance|open_end_topic|relevance", case=False, regex=True)]
         if not open_topic.empty:
@@ -1012,12 +1026,14 @@ def main() -> None:
     (run_dir / "agent_final_review_dashboard.html").write_text("\n".join(html_doc), encoding="utf-8")
 
     md = [
-        "# Survey quality findings report",
+        "# Survey quality visual companion",
         "",
         f"Run directory: `{run_dir}`",
         "",
-        "## Main finding",
+        "## Read this first",
         top_finding,
+        "",
+        "This companion explains how to read the dashboard and points to the authored research reports. It should not replace `agent_findings_essay.md`, `agent_positive_insights_report.md`, `agent_escalation_packet.md`, or `deep_findings_analysis.md`. Those files carry the final interpretation, row-level reasoning, and next-pass recommendations.",
         "",
         "## KPI summary",
         f"- Total responses: {total}",
@@ -1025,7 +1041,7 @@ def main() -> None:
         f"- Recommended exclusion-review rows: {discard_total} ({pct(discard_total, total)})",
         f"- Kept review rows used for survey improvements: {kept_review_total}",
         "",
-        "## Chart guide",
+        "## How to read the dashboard",
         "- Scoring actions shows the first-pass action mix.",
         "- Second-pass disposition shows the review status before final recommendations.",
         "- Final review decisions shows the rows kept or recommended for exclusion after semantic review.",
@@ -1036,53 +1052,30 @@ def main() -> None:
         "- Kept review themes shows retained rows that became survey-improvement guidance.",
         "- Review rows by supplier shows source concentration for review routing.",
         "",
-        "## Trend analysis",
+        "## Dashboard interpretation",
         trend_note,
         "",
-        "## Cluster analysis",
         cluster_note,
         "",
-        "## New discoveries from the raw export",
+        "The charts are evidence surfaces. They show where review volume came from and which patterns need attention. They do not make the final respondent decision by themselves. The final decision comes from reading the full response chain and checking whether technical signals, speed, and narrative evidence agree. [C5][C6]",
+        "",
+        "## Raw export context",
         f"- Duration fields: {', '.join(discoveries.get('qtime_columns', [])) or 'none'} [C3]",
         f"- Fielding timestamp fields: {', '.join(discoveries.get('fielding_timestamp_columns', [])) or 'none'} [C3]",
         f"- IP fields: {', '.join(discoveries.get('ip_columns', [])) or 'none'} [C3]",
-        f"- Matrix groups: {discoveries.get('matrix_group_count', 0)} [C3]",
         f"- Open-end fields: {', '.join(discoveries.get('open_end_columns', [])) or 'none'} [C3]",
-        f"- Brand mapping candidates: {len(discoveries.get('brand_columns', []))} [C3]",
-        f"- AI helper fields: {', '.join(discoveries.get('ai_columns', [])) or 'none found'} [C3]",
-        "",
-        "## Expanded scorer criteria shape",
-        *markdown_table(criteria_expanded, ["criterion_id", "status", "tags", "source_columns", "generated_weight", "support_rows", "support_rate", "decision_role", "rationale", "citation"], 40),
-        "",
-        "## Response analysis criteria",
-        *markdown_table(response_criteria_display, ["criterion_id", "rows", "scoring_discard_candidates", "kept_with_recommendation_before_final_review", "sample_field", "sample_value", "how_to_read", "citation"], 40),
         "",
         "## Dataset observations",
         *[f"- {note}" for note in observation_notes],
+        "",
+        "## Recommended exclusion-review set",
+        *markdown_table(discard_display, ["respondent_key", "exclusion_review_rationale", "observed_evidence", "supplier", "qtime", "review_explanation", "evidence_rationale"], 10),
         "",
         "## Findings narrative",
         editorial_markdown or "The required findings narrative was not found. Write `agent_findings_essay.md` before delivery.",
         "",
         "## Positive findings and strong responses",
         positive_markdown or "Write `agent_positive_insights_report.md` before delivery so strong retained responses and research insights sit beside the exclusion review.",
-        "",
-        "## Final review decisions",
-        *[f"- {idx}: {int(val)} ({pct(int(val), review_total)})" for idx, val in agent_counts.items()],
-        "",
-        "## Recommended exclusion-review set",
-        *markdown_table(discard_display, ["respondent_key", "exclusion_review_rationale", "observed_evidence", "supplier", "qtime", "review_explanation", "evidence_rationale"], 10),
-        "",
-        "## All semantic decisions",
-        *markdown_table(semantic_display, ["respondent_key", "final_decision", "review_theme", "supplier", "qtime", "computed_score", "scoring_discard_recommendation", "response_chain_field_count", "semantic_review_chain_field_count", "recommended_next_step"], 30),
-        "",
-        "## Survey improvement synthesis",
-        *markdown_table(kept_synthesis, ["theme", "kept_review_rows", "why_kept", "survey_question_or_parameter_recommendation", "suggested_quality_parameter"], 10),
-        "",
-        "## Next-pass signals",
-        *markdown_table(next_pass_signals, ["signal_id", "support_rows", "critical_signal", "first_pass_change", "evidence_needed", "escalation_rule"], 12),
-        "",
-        "## Demographic and aggregate insights",
-        *markdown_table(demographics, ["field", "question_text", "nonempty_rows", "mean", "median", "top_values"], 20),
         "",
         "## Final review rule",
         "Use scoring to find candidates. Make the final recommendation only after reading the full response context. Use kept review rows to improve the next survey. [C5][C6]",

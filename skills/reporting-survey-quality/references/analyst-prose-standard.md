@@ -10,6 +10,8 @@ Scripts may collect counts, examples, citations, charts, and table rows. They ma
 
 The agent must read the run artifacts, decide what the evidence means, and write the final prose. If a helper-generated paragraph sounds like a template, stitched fields, or a parameter dump, the agent must rewrite it or remove it before delivery.
 
+Every delivered artifact must be agent-authored in substance. This applies to the findings essay, positive findings report, escalation packet, internal signal bank, deep findings memo, visual findings report, dashboard prose, final assistant response, and any other file a PM or client might read. A file does not pass because it exists. It passes only when the agent has read the evidence, shaped the narrative, checked the citations, and rewritten any generated draft text that does not explain the run.
+
 Do not solve weak reporting by adding more phrase templates to scripts. Improve the instructions, then have the agent author the analysis from the evidence.
 
 Script output should name itself as draft evidence when it contains generated prose. It should tell the agent what evidence exists and what must be explained. It should not pretend to be the finished client narrative.
