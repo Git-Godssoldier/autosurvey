@@ -236,6 +236,20 @@ The essay should do the following in whatever structure best serves the dataset:
 
 Do not turn this essay into a list of required fields. The point is to let the agent reason in prose after reading the evidence. Tables can support the essay, but they are not the analysis.
 
+`agent_positive_insights_report.md` should be written as the companion to the discard and escalation materials. It exists because a great survey-quality review should preserve and explain good data, not only find removals.
+
+The report should explain:
+
+- what strong retained response chains look like in this dataset
+- which specific retained respondents are useful calibration examples, with concise response-chain excerpts and local artifact citations
+- what positive research findings, demographic patterns, aggregate patterns, and survey-design signals emerged from the run
+- why suspicious-looking rows were kept when full-chain context made them defensible
+- which false-positive guardrails protected good data, such as valid short answers, misspellings, shared technical context, speed-only plausible answers, keyword-map misses, or energetic wording
+- whether the current discard set still looks right after comparing the final judgment table, discard set, escalation packet, and independent all-row audit
+- what the next pass should learn from the good rows, not only from the weak rows
+
+A helper script can seed this file from the run artifacts, but the agent is responsible for reading it and improving the prose before delivery. It should not sound like a table was stitched into paragraphs. It should read like a senior analyst explaining why the usable data is usable and how that improves confidence in the review.
+
 `agent_escalation_packet.md` should be written by the agent after final semantic review. It is the PM-ready operational artifact. It should let a reviewer act without reading every CSV.
 
 The packet should explain:
@@ -372,6 +386,7 @@ The bank can be free-form prose. The agent should retire or demote misleading si
 - next-pass signal inventory
 - deep semantic review sample
 - cited agent findings essay
+- positive findings report with strong retained response examples and guardrails that protected good data
 - agent escalation packet
 - internal quality signal bank for long-term learning
 - citations for all run-specific and method-specific claims

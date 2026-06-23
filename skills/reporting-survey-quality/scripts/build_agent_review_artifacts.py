@@ -17,7 +17,9 @@ SUBSTANTIVE_TERMS = re.compile(
     r"performance|availability|inventory|stock|trust|recommend|contract|construction|repair|project|"
     r"home|store|supplier|digital|software|tool|app|online|order|ordering|delivery|schedule|"
     r"scheduling|communication|workflow|payment|invoice|estimate|bid|proposal|pricing|discount|"
-    r"deal|purchase|checkout|fee|fees|client|customer|labor|worker|blueprint|takeoff|job",
+    r"deal|purchase|checkout|fee|fees|client|customer|labor|worker|blueprint|takeoff|job|"
+    r"automation|automated|ai|artificial intelligence|plan|planning|structure|supplies|supplier|"
+    r"materials|money|budget|equipped|equipment",
     re.I,
 )
 CATEGORY_CONTEXT_TERMS = re.compile(
@@ -29,7 +31,7 @@ CATEGORY_CONTEXT_TERMS = re.compile(
     r"drawer|safe|cage|shed|garage|locker|fence|chain|access|pharmacy|parking lot|dumpster|building|shop|"
     r"rust|weather|shackle|keyway|steel|brass|outdoor|marine|body cover|vault|mailbox|electrical|device|"
     r"utilities|utility|property|intruder|medication|basement|school|plant|club ?house|corporate|garbage|"
-    r"wet area|all over|everywhere|licker|liquor|file|desk|drawers",
+    r"wet area|all over|everywhere|licker|liquor|file|desk|drawers|supplies|automation|ai",
     re.I,
 )
 TOOL_BRAND_CONTEXT_TERMS = re.compile(
@@ -47,8 +49,9 @@ TOOL_BRAND_MISPLACED_TERMS = re.compile(
 PROJECT_ANSWER_TERMS = re.compile(
     r"paint|painting|repaint|floor|flooring|tile|kitchen|bedroom|bathroom|basement|porch|deck|gazebo|"
     r"fireplace|fire place|driveway|sidewalk|patio|padio|pool|pond|cabinet|countertop|sink|stove|"
-    r"microwave|appliance|renovat|remodel|replace|replacing|redo|built|building|added|extending|room|"
-    r"outdoor|garden|barbecue|bbq|wood|concrete|paving|front porch|interior",
+    r"microwave|appliance|renovat|remodel|replace|replacing|redo|redid|built|building|added|extending|room|"
+    r"outdoor|garden|backyard|yard|landscape|landscaping|lawn|barbecue|bbq|wood|concrete|paving|front porch|interior|"
+    r"window|windows|frame|frames|theater|theatre",
     re.I,
 )
 ENTHUSIASM_TERMS = re.compile(
@@ -186,11 +189,16 @@ def has_meaningful_narrative_context(value: str) -> bool:
         return False
     if NON_RESPONSE_TERMS.fullmatch(clean) or PLACEHOLDER_FRAGMENT_RE.search(clean) or CONTACT_OR_MISPLACED_TEXT_RE.search(clean):
         return False
-    if CATEGORY_CONTEXT_TERMS.search(clean) or TOOL_BRAND_CONTEXT_TERMS.search(clean):
+    if CATEGORY_CONTEXT_TERMS.search(clean) or TOOL_BRAND_CONTEXT_TERMS.search(clean) or has_plausible_project_answer(clean):
         return True
     if severe_weak_narrative(clean) or gibberish_or_misplaced_text(clean):
         return False
-    return bool(SUBSTANTIVE_TERMS.search(clean) or CATEGORY_CONTEXT_TERMS.search(clean) or TOOL_BRAND_CONTEXT_TERMS.search(clean))
+    return bool(
+        SUBSTANTIVE_TERMS.search(clean)
+        or CATEGORY_CONTEXT_TERMS.search(clean)
+        or TOOL_BRAND_CONTEXT_TERMS.search(clean)
+        or has_plausible_project_answer(clean)
+    )
 
 
 def has_plausible_project_answer(value: str) -> bool:
@@ -205,6 +213,8 @@ def severe_weak_narrative(value: str) -> bool:
     clean = re.sub(r"\s+", " ", value).strip()
     if not clean:
         return True
+    if has_plausible_project_answer(clean) or CATEGORY_CONTEXT_TERMS.search(clean) or TOOL_BRAND_CONTEXT_TERMS.search(clean):
+        return False
     if NON_RESPONSE_TERMS.fullmatch(clean):
         return True
     if PLACEHOLDER_FRAGMENT_RE.search(clean) and not has_substantive_context(clean):
@@ -226,7 +236,7 @@ def gibberish_or_misplaced_text(value: str) -> bool:
         return True
     if CONTACT_OR_MISPLACED_TEXT_RE.search(clean):
         return True
-    if has_substantive_context(clean):
+    if has_substantive_context(clean) or has_plausible_project_answer(clean):
         return False
     words = re.findall(r"[A-Za-z0-9']+", clean)
     if not words:
@@ -277,6 +287,7 @@ def semantic_verifier_profile(audit_row: pd.Series, review_row: pd.Series, raw_t
     discard_basis: list[str] = []
     patterns: list[str] = []
     meaningful_narratives = [item for item in narrative_answers if has_meaningful_narrative_context(item)]
+    raw_has_meaningful_context = has_meaningful_narrative_context(raw_text)
     raw_has_tool_brand_context = has_tool_brand_context(raw_text)
 
     expressive_repetition = repeated_character_expression(raw_text) or repeated_character_expression(answer_text)
@@ -291,6 +302,8 @@ def semantic_verifier_profile(audit_row: pd.Series, review_row: pd.Series, raw_t
         counterevidence.append("The required tool-brand answer names a plausible brand, tool, or tool-use reason in context.")
     if meaningful_narratives:
         counterevidence.append("The full response chain contains a concrete project, product, service, brand, or evaluation answer.")
+    if raw_has_meaningful_context:
+        counterevidence.append("The reviewed open-end text itself contains a plausible project, product, service, brand, or evaluation answer.")
     if len(segments) >= 8:
         patterns.append(f"The verifier reviewed nonempty answers across {len(segments)} fields before judging discard.")
 
@@ -412,6 +425,16 @@ def review_theme(key: str, audit_row: pd.Series, review_row: pd.Series) -> str:
 def verified_theme(theme: str, decision: str) -> str:
     if decision != "discard" and "discard candidate" in theme:
         return theme.replace("discard candidate", "kept after critic verification")
+    if decision == "discard" and "kept" in theme:
+        if "tool-brand" in theme or "brand" in theme:
+            return "required open-end non-response discard candidate"
+        if "speed" in theme:
+            return "speed plus weak or evasive narrative discard candidate"
+        if "survey-feedback" in theme:
+            return "required narrative non-response discard candidate"
+        if "weak" in theme or "unclear" in theme:
+            return "non-cooperative or evasive narrative discard candidate"
+        return "semantic discard candidate after full-chain verification"
     return theme
 
 

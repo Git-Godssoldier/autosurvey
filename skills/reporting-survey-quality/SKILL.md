@@ -45,6 +45,7 @@ Produce three report layers:
    - structured discard table with agent rationale and source evidence
    - full semantic decision table for all rows the agent investigated, including the number of fields reviewed from the stitched full response chain, early screening recommendation, full-chain counterevidence, and semantic discard basis
    - full-chain analyst readout that turns best and worst response-chain examples into readable prose, not just tables
+   - positive findings report that explains strong retained responses, useful research findings, false-positive guardrails, and what good data looks like in the run
    - agent escalation packet that completes the PM review path, including discard rows, hard kept cases, uncertain cases, citations, and next actions
    - internal quality signal bank that captures comments, criteria, bad-response patterns, fabricated-response patterns, false positives, and next-run signal status
    - kept-review synthesis table with survey-question and parameter recommendations
@@ -77,6 +78,7 @@ Use outputs from `run_quality_loop.py`:
 - `agent_review_judgment_table.csv`
 - `agent_discard_set.csv`
 - `agent_findings_essay.md`
+- `agent_positive_insights_report.md`
 - `agent_escalation_packet.md`
 - `internal_quality_signal_bank.md`
 - `agent_kept_review_synthesis.md`
@@ -129,9 +131,17 @@ python3 scripts/build_full_chain_analyst_readout.py \
   --run-dir /path/to/outputs/rubric-evolution-seed
 ```
 
+Build the positive findings report:
+
+```bash
+python3 scripts/build_positive_insights_report.py \
+  --run-dir /path/to/outputs/rubric-evolution-seed
+```
+
 Then do the findings essay pass before the dashboard is built. This is not a rote script step and it is not a form to fill out. Read the Datamap field-role mapping, discovery profile, demographic summary, scorer criteria, independent full-response audit, full-chain analyst readout, deep semantic sample, final judgment table, kept review synthesis, and next-pass signal inventory. Also read the prior run's findings essay, escalation packet, internal signal bank, and next-pass inventory when they exist, so this run can test whether earlier signals improved or failed. Then write:
 
 - `agent_findings_essay.md`: a natural prose essay with citations. It should explain what we discovered in the run, what the field-role mapping changed, what the best and worst response chains reveal, what the final discard or keep recommendations mean, what demographic and aggregate context matters, what should change in the next pass, and where the workflow should challenge itself.
+- `agent_positive_insights_report.md`: a companion prose report that highlights strong retained responses, positive research signals, demographic and aggregate insights, false-positive guardrails, and why the review preserved good data. A script can seed this report from artifacts, but the agent must read it, revise it when the run needs more nuance, and make sure it complements the discard-focused escalation packet.
 
 The essay can have whatever sections best explain the run. Do not force it into fixed row-note fields. Scripts may carry this prose into HTML, but scripts must not be treated as the author of the reasoning. The prose should explain the exploration, field-role discoveries, response-chain reading, discard recommendations, kept-row lessons, demographic and aggregate context, and any correction cycles where the first pass was too broad or too narrow. If this essay is missing, the run is not ready for client or PM review.
 
@@ -166,6 +176,7 @@ python3 scripts/build_visual_dashboard.py \
 - Treat scoring criteria as the initial case file. The final review must act as a critic and analyst that can supersede static checks when the full chain gives a meaningful semantic explanation.
 - Treat the dashboard and final report as client-facing research products, not formatted log output. The final prose must synthesize the exploration, field-role mapping, response chains, early screening signals, counterevidence, demographics, and next-pass learning before publishing.
 - Do not let scripted string assembly substitute for analysis. A script can assemble charts, ledgers, citations, and HTML, but the deciding prose must come from `agent_findings_essay.md`, written after studying the run materials.
+- Do not let the run become discard-only. The final package must also include `agent_positive_insights_report.md`, with strong retained response chains, useful aggregate findings, guardrails that protected good data, and next-pass learning that improves quality without over-excluding real respondents.
 - Write `agent_escalation_packet.md` as the complete operational answer. It must say which rows should be reviewed for exclusion, which suspicious rows were kept, which internal comments or criteria shaped the decision, what evidence was decisive, what evidence was inconclusive, and what the PM should do next. If no rows should be discarded, the packet must still explain why.
 - Write `internal_quality_signal_bank.md` as an internal learning artifact. It should preserve useful comments, criteria, false-positive guardrails, and recurring bad-response or fabricated-response patterns for later runs. It is not client copy.
 - Show full-chain counterevidence and semantic discard basis for final decisions. A row should not be discarded only because an early screening check fired.
@@ -205,9 +216,9 @@ python3 scripts/build_visual_dashboard.py \
 - Apply plain-writing rules to all narrative explanations: use everyday words, write complete sentences, avoid filler, avoid jargon unless it is explained, and state exactly why a row was discarded or kept.
 - Cite every important claim. Use local artifact citations for run-specific claims, such as respondent counts, criteria support, discoveries, semantic judgments, and kept-row synthesis. Use external citations for design, charting, and writing-method guidance.
 - The final citation list must include at least the respondent review table, generated criteria catalog, discovery profile, criterion evidence table, agent judgment table, kept review synthesis, visual design reference, plain-writing reference, and charting reference.
-- Before the final assistant response, preview the main artifacts. Inspect the findings essay, escalation packet, internal signal bank, dashboard, visual findings report, discard set, final judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
+- Before the final assistant response, preview the main artifacts. Inspect the findings essay, positive insights report, escalation packet, internal signal bank, dashboard, visual findings report, discard set, final judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
 - The final assistant response must be client-facing and email-ready. It should read as one cohesive review system, using language such as "we discovered," "we reviewed," and "we recommend." Do not write "the agent final pass" or similar internal process language in client-facing copy.
-- The final assistant response must include a clear narrative of core discoveries, core discard recommendations with respondent keys and row or cell-level citations when available, key statistics from the run, brief descriptions of important artifacts, a verified-artifact statement, and next-pass signals. Do not only say that scripts ran.
+- The final assistant response must include a clear narrative of core discoveries, core discard recommendations with respondent keys and row or cell-level citations when available, positive findings and strong-response examples, key statistics from the run, brief descriptions of important artifacts, a verified-artifact statement, and next-pass signals. Do not only say that scripts ran.
 - Keep running cycles on the next available datasets when the user asks for improvement over time. Each cycle must begin by reading the prior findings essay, escalation packet, signal bank, and next-pass inventory. Each cycle must end by saying which signals improved the first pass, which failed, which false-positive guardrails protected good rows, and what should change before the next dataset.
 
 ## When To Read References

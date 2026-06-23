@@ -67,6 +67,22 @@ def plain_text(value: object) -> str:
         "single-grid": "single grid",
         "single-signal": "single signal",
         "fielding controls": "fielding checks",
+        "programmatic checks": "early screening checks",
+        "Programmatic checks": "Early screening checks",
+        "programmatic layer": "early screening layer",
+        "Programmatic layer": "Early screening layer",
+        "programmatic discard recommendations": "early screening discard recommendations",
+        "Programmatic discard recommendations": "Early screening discard recommendations",
+        "programmatic": "early screening",
+        "Programmatic": "Early screening",
+        "preferred store": "mapped preference field",
+        "Preferred store": "Mapped preference field",
+        "reason for preference": "mapped reason field",
+        "Reason for preference": "Mapped reason field",
+        "purchase behavior": "mapped behavior field",
+        "Purchase behavior": "Mapped behavior field",
+        "survey recap": "mapped closing open-end",
+        "Survey recap": "Mapped closing open-end",
     }
     for old, new in replacements.items():
         raw = raw.replace(old, new)
@@ -101,7 +117,7 @@ def table_html(df: pd.DataFrame, columns: list[str], limit: int = 12) -> str:
     header = "".join(f"<th>{html.escape(col)}</th>" for col in available)
     body = []
     for _, row in subset.iterrows():
-        cells = "".join(f"<td>{html.escape(str(row[col]))}</td>" for col in available)
+        cells = "".join(f"<td>{html.escape(plain_truncate(row[col], 700))}</td>" for col in available)
         body.append(f"<tr>{cells}</tr>")
     return f"<div class='table-scroll'><table><thead><tr>{header}</tr></thead><tbody>{''.join(body)}</tbody></table></div>"
 
@@ -127,6 +143,7 @@ def artifact_links(run_dir: Path) -> list[tuple[str, str]]:
         "agent_review_judgment_table.csv",
         "agent_review_judgment_summary.md",
         "agent_findings_essay.md",
+        "agent_positive_insights_report.md",
         "agent_escalation_packet.md",
         "client_email_ready_summary.md",
         "internal_quality_signal_bank.md",
@@ -168,6 +185,7 @@ def citation_map(run_dir: Path) -> list[tuple[str, str, str]]:
         ("C11", "Next-pass signal inventory", str(run_dir / "next_pass_signal_inventory.csv")),
         ("C12", "Deep semantic review sample", str(run_dir / "deep_semantic_review_sample.md")),
         ("C13", "Demographic summary", str(run_dir / "demographic_summary.csv")),
+        ("C14", "Positive findings and response-quality report", str(run_dir / "agent_positive_insights_report.md")),
         ("C7", "CBRE figures report format reference", "https://mktgdocs.cbre.com/2299/12439527-d1a2-46eb-b485-4fd377f0d618-223048296/European_Data_Centres_Figures_.pdf"),
         ("C8", "Plain writing skill", "https://github.com/shreyashankar/plain-writing-skill"),
         ("C9", "Recharts documentation", "https://recharts.org/"),
@@ -201,7 +219,7 @@ def simple_markdown_html(markdown: str) -> str:
             list_items.clear()
 
     for raw_line in markdown.splitlines():
-        line = raw_line.strip()
+        line = plain_text(raw_line.strip())
         if not line:
             flush_list()
             continue
@@ -227,16 +245,35 @@ def simple_markdown_html(markdown: str) -> str:
 
 
 def agent_findings_markdown(run_dir: Path) -> str:
-    return (
+    return sanitize_markdown(
         read_text(run_dir / "agent_findings_essay.md").strip()
         or read_text(run_dir / "agent_dashboard_editorial_review.md").strip()
     )
+
+
+def sanitize_markdown(markdown: str) -> str:
+    return "\n".join(plain_text(line) for line in markdown.splitlines()).strip()
 
 
 def editorial_review_html(run_dir: Path) -> str:
     markdown = agent_findings_markdown(run_dir)
     if not markdown:
         return ""
+    return f"<section class='panel editorial'><div class='prose'>{simple_markdown_html(markdown)}</div></section>"
+
+
+def positive_insights_markdown(run_dir: Path) -> str:
+    return sanitize_markdown(read_text(run_dir / "agent_positive_insights_report.md").strip())
+
+
+def positive_insights_html(run_dir: Path) -> str:
+    markdown = positive_insights_markdown(run_dir)
+    if not markdown:
+        return (
+            "<section class='panel editorial'><p>The positive findings report was not found. "
+            "The run should include <code>agent_positive_insights_report.md</code> so strong responses, retained review learning, "
+            "and research insights are visible beside the exclusion review.</p></section>"
+        )
     return f"<section class='panel editorial'><div class='prose'>{simple_markdown_html(markdown)}</div></section>"
 
 
@@ -658,6 +695,8 @@ def main() -> None:
     observation_notes = observations(respondent, judgments, criteria, kept_synthesis)
     editorial_html = editorial_review_html(run_dir)
     editorial_markdown = agent_findings_markdown(run_dir)
+    positive_html = positive_insights_html(run_dir)
+    positive_markdown = positive_insights_markdown(run_dir)
 
     chart_payload = {
         "actions": chart_records(action_counts),
@@ -873,6 +912,8 @@ def main() -> None:
         "</ul></section>",
         "<h2 class='section-title'>Findings narrative</h2>",
         editorial_html or "<section class='panel editorial'><p>The required findings narrative was not found. The run is not ready for client review until <code>agent_findings_essay.md</code> explains the exploration, field-role mapping, full-chain review, final recommendations, demographic context, and next-pass learning.</p></section>",
+        "<h2 class='section-title'>Positive findings and strong responses</h2>",
+        positive_html,
         "<h2 class='section-title'>Review reasoning</h2>",
         "<section class='memo-grid'>",
         discard_cards or "<p>No discard rows were found.</p>",
@@ -965,6 +1006,9 @@ def main() -> None:
         "",
         "## Findings narrative",
         editorial_markdown or "The required findings narrative was not found. Write `agent_findings_essay.md` before delivery.",
+        "",
+        "## Positive findings and strong responses",
+        positive_markdown or "Write `agent_positive_insights_report.md` before delivery so strong retained responses and research insights sit beside the exclusion review.",
         "",
         "## Final review decisions",
         *[f"- {idx}: {int(val)} ({pct(int(val), review_total)})" for idx, val in agent_counts.items()],

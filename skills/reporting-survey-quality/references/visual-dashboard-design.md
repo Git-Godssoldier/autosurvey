@@ -13,6 +13,7 @@ Final survey-quality artifacts should feel like a compact research publication, 
 - Use narrative callouts sparingly for the main policy: early scoring finds candidates; full-chain semantic review makes final discard judgments; kept review rows become survey-improvement guidance.
 - Treat tables as ledgers, not prose containers. Do not put long semantic judgments, trust rationales, or response-chain text into narrow table cells.
 - Add an agent findings essay section from `agent_findings_essay.md`. This section is required for delivery and should read like a senior analyst wrote it after studying the run.
+- Add a positive findings section from `agent_positive_insights_report.md`. It should explain strong retained response chains, useful research findings, false-positive guardrails, and what the next pass should learn from good data. Display it as readable prose, not as a cramped table.
 - Link `agent_escalation_packet.md` and `internal_quality_signal_bank.md` in the artifact index. Summarize them in prose when they change the final decision. Do not turn internal learning into client-facing accusation language.
 - Use row examples only when they help the narrative. They should read as human prose that explains what the full chain means, why the row stayed or was discarded, and what the next pass learns. Do not force them into a fixed annotation schema.
 - Never show a raw stitched response chain in the dashboard body. Show a short chain readout and link to the audit artifacts for the full chain.
@@ -58,6 +59,7 @@ Before delivery, verify that the dashboard:
 - remains readable at desktop and mobile widths
 - contains no overlapping text, one-character column wrapping, or prose squeezed into narrow table cells
 - includes `agent_findings_essay.md` prose, or clearly blocks delivery until the agent writes it
+- includes `agent_positive_insights_report.md` prose, or clearly blocks delivery until the agent writes it
 - links the escalation packet and internal signal bank when they exist
 - does not require PMs to reopen CSV files to understand the main findings
 - clearly marks final discard decisions as agent-generated semantic judgments

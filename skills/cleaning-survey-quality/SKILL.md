@@ -85,6 +85,7 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - `internal_quality_signal_bank.md`: internal lessons, comments, criteria, false positives, and next-pass signal status. This file is internal and should not be treated as client copy.
    - `agent_kept_review_synthesis.md` and `.csv`: synthesis of kept review-flagged candidates into survey-question and parameter improvements.
    - `full_chain_analyst_readout.md` and `full_chain_best_worst_examples.csv`: readable prose analysis of the best and worst full response chains, with explicit reasoning about what the agent saw.
+   - `agent_positive_insights_report.md`: readable prose analysis of strong retained response chains, positive findings, false-positive guardrails, and what good data looks like in this dataset.
    - `next_pass_signal_inventory.csv`: critical signals that should shape the next first-pass analysis.
    - `next_pass_first_pass_config.json`: proposed next-pass rules, evidence needs, and escalation guardrails.
    - `deep_semantic_review_sample.md`: a small set of reviewed rows with deeper semantic reasoning and next-pass learning.
@@ -98,9 +99,9 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - Reconcile counts across respondent review, agent judgment, discard set, kept synthesis, essay, escalation packet, and dashboard.
    - Verify that every discard row appears in the escalation packet.
    - Verify that the dashboard renders without unreadable tables or overlapping prose.
-   - Preview the main artifacts before responding to the user. Inspect the findings essay, escalation packet, internal signal bank, dashboard, visual findings report, discard set, final judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
+   - Preview the main artifacts before responding to the user. Inspect the findings essay, positive insights report, escalation packet, internal signal bank, dashboard, visual findings report, discard set, final judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
    - The final assistant response must be client-facing and email-ready. It should read as one cohesive review system, using language such as "we discovered," "we reviewed," and "we recommend." Do not describe the close-out as tool execution or as "the agent final pass."
-   - The final assistant response must include a clear narrative of core discoveries, core discard recommendations with respondent keys and row or cell-level citations when available, key statistics from the run, brief descriptions of important artifacts, a verified-artifact statement, and the next-pass signals.
+   - The final assistant response must include a clear narrative of core discoveries, core discard recommendations with respondent keys and row or cell-level citations when available, positive findings and strong-response examples, key statistics from the run, brief descriptions of important artifacts, a verified-artifact statement, and the next-pass signals.
 13. Before starting the next run, read the prior `agent_findings_essay.md`, `agent_escalation_packet.md`, `next_pass_signal_inventory.csv`, and `internal_quality_signal_bank.md`. Decide which signals can be added to the first-pass context, which signals need PM examples, which signals are false-positive guardrails, and which signals should remain agent-only. Keep cycling through new datasets and reruns until the row-count gates, artifact gates, dashboard checks, prose checks, and escalation reconciliation checks pass without defects.
 
 ## Generated Criteria And Scoring Policy

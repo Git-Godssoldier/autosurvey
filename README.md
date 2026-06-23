@@ -74,6 +74,9 @@ python3 skills/reporting-survey-quality/scripts/build_agent_review_artifacts.py 
 python3 skills/reporting-survey-quality/scripts/build_full_chain_analyst_readout.py \
   --run-dir /path/to/private_outputs/run
 
+python3 skills/reporting-survey-quality/scripts/build_positive_insights_report.py \
+  --run-dir /path/to/private_outputs/run
+
 python3 skills/reporting-survey-quality/scripts/build_next_pass_review_artifacts.py \
   --run-dir /path/to/private_outputs/run
 
@@ -91,6 +94,7 @@ folder contains:
 - `agent_review_judgment_table.csv`
 - `agent_discard_set.csv`
 - `agent_findings_essay.md`
+- `agent_positive_insights_report.md`
 - `agent_escalation_packet.md`
 - `internal_quality_signal_bank.md`
 - `agent_kept_review_synthesis_table.csv`
@@ -104,7 +108,7 @@ folder contains:
 - `agent_final_review_dashboard.html`
 - `agent_final_visual_findings_report.md`
 
-Before the final assistant response, preview the main artifacts so the user can follow the work. At minimum, inspect the findings essay, escalation packet, internal signal bank, dashboard, visual findings report, discard set, final judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
+Before the final assistant response, preview the main artifacts so the user can follow the work. At minimum, inspect the findings essay, positive insights report, escalation packet, internal signal bank, dashboard, visual findings report, discard set, final judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
 
 The final assistant response must be client-facing and email-ready. It should read as one cohesive survey-quality review, not as a list of tool runs or internal agent steps. Use "we discovered," "we reviewed," and "we recommend" for conclusions. Do not write phrases such as "the agent final pass" or "the agent reviewed" in client-facing copy unless the user asks for internal implementation detail.
 
@@ -112,6 +116,7 @@ The final assistant response must include:
 
 - a clear narrative of the core discoveries
 - core discard recommendations with respondent keys and row or cell-level citations when source coordinates are available
+- positive research findings, strong retained response examples, and the guardrails that protected good data
 - key statistical analysis from the run, including totals, review rate, discard rate, top review themes, supplier or source patterns, timing findings, and demographic context
 - brief natural-language descriptions of the important artifacts and where to open them
 - a statement that every required artifact was verified, or a precise list of missing or inconclusive items
