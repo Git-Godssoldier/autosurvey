@@ -129,6 +129,8 @@ folder contains:
 
 Before the final assistant response, preview the main artifacts so the user can follow the work. At minimum, inspect the findings essay, positive insights report, escalation packet, internal signal bank, dashboard, visual findings report, discard set, final judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
 
+When a client annotated workbook exists, treat it as the baseline validation set. Build `client_annotation_validation.md`, `client_annotation_validation.csv`, and `client_annotation_validation_summary.json` before final delivery. The run is blocked if the final reports disagree with the discard set, if client `Review closely` rows were not semantically reviewed, or if a client signal family has low coverage without an analyst explanation and a next-pass fix.
+
 The final assistant response must be client-facing and email-ready. It should read as one cohesive survey-quality review, not as a list of tool runs or internal agent steps. Use "we discovered," "we reviewed," and "we recommend" for conclusions. Do not write phrases such as "the agent final pass" or "the agent reviewed" in client-facing copy unless the user asks for internal implementation detail.
 
 The final assistant response must include:

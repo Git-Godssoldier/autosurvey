@@ -97,6 +97,9 @@ Use outputs from `run_quality_loop.py`:
 - `deep_semantic_review_sample.md`
 - `independent_full_response_audit.csv`
 - `independent_full_response_audit.md`
+- `client_annotation_validation.csv` when a client annotated workbook is available
+- `client_annotation_validation_summary.json` when a client annotated workbook is available
+- `client_annotation_validation.md` when a client annotated workbook is available
 - `deep_findings_analysis.md`
 - `workflow_improvement_log.md`
 - `respondent_review_table.md`
@@ -143,6 +146,14 @@ python3 scripts/build_positive_insights_report.py \
   --run-dir /path/to/outputs/rubric-evolution-seed
 ```
 
+When a client annotated workbook exists, build the client-annotation validation report before the final essay and dashboard:
+
+```bash
+python3 scripts/build_client_annotation_validation.py \
+  --run-dir /path/to/outputs/rubric-evolution-seed \
+  --client-workbook /path/to/client_annotated_final_review.xlsx
+```
+
 Then do the findings essay pass before the dashboard is built. This is not a rote script step and it is not a form to fill out. Read the Datamap field-role mapping, discovery profile, demographic summary, scorer criteria, independent full-response audit, full-chain analyst readout, deep semantic sample, final judgment table, kept review synthesis, and next-pass signal inventory. Also read the prior run's findings essay, escalation packet, internal signal bank, and next-pass inventory when they exist, so this run can test whether earlier signals improved or failed. Then write:
 
 - `agent_findings_essay.md`: a natural prose essay with citations. It should explain what we discovered in the run, what the field-role mapping changed, what the best and worst response chains reveal, what the final discard or keep recommendations mean, what demographic and aggregate context matters, what should change in the next pass, and where the workflow should challenge itself.
@@ -179,6 +190,8 @@ python3 scripts/build_visual_dashboard.py \
 - Build and report a project-specific topic and answer map before scoring text relevance or answer depth. If the prompt asks for a physical item, location, product use, brand, simple reason, or short factor, the report must explain how short valid answers were protected from over-discard.
 - Include demographic and aggregate insights from source data. These are report context, not quality-discard evidence by themselves.
 - Treat client-annotated Excel review files as the minimum audit surface. The report should match their practical columns and counts where relevant, then go further with prose analysis, chain-level semantic judgment, full-chain counterevidence, kept-row learning, and next-pass signal updates.
+- When a client annotated workbook exists, treat it as a baseline validation set. Build `client_annotation_validation.md` and read it before finalizing. The run must report client action counts, client flag-family counts, autosurvey coverage by client signal family, autosurvey rows the client marked `No concerns`, autosurvey discard rows the client kept, and any artifact count contradictions.
+- Do not call a benchmark run complete when the final reports disagree with the discard set, when client `Review closely` rows were not semantically reviewed, or when a client signal family has low coverage without an analyst explanation and a next-pass fix.
 - Always report fielding start/date/timestamp discoveries when the source file contains them. Odd-hour starts and start bursts are fielding-context findings unless corroborating evidence or project rules make them row-level evidence.
 - Treat scoring criteria as the initial case file. The final review must act as a critic and analyst that can supersede static checks when the full chain gives a meaningful semantic explanation.
 - Treat the dashboard and final report as client-facing research products, not formatted log output. The final prose must synthesize the exploration, field-role mapping, response chains, early screening signals, counterevidence, demographics, and next-pass learning before publishing.
@@ -208,6 +221,7 @@ python3 scripts/build_visual_dashboard.py \
 - Independently audit all source rows before final delivery. Compare the full-row audit against the scorer and agent review outputs. If the audit finds a missed possible discard, update the agent judgment artifacts and explain the fix.
 - Treat all-row audit findings as a way to challenge the scoring pass. Call out rows or patterns the first pass missed, rows the first pass over-reviewed, and signals that should be promoted, demoted, or held for PM examples.
 - Reconcile the escalation packet against the agent discard set and agent judgment table. Every discard row must appear in the packet. Every packet discard must appear in the discard set. Any mismatch blocks delivery until the agent resolves it.
+- Reconcile all final prose artifacts against the discard set. If one artifact says the discard set is empty and another artifact or CSV contains discard rows, block delivery and rewrite the inconsistent artifacts.
 - Reconcile the internal signal bank against the findings essay and next-pass signal inventory. The signal bank should keep long-term internal learning. The next-pass inventory should say what changes before the next run.
 - Do not finalize `agent_review_judgment_table.csv` from an audit that lacks `full_response_chain`. Rerun the independent full-response audit first.
 - Put the highest-severity rows before lower-priority review examples.

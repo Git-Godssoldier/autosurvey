@@ -22,6 +22,7 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - If the run includes internal comments, PM notes, client annotations, or prior criteria, read `references/internal-signal-learning.md`.
    - Start a short decision trail for non-obvious choices. The trail can be Markdown or TSV, but it must cite the artifact or command that supports each decision.
    - If a missing decision would change safety, scope, or final authority, ask one short question with a recommended default. If the answer can be discovered from available files, discover it instead of asking.
+   - If a client annotated workbook exists, treat it as the baseline validation set. The run must later compare autosurvey rows against the client actions, flags, and review families before any benchmark claim.
 2. Explore the workbook before writing or running scoring scripts:
    - Read the sheet names, row count, column count, and Datamap or codebook when present.
    - Inspect representative raw rows and nonempty examples from every open-ended field family.
@@ -102,6 +103,7 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - Verify that the independent audit contains a `full_response_chain` field and that the final judgment table was built after that audit.
    - Reconcile counts across respondent review, agent judgment, discard set, kept synthesis, essay, escalation packet, and dashboard.
    - Verify that every discard row appears in the escalation packet.
+   - If a client annotated workbook exists, verify that `client_annotation_validation.md`, `.csv`, and `_summary.json` exist and that their blocking findings are resolved or named plainly.
    - Verify that the dashboard renders without unreadable tables or overlapping prose.
    - Assign a terminal state from `references/dataset-cycle-loop.md`: success, clean no-op, blocked, approval required, or no-progress stop. Do not treat missing artifacts, unreconciled counts, unreadable dashboards, or errors as success.
    - Preview the main artifacts before responding to the user. Inspect the findings essay, positive insights report, escalation packet, internal signal bank, dashboard, visual findings report, discard set, final judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.

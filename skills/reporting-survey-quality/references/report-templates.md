@@ -95,6 +95,7 @@ Sections:
    - next-pass first-pass config
    - deep semantic review sample
    - independent full-response audit
+   - client annotation validation when a client annotated workbook exists
    - deep findings analysis
    - PM-facing Markdown sample
 13. Final visual review package
@@ -326,6 +327,19 @@ The bank should also include compact learning records when a run changes future 
 - evidence needed
 - default status
 - escalation rule
+
+`client_annotation_validation.md` should include:
+
+- client workbook and row count
+- client action counts
+- top client flag counts
+- autosurvey reviewed rows and discard rows
+- coverage by client signal family
+- client review rows that autosurvey missed
+- autosurvey review rows that the client marked `No concerns`
+- autosurvey discard rows that the client marked `Keep`
+- consistency check between final Markdown reports and `agent_discard_set.csv`
+- analyst note on whether autosurvey matched the client baseline and where it went further
 
 `demographic_summary.csv` should include:
 
