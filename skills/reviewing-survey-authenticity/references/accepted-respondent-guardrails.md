@@ -15,6 +15,18 @@ Every suspicious respondent must be tested against human explanations. Accepted-
 - Uniform matrices when items are similar and no contradiction appears.
 - Shared household or workplace technical identifiers when responses are semantically distinct.
 
+## Limits On Protection
+
+Protective evidence must be local and field-specific. A plausible brand funnel, normal timing, or coherent persona does not automatically protect an invalid answer elsewhere in the row.
+
+Do not overprotect:
+
+- Numeric or placeholder text in open-end fields unless the prompt clearly asked for a number.
+- Retailers, platforms, or generic category nouns entered where a brand, product, reason, or memory was requested.
+- “None,” “NA,” “good,” “quality,” or one-word category terms when they do not answer the field and no other respondent-specific grounding exists.
+- Long completion times when the response chain still contains off-category text, all-brand selection, fully uniform grids, or route-incoherent detail.
+- A single grounded answer surrounded by multiple invalid or nonresponsive fields.
+
 ## Required Counterfactual
 
 Before exclusion, ask:

@@ -12,6 +12,10 @@ Ask whether open ends are grounded in the respondent’s own chain:
 - Are polished answers produced without concrete respondent-specific content?
 - Does a later explanation contradict an earlier selection?
 
+Field-level semantic validity comes before protective credit. An answer can be in the general category and still fail the specific field if it gives a numeric code, placeholder, retailer where a product was asked for, product where an ad memory was asked for, off-category brand, platform name, survey-comment answer, or vague adjective that could fit any survey.
+
+Do not allow one valid open end to rescue all other open ends. Judge equipment other-specifies, store other-specifies, ad recall, switching reasons, loyalty reasons, and demographic/professional text separately, then decide whether the total chain is authentic.
+
 ## Fabricated Genericity
 
 Look for answers that could be pasted into many surveys without change:
@@ -46,6 +50,8 @@ Uniform matrix behavior is suspicious only in context:
 - Stronger concern when items are opposed, unrelated, reverse-coded, or require brand differentiation.
 - Weaker concern when the matrix is substantively homogeneous or the respondent has a coherent extreme view.
 - Look for cyclic patterns, default-value chains, route-incoherent blanks, and impossible combinations.
+
+In client-rejection calibration, invalid or absent open ends lower the amount of matrix protection available. A row with no human grounding should be held to a stricter standard on top-box concentration, all-brand selection, repeated small shares, and fully uniform ad or recommendation grids.
 
 ## Cross-Respondent Homogeneity
 

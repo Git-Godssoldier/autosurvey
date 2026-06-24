@@ -11,18 +11,18 @@ Use this skill for respondent-level authenticity review on unannotated survey da
 
 Before a blind semantic decision ledger is sealed, the agent is the inference system.
 
-Do not run, write, import, or reuse code that examines respondent content before the seal. This includes dataframe reads, workbook parsing scripts, regex scoring, word counts, timing features, formulas, similarity models, packet builders, existing Autosurvey predictors, or any script that turns respondent answers into evidence.
+Scripts are allowed as deterministic infrastructure when they preserve or expose evidence without making a semantic decision. They may read XLSX files, reconstruct question and answer labels, normalize nulls and data types, preserve raw row packets, compute blind descriptive evidence, estimate token size, build compact packets, schedule batches, run retries, validate schemas, reconcile row coverage, and seal hashes.
+
+Scripts must not silently assign the five-tier decision, rewrite an agent-authored decision, interpret respondent authenticity, or use client labels before the seal.
 
 Allowed before the seal:
 
-- Native workbook or spreadsheet viewing that exposes cells directly to the agent.
-- Direct reading of Datamaps, questionnaires, survey text, field labels, row cells, and response chains.
-- Agent-authored reasoning, citations, notes, rubrics, and sealed decisions.
-- Editing this skill, its references, or post-seal evaluator boundaries.
+- Programmatic workbook extraction that preserves every respondent and keeps a lossless raw-row audit pointer.
+- Question-contract, relation-graph, timing, missingness, matrix, routing, duplicate, similarity, and open-end evidence tables derived only from the blind workbook.
+- Agent-authored reasoning, citations, notes, rubrics, first decisions, second reviews, adjudications, and sealed final decisions.
+- Deterministic validation of row coverage, required fields, schema integrity, and file hashes.
 
-If the environment cannot expose workbook cell values for direct agent reading without scripts, stop with:
-
-`BLOCKED_NATIVE_WORKBOOK_READER_REQUIRED`
+Client labels, status columns, client flags, review notes, annotated formatting, and discard decisions remain forbidden until the blind ledger is sealed.
 
 ## Required References
 
@@ -48,6 +48,20 @@ Every run must first understand the survey, then read every respondent, then wri
 - Evidence judge: separates independent evidence families from repeated versions of the same signal and decides whether exclusion is warranted.
 
 The public reporting should read like research-grade analysis written for a client. It should explain what was discovered, why it matters, which records best illustrate it, what protective guardrails were learned, and what should change in the next pass. It must not sound like a stitched export of feature names.
+
+## Echo Calibration Lesson
+
+The Echo benchmark showed that a generally plausible consumer story can hide field-level semantic invalidity. Do not let one coherent brand chain or normal timing rescue unrelated invalid fields. Evaluate each key field family on its own terms, then recombine the evidence.
+
+Raise client-rejection probability when invalid field semantics converge with any independent mechanical cue:
+
+- Open ends contain numeric codes, placeholders, platform names, off-category brands, wrong-dimension answers, survey-meta text, or generic adjectives that do not answer the specific prompt.
+- A respondent names plausible brands but gives invalid other-specify answers in equipment, store, ad recall, switching, or loyalty fields.
+- No open ends or invalid open ends leave fast timing, all-brand selection, matrix uniformity, or overbroad share allocation without human grounding.
+- Broad “possible,” “aware,” “seen,” or “consider” patterns pair with weak recall, flat small-share allocation, or top-box concentration.
+- Long timing appears with off-category text, fully uniform ad grids, all-brand selection, or incoherent funnels. Long duration can be interruption, not proof of careful review.
+
+Protect accepted-looking rows only when the protective evidence answers the exact field at issue. A real brand name, a misspelling, or a coherent one-brand story is protective for that chain, but it does not automatically validate unrelated matrices or open ends.
 
 ## Seal Discipline
 

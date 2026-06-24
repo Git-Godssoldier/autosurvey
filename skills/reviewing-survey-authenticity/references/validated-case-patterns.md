@@ -25,3 +25,11 @@ Client labels are valuable development data, but a rejected label does not autom
 ## Accepted Rows Teach the Boundary
 
 Accepted controls reveal what not to punish: concise human answers, rough language, legitimate extremes, and coherent low-effort but truthful behavior.
+
+## Echo Benchmark Lessons
+
+Echo exposed a conservative false-negative pattern. The reviewer often treated semantic invalidity as review-only because the respondent had a plausible brand or consumer chain. Future runs must treat invalid open ends, wrong-field answers, all-brand behavior, flat share allocation, and fully uniform ad grids as stronger when they converge, even when timing is normal or one part of the brand funnel looks coherent.
+
+Normal or long timing is not a global defense. It can reflect interruption. It should not offset off-category text, all-brand selection, fully uniform ad matrices, or invalid other-specifies.
+
+Accepted-row guardrails still matter. Do not exclude solely for speed, all-high ratings, misspellings, concise brand terms, or a one-brand story when the respondent answers the specific fields and the full chain is coherent.
