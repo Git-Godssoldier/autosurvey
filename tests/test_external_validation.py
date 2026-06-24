@@ -94,7 +94,7 @@ class ExternalValidationTests(unittest.TestCase):
             label_file, error = external.choose_label_file("", registry, expected_rows=2399)
 
         self.assertIsNone(label_file)
-        self.assertIn("No post-seal HIRI-compatible", error)
+        self.assertIn("No post-seal benchmark-compatible", error)
 
     def test_gitignore_blocks_client_outputs(self):
         ignore = (Path(__file__).resolve().parents[1] / ".gitignore").read_text()

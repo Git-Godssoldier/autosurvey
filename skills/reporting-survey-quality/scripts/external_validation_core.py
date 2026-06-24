@@ -601,7 +601,7 @@ def cmd_discover(args: argparse.Namespace) -> None:
     )
     prereg = preregistration_payload()
     write_json(output / "external_validation_preregistration.json", prereg)
-    (output / "external_validation_preregistration.md").write_text(preregistration_markdown(prereg), encoding="utf-8")
+    (output / "external_validation_preregistration.md").write_text(preregistration_markdown(prereg, args.benchmark_name), encoding="utf-8")
     (output / "validation_inventory.md").write_text(
         "\n".join(
             [
@@ -609,8 +609,8 @@ def cmd_discover(args: argparse.Namespace) -> None:
                 "",
                 f"Repository commit: `{repo_state['commit']}`.",
                 f"Dirty status: `{repo_state['dirty_status'] or 'clean except ignored files'}`.",
-                f"Original HIRI workbook: `{test_path}`.",
-                f"HIRI SHA-256: `{inv['sha256']}`.",
+                f"Original {args.benchmark_name} workbook: `{test_path}`.",
+                f"{args.benchmark_name} SHA-256: `{inv['sha256']}`.",
                 f"Latest semantic methodology: `{methodology}`.",
                 f"Candidate label files were inspected by metadata and headers only. Rows: {len(candidates)} registry entries.",
             ]
@@ -672,12 +672,12 @@ def preregistration_payload() -> dict[str, Any]:
     }
 
 
-def preregistration_markdown(payload: dict[str, Any]) -> str:
+def preregistration_markdown(payload: dict[str, Any], benchmark_name: str) -> str:
     return "\n".join(
         [
             "# External validation preregistration",
             "",
-            "We will score the HIRI workbook before opening client decisions.",
+            f"We will score the {benchmark_name} workbook before opening client decisions.",
             f"Positive class: `{payload['positive_class']}`.",
             "",
             "## Primary endpoints",
@@ -786,6 +786,7 @@ def cmd_seal(args: argparse.Namespace) -> None:
         "state": "SEALED_PENDING_UNBLIND",
         "predictor_commit": git(["rev-parse", "HEAD"], repo),
         "predictor_tag": args.tag,
+        "benchmark_name": args.benchmark_name,
         "test_workbook": str(Path(args.test_workbook).resolve()),
         "test_workbook_sha256": sha256_file(Path(args.test_workbook).resolve()),
         "files": {name: sha256_file(output / name) for name in required},
@@ -813,7 +814,7 @@ def cmd_seal(args: argparse.Namespace) -> None:
         ),
         encoding="utf-8",
     )
-    write_json(output / "benchmark_registry.json", {"benchmark": "HIRI", "state": "SEALED_PENDING_UNBLIND", "sealed_at": now_iso(), "consumed": False})
+    write_json(output / "benchmark_registry.json", {"benchmark": args.benchmark_name, "state": "SEALED_PENDING_UNBLIND", "sealed_at": now_iso(), "consumed": False})
     for name in required:
         try:
             os.chmod(output / name, 0o444)
@@ -867,13 +868,14 @@ def choose_label_file(label_file: str, registry_path: Path, expected_rows: int |
         counts = pd.to_numeric(candidates["row_count_if_header_safe"], errors="coerce")
         candidates = candidates[counts.eq(expected_rows)]
     if candidates.empty:
-        return None, "No post-seal HIRI-compatible candidate label file with an accepted/rejected/status header was found."
+        return None, "No post-seal benchmark-compatible candidate label file with an accepted/rejected/status header was found."
     return Path(candidates.iloc[0]["candidate_file"]).resolve(), None
 
 
 def cmd_reconcile(args: argparse.Namespace) -> None:
     output = Path(args.output_dir).resolve()
     seal = validate_seal(output)
+    benchmark_name = seal.get("benchmark_name", args.benchmark_name)
     registry = output / "client_label_candidate_registry.csv"
     expected_rows = None
     try:
@@ -893,7 +895,7 @@ def cmd_reconcile(args: argparse.Namespace) -> None:
             f"# Respondent reconciliation report\n\nThe evaluator validated the seal but could not find a usable client label source. {error}\n",
             encoding="utf-8",
         )
-        write_json(output / "benchmark_registry.json", {"benchmark": "HIRI", "state": "SEALED_NO_LABEL_SOURCE", "consumed": False, "updated_at": now_iso()})
+        write_json(output / "benchmark_registry.json", {"benchmark": benchmark_name, "state": "SEALED_NO_LABEL_SOURCE", "consumed": False, "updated_at": now_iso()})
         return
     event["label_file"] = str(label_path)
     event["label_file_sha256"] = sha256_file(label_path)
@@ -910,7 +912,7 @@ def cmd_reconcile(args: argparse.Namespace) -> None:
         pd.DataFrame(columns=["respondent_id", "reconciliation_status"]).to_csv(output / "respondent_reconciliation_table.csv", index=False)
         pd.DataFrame().to_csv(output / "sealed_evaluation_join.csv", index=False)
         (output / "respondent_reconciliation_report.md").write_text("# Respondent reconciliation report\n\nNo accepted/rejected status field was found after unblinding.\n", encoding="utf-8")
-        write_json(output / "benchmark_registry.json", {"benchmark": "HIRI", "state": "UNBLINDED_CONSUMED_NO_EVALUABLE_LABELS", "consumed": True, "updated_at": now_iso()})
+        write_json(output / "benchmark_registry.json", {"benchmark": benchmark_name, "state": "UNBLINDED_CONSUMED_NO_EVALUABLE_LABELS", "consumed": True, "updated_at": now_iso()})
         return
     labels = labels.copy()
     labels["respondent_id"] = labels[key].map(text)
@@ -950,7 +952,7 @@ def cmd_reconcile(args: argparse.Namespace) -> None:
         "\n".join(["# Respondent reconciliation report", "", *[f"- {k}: {v:,}" for k, v in counts.items()]]),
         encoding="utf-8",
     )
-    write_json(output / "benchmark_registry.json", {"benchmark": "HIRI", "state": "UNBLINDED_CONSUMED", "consumed": True, "updated_at": now_iso(), "evaluable_rows": len(evaluable)})
+    write_json(output / "benchmark_registry.json", {"benchmark": benchmark_name, "state": "UNBLINDED_CONSUMED", "consumed": True, "updated_at": now_iso(), "evaluable_rows": len(evaluable)})
 
 
 def cmd_evaluate(args: argparse.Namespace) -> None:
@@ -1143,6 +1145,10 @@ def scorecard(output: Path, summary: dict[str, Any], baseline: pd.DataFrame) -> 
 
 
 def reports(output: Path, summary: dict[str, Any], cutoffs: list[dict[str, Any]], baseline: pd.DataFrame) -> None:
+    seal_path = output / "prediction_seal_manifest.json"
+    benchmark_name = "the benchmark"
+    if seal_path.exists():
+        benchmark_name = json.loads(seal_path.read_text(encoding="utf-8")).get("benchmark_name", benchmark_name)
     technical = [
         "# External validation technical report",
         "",
@@ -1158,12 +1164,12 @@ def reports(output: Path, summary: dict[str, Any], cutoffs: list[dict[str, Any]]
     ]
     for row in cutoffs:
         technical.append(f"- {row['cutoff']}: precision {row['precision_ppv']:.3f}, recall {row['sensitivity_recall']:.3f}, MCC {row['mcc']:.3f}, review volume {row['review_volume']:,}.")
-    technical.extend(["", "## Benchmark consumption", "", "The HIRI client-labeled benchmark is now consumed and cannot be reused as an untouched holdout."])
+    technical.extend(["", "## Benchmark consumption", "", f"The {benchmark_name} client-labeled benchmark is now consumed and cannot be reused as an untouched holdout."])
     (output / "external_validation_technical_report.md").write_text("\n".join(technical), encoding="utf-8")
     client = [
         "# Client-facing accuracy report",
         "",
-        "We scored the HIRI responses before opening the client decision labels, then sealed the prediction file and evaluated it once against the client decisions.",
+        f"We scored the {benchmark_name} responses before opening the client decision labels, then sealed the prediction file and evaluated it once against the client decisions.",
         "",
         f"The evaluable benchmark contained {summary['evaluable_rows']:,} respondents. The client rejected {summary['client_rejected']:,}, a reject rate of {summary['client_reject_prevalence']:.1%}.",
         f"The frozen client-rejection score reached AUROC {summary['auroc']:.3f} and AUPRC {summary['auprc']:.3f}. The AUPRC baseline is the client reject prevalence, {summary['client_reject_prevalence']:.3f}.",
@@ -1172,11 +1178,11 @@ def reports(output: Path, summary: dict[str, Any], cutoffs: list[dict[str, Any]]
     ]
     (output / "client_facing_accuracy_report.md").write_text("\n".join(client), encoding="utf-8")
     (output / "overfitting_and_generalization_audit.md").write_text("External results must be compared with development estimates. Any gap is a transfer finding, not a tuning instruction.\n", encoding="utf-8")
-    (output / "benchmark_consumption_notice.md").write_text("HIRI/client labels are consumed. Future model changes require a new untouched external benchmark.\n", encoding="utf-8")
+    (output / "benchmark_consumption_notice.md").write_text(f"{benchmark_name}/client labels are consumed. Future model changes require a new untouched external benchmark.\n", encoding="utf-8")
     pd.DataFrame(
         [
             {
-                "hypothesis_id": "hiri_error_review_001",
+                "hypothesis_id": "external_error_review_001",
                 "observed_error_pattern": "See error_case_ledger.csv",
                 "candidate_signal_or_guardrail": "TEST-DERIVED - NOT VALIDATED - DO NOT DEPLOY",
                 "supporting_test_cases": "",
@@ -1263,6 +1269,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         p.add_argument("--client-root", default="/Users/jeremyalston/Perfect/Annnotated and test'")
         p.add_argument("--test-workbook", default="/Users/jeremyalston/Perfect/Annnotated and test'/Re_ Farnsworth Group - call follow up (1)/777-2607_HIRI Quarterly.xlsx")
         p.add_argument("--methodology-dir", default="/Users/jeremyalston/Perfect/TFG Data Cleaning Sets/autosurvey-outputs/status-ground-truth-calibration/authenticity_semantic_loop_2026-06-24-v3")
+        p.add_argument("--benchmark-name", default="HIRI")
         p.add_argument("--label-file", default="")
         p.add_argument("--tag", default="external-validation-hiri-preunblind-2026-06-24")
     return parser.parse_args(argv)
