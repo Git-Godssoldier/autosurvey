@@ -41,6 +41,8 @@ Run the calibration loop in this order. Do not score a blinded dataset until the
 1. Freeze inputs and eliminate label leakage.
    - Record workbook names, row counts, label counts, hashes, and the held-out blinded dataset name.
    - Hide labels and client flags from the first semantic review.
+   - Treat helper fields as unavailable to the blind reviewer. Exclude `status`, marker and quota fields, client action fields, final decisions, review notes, condition assignment helpers, no-answer helper fields, QC helper fields, channel tracking fields, tokens, hidden cleaning fields, and formulas or formatting that reveal cleaning outcomes.
+   - If a field nearly reproduces `status = 5`, inspect the field name and workbook role before calling it a signal. A perfect or near-perfect signal from a helper field is usually leakage, not transferable intelligence.
 2. Reconstruct the survey.
    - Map every question, scale, matrix, route, brand or product entity, quota, timing field, identifier field, and cross-question relationship.
 3. Read every labeled respondent with status hidden.
@@ -144,6 +146,23 @@ Core families:
 - **Duplicate technical/routing evidence**: shared IP, device, session, supplier/source, start burst, or routing pattern. Treat this as context unless response-chain evidence also converges.
 - **AI-assistance concern**: polished prose, formality, low typo rate, em dashes, and generic fluency are weak supporting cues only. They never determine exclusion by themselves.
 
+## Lessons from the first full annotated-corpus loop
+
+The first full loop over the TFG labeled corpus showed that leakage removal changes the problem shape. Marker, quota, condition, no-answer, QC, channel, token, client, and review helper fields can look like extremely strong predictors. They must be excluded before the system makes any transfer claim.
+
+After those fields are removed, broad scripted signals transfer weakly across whole held-out datasets. That is an important finding. It means generic timing, missingness, matrix, and simple open-end features are not enough to reproduce client rejection decisions or prove authenticity risk. The next loop must add deeper semantic features from full response chains.
+
+The strongest non-leaking discoveries were:
+
+- qualification and persona patterns in contractor classification fields;
+- project or role specificity in open-ended qualification answers such as `qcoe1`;
+- survey-specific open-end depth and answer specificity, such as ODL `q34`;
+- rare combinations of polished open-end text, high missingness, and another weak family;
+- timing signals only as support, because many accepted respondents are also fast;
+- matrix uniformity only as context, because accepted respondents often show uniform patterns.
+
+Treat these as prompts for semantic investigation. Do not promote them as fixed exclusion rules until accepted controls and residual errors support the distinction.
+
 ## Human protective evidence
 
 Accepted rows are not background data. They are positive training examples.
@@ -173,6 +192,12 @@ For labeled methodology development, produce these calibration artifacts in a se
 - `authenticity_signal_family_lift.csv`: family-level lift against `status = 5` and false-positive exposure against `status = 3`.
 - `semantic_signal_expansion_notes.md`: agent-authored explanation of weighted evidence families.
 - `protective_human_evidence.md`: accepted-row guardrails with cited examples.
+- `input_inventory.csv`, `input_hashes.json`, `split_manifest.json`, `leakage_exclusions.json`, and `blinded_test_freeze_manifest.json`: input freeze and label-leakage proof.
+- `labeled_row_manifest.csv`, `discard_rows_raw.parquet` or documented fallback, and `accepted_rows_raw.parquet` or documented fallback: all accepted and rejected rows reconciled.
+- `column_profile_discard_vs_accept.csv`, `univariate_signal_ranking.csv`, and `cross_dataset_meta_signals.csv`: rejected-versus-accepted profile with within-dataset controls.
+- `matched_case_pairs.parquet` or documented fallback, `accepted_guardrails.csv`, and `rejected_phenotypes.csv`: rejected rows paired with accepted controls and accepted false-positive guardrails.
+- `pairwise_interactions.csv`, `higher_order_patterns.csv`, and `question_relation_graph.json`: interaction search and question relation scaffolding.
+- `signal_bank.yaml`, `validation_report.md`, `residual_casebook.md`, `iteration_report.md`, and `freeze_manifest.json`: promoted and quarantined signals, validation, residual discovery backlog, and output freeze.
 
 These artifacts can be staged by scripts, but the interpretation must be agent-authored from row reading.
 

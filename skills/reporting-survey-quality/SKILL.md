@@ -129,6 +129,23 @@ Use outputs from `run_quality_loop.py`:
 - `client_annotation_validation.csv` when a client annotated workbook is available
 - `client_annotation_validation_summary.json` when a client annotated workbook is available
 - `client_annotation_validation.md` when a client annotated workbook is available
+- `input_inventory.csv` when TFG status-labeled training workbooks are available
+- `input_hashes.json` when TFG status-labeled training workbooks are available
+- `split_manifest.json` when TFG status-labeled training workbooks are available
+- `leakage_exclusions.json` when TFG status-labeled training workbooks are available
+- `blinded_test_freeze_manifest.json` when a blinded test workbook is present
+- `labeled_row_manifest.csv` when TFG status-labeled training workbooks are available
+- `column_profile_discard_vs_accept.csv` when TFG status-labeled training workbooks are available
+- `column_profile_discard_vs_accept.xlsx` when TFG status-labeled training workbooks are available
+- `univariate_signal_ranking.csv` when TFG status-labeled training workbooks are available
+- `cross_dataset_meta_signals.csv` when TFG status-labeled training workbooks are available
+- `matched_case_pairs.parquet` or documented CSV and pickle fallback when no Parquet engine is installed
+- `pairwise_interactions.csv` when TFG status-labeled training workbooks are available
+- `higher_order_patterns.csv` when TFG status-labeled training workbooks are available
+- `signal_bank.yaml` when TFG status-labeled training workbooks are available
+- `validation_report.md` when TFG status-labeled training workbooks are available
+- `residual_casebook.md` when TFG status-labeled training workbooks are available
+- `annotated_authenticity_discovery_report.md` when TFG status-labeled training workbooks are available
 - `status_dataset_summary.csv` when TFG status-labeled training workbooks are available
 - `status_respondent_signal_map.csv` when TFG status-labeled training workbooks are available
 - `status_signal_derivation.csv` when TFG status-labeled training workbooks are available
@@ -200,6 +217,12 @@ python3 scripts/build_client_annotation_validation.py \
 When TFG status-labeled training workbooks exist, build the supervised status signal derivation before the next scoring pass:
 
 ```bash
+python3 scripts/build_annotated_authenticity_discovery.py \
+  --annotated-dir /path/to/Data-Sets-with-Cleaning-Answer \
+  --client-root /path/to/client-package-root \
+  --blinded-workbook /path/to/blinded-test-workbook.xlsx \
+  --output-dir /path/to/private_outputs/status-ground-truth-calibration/authenticity_discovery_loop
+
 python3 scripts/build_status_signal_derivation.py \
   --input /path/to/status_labeled_workbooks_or_zip \
   --output-dir /path/to/private_outputs/status-ground-truth-calibration
@@ -231,6 +254,10 @@ python3 scripts/build_agentic_calibration_loop.py \
 ```
 
 The status derivation and rulebook must iterate every labeled row. Read all `status = 5` rows to derive likely fabricated, bot-like, LLM-assisted, inattentive, or unauthentic response signals. Read all `status = 3` rows to derive stronger false-positive guardrails. Do not treat script-staged signals as final truth. The final signal bank must explain each promoted signal in plain language, give supporting examples, give accepted-row counterexamples, and say whether the signal affects review routing, final discard escalation, or only the analyst report.
+
+The annotated authenticity discovery loop is the first mandatory pass for status-labeled corpora. It must inventory and hash inputs, freeze the blinded workbook without inspecting respondent values, reconcile every status-3 and status-5 row, exclude leakage fields, profile every non-leaking comparable column, write matched accepted controls, search pairwise and higher-order patterns, fit leave-one-dataset-out validation, and write a residual casebook. Treat a weak transfer score after leakage removal as a finding. It means the next loop needs deeper question-aware semantic features before the blinded workbook is scored.
+
+Leakage inspection is mandatory. Exclude direct and indirect helper fields before any ranking or model claim. This includes `status`, marker or quota fields, client action fields, final decision fields, review helper fields, condition assignment fields, no-answer helper fields, QC helper fields, channel tracking fields, token fields, and any formula, comment, hidden sheet, or formatting that reveals a cleaning outcome. If a high-performing signal uses one of these fields, quarantine it and rerun the profile.
 
 The semantic packet workflow is mandatory when the goal is to build the detection methodology. The agent must read the packets across multiple turns if needed, write packet notes, and then update the internal signal bank and next-pass configuration. This is how autosurvey builds detection muscle for unannotated datasets. The labeled `status` field is training evidence only. It must not be required or available when scoring the blinded or future unannotated files.
 

@@ -134,6 +134,12 @@ python3 skills/reporting-survey-quality/scripts/build_visual_dashboard.py \
 Methodology-development commands for annotated TFG workbooks are separate from normal blank runs:
 
 ```bash
+python3 skills/reporting-survey-quality/scripts/build_annotated_authenticity_discovery.py \
+  --annotated-dir /path/to/Data-Sets-with-Cleaning-Answer \
+  --client-root /path/to/client-package-root \
+  --blinded-workbook /path/to/blinded-test-workbook.xlsx \
+  --output-dir /path/to/private_outputs/status-ground-truth-calibration/authenticity_discovery_loop
+
 python3 skills/reporting-survey-quality/scripts/build_status_signal_derivation.py \
   --input /path/to/tfg_status_labeled_workbooks_or_zip \
   --output-dir /path/to/private_outputs/status-ground-truth-calibration
@@ -172,6 +178,42 @@ folder contains:
 
 When the task is methodology development from annotated TFG workbooks, the calibration folder must also contain:
 
+- `input_inventory.csv`
+- `input_hashes.json`
+- `split_manifest.json`
+- `leakage_exclusions.json`
+- `blinded_test_freeze_manifest.json`
+- `labeled_row_manifest.csv`
+- `discard_rows_raw.parquet` or the documented `.csv` and `.parquet.pkl` fallback when no Parquet engine is installed
+- `accepted_rows_raw.parquet` or the documented `.csv` and `.parquet.pkl` fallback when no Parquet engine is installed
+- `column_profile_discard_vs_accept.csv`
+- `column_profile_discard_vs_accept.xlsx`
+- `canonical_question_map.csv`
+- `univariate_signal_ranking.csv`
+- `cross_dataset_meta_signals.csv`
+- `question_contracts/`
+- `route_graphs/`
+- `row_reviews_blind/`
+- `row_reconciliations/`
+- `matched_case_pairs.parquet` or the documented `.csv` and `.parquet.pkl` fallback when no Parquet engine is installed
+- `rejected_phenotypes.csv`
+- `accepted_guardrails.csv`
+- `pairwise_interactions.csv`
+- `higher_order_patterns.csv`
+- `question_relation_graph.json`
+- `signal_candidates.yaml`
+- `signal_bank.yaml`
+- `signal_matrix.parquet` or the documented `.csv` and `.parquet.pkl` fallback when no Parquet engine is installed
+- `family_scores.parquet` or the documented `.csv` and `.parquet.pkl` fallback when no Parquet engine is installed
+- `model_artifacts/`
+- `validation_report.md`
+- `contrastive_casebook.md`
+- `interaction_casebook.md`
+- `residual_casebook.md`
+- `iteration_report.md`
+- `annotated_authenticity_discovery_report.md`
+- `skill_change_log.md`
+- `freeze_manifest.json`
 - `status_dataset_summary.csv` when TFG status-labeled workbooks are available
 - `status_respondent_signal_map.csv` when TFG status-labeled workbooks are available
 - `status_signal_derivation.csv` when TFG status-labeled workbooks are available
@@ -233,6 +275,8 @@ record should say what changed, why it matters, and what the next run should do
 differently. Do not record routine script execution as a lesson.
 
 TFG rejection labels are observed client outcomes for method development, not proof of fraud and not a replacement for analyst reasoning. The workflow should learn which combinations of timing, straightlining, duplicate technical evidence, open-end authenticity, cross-field contradiction, role mismatch, and full-chain incoherence explain client rejection. It should also learn which accepted rows protect against false positives. The blinded test dataset and all future blank Decipher datasets must be scored without using any hidden status label.
+
+Helper-field leakage is a hard failure. Exclude `status`, marker or quota fields, review helper fields, client action fields, final decision fields, condition assignment helpers, no-answer helper fields, QC helper fields, channel tracking fields, tokens, and any formula or formatting that reveals cleaning decisions before profiling or modeling. If a top signal collapses after these fields are excluded, report that as a valid finding. It means the reusable method still needs deeper semantic features before scoring the blinded workbook.
 
 The annotated-data semantic signals should be carried forward as questions the
 agent asks of each new question set, not as fixed keyword recipes. Before
