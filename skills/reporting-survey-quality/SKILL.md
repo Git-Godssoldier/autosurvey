@@ -38,6 +38,8 @@ When reporting the 11 existing TFG original/graded pairs, call the result retros
 
 Before explaining weights, semantic similarity, straightlining, speed, open-end authenticity, duplicate technical evidence, or convergence, read `../cleaning-survey-quality/references/semantic-signal-expansion.md`. Reports must show how raw checks became weighted evidence after agent reasoning.
 
+Before reporting the full-chain review, read `../cleaning-survey-quality/references/progressive-chain-filtering.md`. Reports must show the four-layer progressive filtering order (Datamap mapping → per-field chain validity → observational signals → cross-population signals) and explain which layer produced each finding. The report must not present observational or cross-population signals as primary drivers when the chain layer was the actual discovery surface.
+
 ## Report Shape
 
 Produce three report layers:

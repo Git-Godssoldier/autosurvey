@@ -13,6 +13,128 @@ Keep methodology development and runtime execution separate. Annotated TFG workb
 
 This skill must favor data-analysis discovery and rigorous evaluation over flat scripted rubric scoring. Scoring is one output of the process, not the method itself.
 
+## Progressive Filtering Order
+
+The review must follow a strict ordering. Each layer filters the population progressively. Do not jump to observational or cross-population signals before the chain layer is complete, because chain validity changes the meaning of every downstream signal.
+
+### Layer 1: Datamap to response-question mapping
+
+The first step is always mapping the Datamap to the actual response fields. Before any scoring or signal extraction:
+
+- Parse the Datamap or codebook. Extract prompt text, value labels, field groups, response options, and routing rules for every field.
+- Build the Question Contract: for each field, record the question text, the expected evidence type (reason, brand, location, rating, use case, allocation, demographic, feedback), the response type (coded, open text, matrix cell, numeric), and the field role (screener, funnel, matrix, open end, demographic, technical, helper).
+- Build the question-relation graph: connect awareness→consideration→use→preference→recommendation→satisfaction→purchase→open-ended explanation. Classify each relationship as parallel, inverse, prerequisite, funnel progression, mutually exclusive, temporal, numerical, routing, or open/closed contradiction.
+- Map field roles before scoring. Separate job-role screeners, brand-list fields, narrative open ends, other-specify fields, survey-feedback fields, timing fields, supplier/source fields, respondent identifiers, IP/device fields, and review/helper fields.
+- Do not score any field until its role and prompt text are known. A field scored without its Datamap context is a guess, not evidence.
+
+### Layer 2: Per-field chain validity
+
+After the Datamap is mapped, review each respondent's full response chain field by field. For every answered field, the agent must judge whether the answer is on-topic and credible for that specific prompt.
+
+**The agent must semantically interpret each and every row.** Regex and scripted rules are used only for population-level signal staging — after Datamap mapping and propositional identity construction, they prepare inputs for the agent. The final discard decision for each row must come from agent intelligence reading the self-claim profile as a narrative, not from a regex match or threshold. In production there are no annotations, no status labels, and no answer bank. The agent must exploit semantic understanding to make final decisions in each case for each row without scripting.
+
+#### Multi-agent architecture for production scoring
+
+The production pipeline uses a multi-agent architecture with four stages. Scripts only stage raw data. Agents do all semantic work.
+
+**Stage 1 — Script: Data staging (no semantic work)**
+Scripts parse the Datamap, map response fields to question text and value labels, and compute population-level statistics (timing distributions, supplier cohorts, duplicate text detection, cross-respondent clustering). Scripts output structured JSON packets containing: the question text for each field, the value label for each coded answer (e.g., q15=4 → "Very concerned"), the raw open-end text, the timing, the supplier, and the duplicate group membership. Scripts do NOT score, do NOT classify open-ends, do NOT judge coherence. They stage raw materials only.
+
+**Stage 2 — Agent: Respondent identity construction (natural language, not scripts)**
+A subagent reads each staged packet and writes a natural-language respondent identity profile. This is NOT a proposition template — the agent reads the full answer chain and writes who this respondent claims to be, in plain English, including ALL signals translated to natural language:
+- "I responded in 4 minutes" (qtime=240)
+- "I have no supplier recorded" (missing SUPNAME)
+- "I am very concerned about water quality" (q15=4 → label lookup)
+- "I said about the survey: 'Thank you so much'" (outro verbatim)
+- "I am aware of Delta, Brita, and PUR" (q26 checked items → label lookup)
+- "I decided to buy because of bad taste" (q14 open text)
+- "I gave the same outro text as 55 other respondents" (duplicate group membership)
+
+The agent writes this identity profile using its own intelligence, reading the question text and answer meaning together. The agent decides how to phrase each claim based on the question context. No script template generates these profiles. The agent reads the question, reads the answer, and writes what the respondent is claiming about themselves.
+
+**Stage 3 — Agent: Cross-respondent similarity comparison (natural language, not scripts)**
+A subagent reads all respondent identity profiles and compares them to find:
+- Respondents with identical or near-identical identity profiles (synthetic response families)
+- Respondents sharing unusual claims, phrasing, or contradiction patterns
+- Respondents whose identity profile is incoherent (claims that don't form a real person)
+- Clusters of respondents from the same supplier with similar weak profiles
+
+The agent writes a similarity report identifying clusters, shared patterns, and outlier profiles. This is a semantic act — the agent reads profiles as narratives and judges whether two respondents sound like the same person, a copied response, or a synthetic identity.
+
+**Stage 4 — Agent: Final determination per row (natural language, not scripts)**
+For each row, a subagent reads:
+1. The respondent identity profile (from Stage 2)
+2. The cross-respondent similarity findings (from Stage 3)
+3. The static analysis signals (from Stage 1: timing percentile, supplier cohort, duplicate membership)
+
+The agent makes a final determination: discard, review, or keep. The agent writes a one-paragraph justification explaining the decision in natural language, citing the specific identity claims, similarity findings, and signals that drove the decision. No scripted threshold determines the outcome. The agent weighs all evidence together and decides whether this specific respondent is authentic.
+
+**What scripts do NOT do:**
+- Scripts do NOT classify open-end text as "meta_praise" or "templated"
+- Scripts do NOT detect contradictions between fields
+- Scripts do NOT score rows or make discard decisions
+- Scripts do NOT generate proposition templates
+- Scripts do NOT apply regex rules to open-end text for semantic classification
+
+**What scripts DO do:**
+- Parse the Datamap into question text and value labels
+- Look up coded values to get their label meanings
+- Compute timing distributions and percentiles
+- Detect exact duplicate text across respondents
+- Detect duplicate IP addresses
+- Compute supplier cohort distributions
+- Assemble structured JSON packets for the agents to read
+
+This architecture is mandatory for production runs. Scripted scoring produces false positives because regex cannot read context. The agent can. See `references/progressive-chain-filtering.md` for the full production pipeline specification.
+
+For each answered field, the agent must judge:
+
+- Does the answer give the evidence type the prompt requested?
+- Does the answer fit the qualified respondent universe?
+- Is the answer responsive to the exact question, or does it answer a different question?
+- Is the answer a valid short noun phrase (acceptable for brand/location/factor prompts) or a nonresponsive placeholder?
+- Does the answer contradict the respondent's own answers to adjacent or related fields?
+- Does an open-end contain lived detail when the prompt asks for experience, or does it stay generic?
+- Does an other-specify field name a real entity in the correct category?
+
+Classify each field answer as: responsive, partially responsive, nonresponsive, wrong semantic dimension, off-topic, invalid type, impossible value, route-inconsistent, unsupported other-specify, mechanically repeated, or locally protected.
+
+Separate hard invalidity from soft concern. Hard invalidity includes wrong-question answers, wrong semantic dimension, unsupported other-specifies, off-category entities, impossible allocations, route violations, copied text from another prompt, or invalid matrix structure. Soft concern includes speed, shortness, generic text, broad selection, straightlining, repetition, high positivity, or weak detail.
+
+This layer is the primary authenticity surface. Most rejection drivers should be findable here. If a row has no chain-validity concern at this layer, its rejection driver is observational or cross-population, not semantic.
+
+### Layer 3: Observational signals
+
+Only after chain validity is established, filter in observational signals that contextualize the chain:
+
+- Timing: total qtime, page/section/question answer time when available, fielding timestamps, odd-hour starts. Read timing probabilistically against cognitive burden, matrix size, answer length, and chain evidence. Fast time carries more weight when the chain is also weak.
+- Supplier/source cohort: supplier concentration, source cohort anomalies, missing supplier. A missing supplier is context, not proof. Supplier concentration becomes evidence when multiple respondents from the same supplier share weak chains.
+- Technical: IP address, device, user agent, session. Treat as independent context unless multiple supposedly independent respondents share the same technical evidence and weak chains.
+- Platform helpers: TERMFLAGS, SCRUTINYFLAGS, Research Defender fields. Confirm meaning from the Datamap, then inspect the chain.
+
+Observational signals refine the chain layer. They do not replace it. A fast respondent with a coherent, on-topic chain is a keep. A fast respondent with a weak chain is a discard candidate.
+
+### Layer 4: Cross-population signals
+
+Only after observational signals are layered in, filter in cross-population signals that reveal synthetic response families:
+
+- Duplicate open text: text that appears in multiple respondents, especially rejected-only duplicates (text that appears more than once overall and only in rejected rows, never in accepted rows).
+- Response vector clustering: respondents with identical or near-identical coded-answer vectors across many fields.
+- Timing vector clustering: respondents with matching timing profiles or burst submissions.
+- Matrix pattern clustering: respondents with identical matrix patterns across semantically distinct items.
+- Shared rare phrases: repeated rhetorical templates or unusual phrasing across respondents.
+- Copied chains: full response chains that are near-duplicates of other respondents.
+
+Cross-population signals are the strongest convergence evidence. A single row with a weak chain is a review candidate. A single row with a weak chain that is also part of a duplicate cluster is a strong discard candidate.
+
+### Why this ordering matters
+
+The Delta t=5 analysis proved that 55.7% of rejected rows have a perfectly valid on-topic outro. Their rejection was not driven by open-end semantic content alone. The driver was found in the full chain — funnel inconsistency, brand awareness anomalies, supplier concentration, or technical evidence. If the review had stopped at the open-end layer, it would have missed the majority of rejection drivers.
+
+Conversely, the Delta analysis proved that classic straightlining (same-answer across all matrix rows) separated zero rejected rows from accepted rows. If the review had led with matrix straightlining, it would have produced zero signal. The chain layer correctly down-weighted this signal to zero because the 7 matrix rows are semantically distinct product categories and no one actually flat-lined all of them.
+
+The ordering is: understand what each field asks, judge whether each answer is credible for that field, then progressively layer in timing, supplier, technical, and cross-population evidence. Each layer refines the previous one. No layer is sufficient alone.
+
 ## Workflow
 
 1. Frame the run before writing or running scoring scripts:
@@ -382,6 +504,7 @@ The synthesis must always preserve these reusable patterns when they appear:
 - Read `references/decipher-blind-authenticity-review.md` before every normal Autosurvey run on a blank Decipher export.
 - Read `references/authenticity-first-calibration.md` before using TFG status labels, client annotations, blind/label-aware calibration, five-tier routing, question contracts, or authenticity risk modeling.
 - Read `references/semantic-signal-expansion.md` before changing or applying signal weighting, semantic similarity, straightlining, duration, open-end authenticity, or convergence logic.
+- Read `references/progressive-chain-filtering.md` before running the full-chain review layer. It defines the four-layer progressive filtering order (Datamap mapping → per-field chain validity → observational signals → cross-population signals) and the agent reasoning each layer requires.
 - Read `references/internal-signal-learning.md` when internal comments, PM notes, client annotations, prior criteria, prior findings essays, or recurring bad-response patterns are available.
 - Read `references/rubric-seed.md` only as historical seed context, not as a source of fixed weights.
 - Read `references/autonomous-discovery.md` before changing discovery behavior.

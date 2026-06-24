@@ -23,6 +23,7 @@ When the task covers the 11 existing TFG original/graded pairs, treat them as de
    - `question_contract.md`
    - `question_relation_graph.csv`
    - `semantic_signal_expansion_notes.md`
+   - `progressive_chain_filtering_notes.md` (from the full-chain review layer)
    - `blind_authenticity_review_table.csv`
    - `label_aware_contrast_table.csv`
    - `authenticity_signal_family_lift.csv`

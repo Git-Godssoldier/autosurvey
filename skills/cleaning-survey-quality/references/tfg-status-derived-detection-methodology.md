@@ -77,6 +77,8 @@ Also write a Question Contract and question-relation graph. The graph should cla
 
 ## Semantic reading questions
 
+Before reading, translate each question-answer pair into a first-person proposition (see `progressive-chain-filtering.md`). Then read the full self-claim profile as a narrative and ask:
+
 Use these as questions to ask while reading, not as keyword rules:
 
 - Does the answer sound like the qualified audience for this survey, or like a homeowner, consumer, student, generic office worker, logistics manager, IT manager, or survey observer from a different universe?
