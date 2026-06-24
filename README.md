@@ -9,6 +9,7 @@ This repository contains only reusable skill instructions, scripts, and methodol
 - `skills/cleaning-survey-quality`: profiles unannotated survey exports, discovers candidate quality analyses, generates criteria and provisional weights, writes row-level evidence, and prepares agent semantic review surfaces.
 - `skills/evolving-survey-rubrics`: compares generated recommendations against adjudicated PM review and proposes bounded methodology, criteria, weight, or escalation improvements.
 - `skills/reporting-survey-quality`: builds PM/client briefs and final visual review packages with criteria, semantic decisions, survey-design recommendations, charts, citations, and artifact indexes.
+- `skills/external-validation-survey-authenticity`: runs sealed one-shot external validation for a previously blinded workbook after client decisions become available, with pre-registration, prediction sealing, respondent reconciliation, accuracy profiling, leakage audits, and benchmark consumption tracking.
 
 ## Data Safety
 
@@ -166,6 +167,22 @@ estimates how closely a row resembles the client's labeled removals.
 reading. Do not collapse those into one claim. A row can match the client
 cleaning process without proving fabrication, and a row can carry authenticity
 risk without matching every client process rule.
+
+Sealed external validation is a third path. It is used only when a formerly
+blinded workbook receives client decisions. Run discovery and prediction before
+opening labels, then seal predictions before reconciliation:
+
+```bash
+python3 skills/reporting-survey-quality/scripts/discover_external_validation_inputs.py --output-dir /path/to/private_outputs/external-validation/run
+python3 skills/reporting-survey-quality/scripts/run_blind_autosurvey_prediction.py --output-dir /path/to/private_outputs/external-validation/run
+python3 skills/reporting-survey-quality/scripts/seal_external_predictions.py --output-dir /path/to/private_outputs/external-validation/run
+python3 skills/reporting-survey-quality/scripts/reconcile_client_labels.py --output-dir /path/to/private_outputs/external-validation/run
+python3 skills/reporting-survey-quality/scripts/evaluate_external_accuracy.py --output-dir /path/to/private_outputs/external-validation/run
+python3 skills/reporting-survey-quality/scripts/audit_external_validation_integrity.py --output-dir /path/to/private_outputs/external-validation/run
+```
+
+Once a label file is opened after a valid seal, that benchmark is consumed. It
+cannot be reused as an untouched holdout for future Autosurvey changes.
 
 The run is not complete until an agent has reviewed the flagged rows and the output
 folder contains:
