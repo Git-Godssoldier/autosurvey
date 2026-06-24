@@ -854,7 +854,7 @@ def status_to_label(value: Any) -> int | None:
     return None
 
 
-def choose_label_file(label_file: str, registry_path: Path) -> tuple[Path | None, str | None]:
+def choose_label_file(label_file: str, registry_path: Path, expected_rows: int | None = None) -> tuple[Path | None, str | None]:
     if label_file:
         return Path(label_file).resolve(), None
     if not registry_path.exists():
@@ -862,8 +862,12 @@ def choose_label_file(label_file: str, registry_path: Path) -> tuple[Path | None
     registry = pd.read_csv(registry_path)
     candidates = registry[registry["outcome_column_names_only"].fillna("").str.contains(r"\bstatus\b|decision|reject|accepted", case=False, regex=True)]
     candidates = candidates[~candidates["possible_relationship_to_hiri"].eq("original_unlabeled_test_input")]
+    candidates = candidates[~candidates["possible_relationship_to_hiri"].fillna("").str.contains("development", case=False)]
+    if expected_rows is not None and "row_count_if_header_safe" in candidates:
+        counts = pd.to_numeric(candidates["row_count_if_header_safe"], errors="coerce")
+        candidates = candidates[counts.eq(expected_rows)]
     if candidates.empty:
-        return None, "No post-seal candidate label file with an accepted/rejected/status header was found."
+        return None, "No post-seal HIRI-compatible candidate label file with an accepted/rejected/status header was found."
     return Path(candidates.iloc[0]["candidate_file"]).resolve(), None
 
 
@@ -871,7 +875,12 @@ def cmd_reconcile(args: argparse.Namespace) -> None:
     output = Path(args.output_dir).resolve()
     seal = validate_seal(output)
     registry = output / "client_label_candidate_registry.csv"
-    label_path, error = choose_label_file(args.label_file, registry)
+    expected_rows = None
+    try:
+        expected_rows = int(pd.read_csv(output / "predictions_preunblind.csv").shape[0])
+    except Exception:
+        pass
+    label_path, error = choose_label_file(args.label_file, registry, expected_rows=expected_rows)
     event = {"timestamp": now_iso(), "role": "evaluator", "seal_validated": True, "first_label_access_attempt": True}
     if error or label_path is None:
         event["label_access_result"] = "no_usable_label_source"

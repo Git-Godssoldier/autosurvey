@@ -79,6 +79,23 @@ class ExternalValidationTests(unittest.TestCase):
         self.assertEqual(external.status_to_label("3"), 0)
         self.assertIsNone(external.status_to_label("2"))
 
+    def test_auto_label_discovery_rejects_development_workbook(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = Path(tmp) / "client_label_candidate_registry.csv"
+            pd.DataFrame(
+                {
+                    "candidate_file": ["/tmp/dev.xlsx"],
+                    "outcome_column_names_only": ["status"],
+                    "possible_relationship_to_hiri": ["possible_development_or_label_artifact"],
+                    "row_count_if_header_safe": [1905],
+                }
+            ).to_csv(registry, index=False)
+
+            label_file, error = external.choose_label_file("", registry, expected_rows=2399)
+
+        self.assertIsNone(label_file)
+        self.assertIn("No post-seal HIRI-compatible", error)
+
     def test_gitignore_blocks_client_outputs(self):
         ignore = (Path(__file__).resolve().parents[1] / ".gitignore").read_text()
         self.assertIn("*.xlsx", ignore)
