@@ -35,6 +35,7 @@ Read only the references needed for the active phase:
 - [decision-rubric.md](references/decision-rubric.md) for the five-tier decision frame.
 - [relationship-patterns.md](references/relationship-patterns.md) for cross-question semantic logic.
 - [validated-case-patterns.md](references/validated-case-patterns.md) for portable lessons from prior development.
+- [accepted-rejected-answer-banks.md](references/accepted-rejected-answer-banks.md) for labeled answer-bank examples that may guide future unannotated datasets after they are no longer part of an active sealed benchmark.
 - [provisional-hypotheses.md](references/provisional-hypotheses.md) for ideas still under attack.
 - [failed-hypotheses.md](references/failed-hypotheses.md) for weak signals that must not drive exclusion alone.
 - [output-schema.md](references/output-schema.md) for the sealed ledger and narrative artifacts.

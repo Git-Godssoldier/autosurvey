@@ -43,6 +43,7 @@ class AgentNativeBoundaryTests(unittest.TestCase):
             "decision-rubric.md",
             "relationship-patterns.md",
             "validated-case-patterns.md",
+            "accepted-rejected-answer-banks.md",
             "provisional-hypotheses.md",
             "failed-hypotheses.md",
             "output-schema.md",
