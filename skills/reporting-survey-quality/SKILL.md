@@ -66,6 +66,7 @@ Produce three report layers:
    - dataset observations section with a cited list of semantic patterns, trend findings, supplier/source patterns, and survey-design implications
    - structured discard table with agent rationale and source evidence
    - full semantic decision table for all rows the agent investigated, including the number of fields reviewed from the stitched full response chain, early screening recommendation, full-chain counterevidence, and semantic discard basis
+   - all-row semantic judgment artifact with one agent-authored decision per respondent, including the strongest concern, strongest protective evidence, and evidence-judge rationale
    - full-chain analyst readout that turns best and worst response-chain examples into readable prose, not just tables
    - positive findings report that explains strong retained responses, useful research findings, false-positive guardrails, and what good data looks like in the run
    - agent escalation packet that completes the PM review path, including discard rows, hard kept cases, uncertain cases, citations, and next actions
@@ -128,6 +129,7 @@ Use outputs from `run_quality_loop.py`:
 - `deep_semantic_review_sample.md`
 - `independent_full_response_audit.csv`
 - `independent_full_response_audit.md`
+- `agent_row_semantic_judgments.csv` or `.jsonl`
 - `client_annotation_validation.csv` when a client annotated workbook is available
 - `client_annotation_validation_summary.json` when a client annotated workbook is available
 - `client_annotation_validation.md` when a client annotated workbook is available
@@ -358,6 +360,7 @@ python3 scripts/build_visual_dashboard.py \
 - Include the stitched question chain and full response chain before final semantic review. The final agent judgment table must carry `response_chain_field_count`, `full_response_chain`, `semantic_review_chain_field_count`, and `semantic_review_chain`. The final discard decision must be based on those chains plus the surfaced evidence.
 - The independent full-response audit is a blocking artifact. It must contain one row per source respondent. Before publishing, reconcile it against the source row count, `row_scores.csv`, and `respondent_review_table.csv`. If any count differs, stop and fix the run.
 - Read the independent full-response audit as a whole-population review surface. The final report must say what the all-row audit found among unflagged rows, not only what happened to the first-pass review queue.
+- The all-row semantic judgment artifact is also blocking. It must contain one agent-authored judgment per source respondent. If the file mostly repeats scores, rule names, or the same sentence with different ids, return to row review before writing the client-facing report.
 - Parse the Datamap into field roles before scoring or reporting. The final report should show that the workflow understood the role of `qcoe1`, `q9`, `q10`, `q32`, `q43`, and `outro` when present, and should also identify project-specific equivalents such as `qIndustry`, `CLASSIFY`, buyer-role fields, product-involvement fields, and use-case fields.
 - Examine all question sets and report the authenticity logic for each one before presenting discard findings. This includes screeners, role qualifiers, brand or product lists, matrices, allocation tasks, use-case prompts, other-specify fields, narrative open ends, final feedback, demographics, timing, supplier fields, and technical identifiers.
 - Build and report a project-specific topic and answer map before scoring text relevance or answer depth. If the prompt asks for a physical item, location, product use, brand, simple reason, or short factor, the report must explain how short valid answers were protected from over-discard.
@@ -393,6 +396,7 @@ python3 scripts/build_visual_dashboard.py \
 - Treat every script-produced prose block as draft evidence, not final copy. Scripts may stage counts, examples, citations, charts, and tables. The agent must author or rewrite the final findings essay, positive report, escalation packet, dashboard prose, and visual findings report after reading the run evidence.
 - Apply the authorship rule to every PM-facing or client-facing artifact. No artifact passes because a script wrote a file. It passes only after the agent reads the evidence, decides the narrative, verifies the citations, and rewrites generated text into interpretable research prose.
 - Do not solve poor prose by teaching scripts to fill nicer templates. The repair is agent authoring: read the artifacts, decide what the evidence means, write the explanation, and cite the supporting table or row.
+- Do not solve weak row review by adding more static checks. The repair is agent reading: inspect the full chain, compare the row with accepted controls, decide what the semantic boundary is, and write the judgment.
 - When maintaining scripts, keep them focused on evidence staging and display mechanics. They can name what evidence needs explanation. They must not hard-code final client conclusions beyond basic run counts and artifact availability.
 - Never expose raw parameter strings in client-facing prose, such as `best_score=`, `risk=`, `narrative=`, `support_rate=`, `keep_no_issue_from_independent_audit`, or raw source-column dumps. Translate them into plain analyst language before delivery.
 - Dense tables are allowed only after a short readout explains what the table proves and how the reviewer should use it.

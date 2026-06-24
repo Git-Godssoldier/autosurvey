@@ -108,6 +108,10 @@ For each important text answer, decide whether it:
 
 Do not penalize rough grammar, short valid noun phrases, enthusiasm, or imperfect phrasing when the answer fits the prompt. Do not reward polished language when it fails to provide the requested evidence.
 
+After the Delta validation, treat the difference between concise human answers and polished ungrounded answers as a required review question. A phrase such as "water filtration systems" can be acceptable when it answers a simple survey-summary prompt. A longer answer can be more suspicious when it reads like a generic research summary, marketing description, or abstract reason that does not connect to the respondent's own choices.
+
+The agent must state which side of that boundary the row falls on. Do not let a script decide it from word count, keyword count, or grammar quality.
+
 Example reasoning standard: if the survey asks about home renovation, a response about construction may be acceptable when it clearly describes renovation work, materials, contractors, permits, costs, or homeowner decision-making. It becomes suspicious when it drifts into generic construction management, unrelated commercial projects, or polished business language that never answers the home-renovation prompt.
 
 ## Semantic similarity and topic fit
@@ -150,3 +154,5 @@ For each important discovery, write:
 - whether it should affect first-pass routing, final discard review, reporting only, or no future behavior
 
 If the agent cannot explain the weight in plain language, keep the signal as review routing or reporting context.
+
+For respondent-level review, the agent must also write one semantic judgment per row. The judgment should name the strongest concern, the strongest protective evidence, and the reason the final tier follows from the full response chain.

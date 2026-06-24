@@ -48,12 +48,14 @@ Run the calibration loop in this order. Do not score a blinded dataset until the
 3. Read every labeled respondent with status hidden.
    - Build the full response chain before assigning a tier.
    - Write the blind record before labels are revealed.
+   - Write one agent-authored row judgment for every respondent. A scripted score is not a blind semantic review.
 4. Use three perspectives.
    - The forensic investigator looks for fabrication, automation, duplication, wrong universe, and chain incoherence.
    - The human advocate looks for legitimate rough wording, valid short answers, real tradeoffs, non-native English, and plausible extreme opinions.
    - The evidence judge decides the tier after weighing both sides.
 5. Reveal labels only after the blind record is frozen.
    - Compare the frozen blind tier to `status = 3` and `status = 5`.
+   - Write a row-level contrast note for every respondent. For rejected rows, explain the learned signal if the blind pass missed it. For accepted rows, explain the protective guardrail if the blind pass overflagged it.
 6. Match controls.
    - Match every rejected row to similar accepted rows before promoting a signal.
    - Match every suspicious accepted row to rejected rows to discover protective guardrails.
@@ -162,6 +164,14 @@ The strongest non-leaking discoveries were:
 - matrix uniformity only as context, because accepted respondents often show uniform patterns.
 
 Treat these as prompts for semantic investigation. Do not promote them as fixed exclusion rules until accepted controls and residual errors support the distinction.
+
+## Lesson from sealed Delta validation
+
+The Delta Water Filtration validation showed why the agent must read every row. The frozen predictor over-weighted short generic answers and under-weighted the semantic boundary behind client `badopen` markers. Many accepted respondents gave short water-filter summaries, while many rejected respondents gave plausible but abstract or polished answers that lacked personal grounding.
+
+The transferable lesson is not "short is good" or "polished is bad." The lesson is that open ends must be judged as respondent evidence. Ask whether the answer is grounded in the respondent's own chain, whether it answers the exact prompt, and whether similar accepted controls show the same surface pattern safely.
+
+Future calibration must therefore treat concise accepted rows as guardrails and rejected polished rows as cases for deeper semantic reading. Do not use `badopen` as a runtime field. Learn the boundary it represents.
 
 ## Human protective evidence
 

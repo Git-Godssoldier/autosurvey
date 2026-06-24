@@ -20,7 +20,8 @@ External validation is not a calibration run. The benchmark is scored once, seal
 7. Reconcile labels by stable respondent ID, not row order.
 8. Compute every pre-registered metric and every five-tier cutoff.
 9. Write technical, client-facing, machine-readable, audit, scorecard, and benchmark-consumption artifacts.
-10. Put post-unblind learning only into a test-derived hypothesis backlog. Do not change the sealed predictions.
+10. Write a post-unblind row-level semantic error analysis when labels are available. This analysis must review every joined respondent as a learning case, separating false negatives, false positives, true positives, true accepts, and accepted guardrails.
+11. Put post-unblind learning only into a test-derived hypothesis backlog. Do not change the sealed predictions.
 
 ## Role separation
 
@@ -44,6 +45,8 @@ python3 scripts/audit_external_validation_integrity.py --output-dir /path/to/run
 ```
 
 The evaluator must refuse to run if `prediction_seal_manifest.json` is missing or any sealed file hash has changed.
+
+Post-unblind row analysis must not alter the sealed prediction file. Its purpose is to learn why the frozen method missed or overflagged rows, so the next methodology-development cycle can improve safely.
 
 ## Reporting standard
 
@@ -71,4 +74,5 @@ The run is complete only when:
 - integrity verdict is written;
 - benchmark registry marks the benchmark as consumed when labels were opened;
 - tests pass;
+- post-unblind row analysis exists when labels were opened;
 - code and safe documentation are committed without committing client data or output artifacts.

@@ -12,6 +12,8 @@ The agent must read the run artifacts, decide what the evidence means, and write
 
 Every delivered artifact must be agent-authored in substance. This applies to the findings essay, positive findings report, escalation packet, internal signal bank, deep findings memo, visual findings report, dashboard prose, final assistant response, and any other file a PM or client might read. A file does not pass because it exists. It passes only when the agent has read the evidence, shaped the narrative, checked the citations, and rewritten any generated draft text that does not explain the run.
 
+The row judgment layer must also be agent-authored. Scripts can assemble the row, chain, score, and candidate evidence. The agent must write the semantic judgment for each respondent. The judgment should say what the row means after the chain was read, not only which rule fired.
+
 Do not solve weak reporting by adding more phrase templates to scripts. Improve the instructions, then have the agent author the analysis from the evidence.
 
 Script output should name itself as draft evidence when it contains generated prose. It should tell the agent what evidence exists and what must be explained. It should not pretend to be the finished client narrative.
@@ -120,9 +122,21 @@ Good training prose:
 
 > The client rejected this row, but the training value is more specific than the label. The open-ended answer describes a software rollout in a contractor survey, so the transferable signal is wrong-universe professional language. The next pass should route similar role-domain mismatches into agent review, then compare them with accepted contractor rows that use office language but still give concrete trade context.
 
+For every-row judgment artifacts, write concise but real judgments.
+
+Good row judgment prose:
+
+> The purchase-reason answer is short, but it answers the prompt with a concrete household concern about hard water. The final survey-summary answer is generic, yet accepted controls show that this prompt often receives short topic summaries. The row should be protected unless another independent family fails.
+
+Bad row judgment prose:
+
+> Rule open_generic fired. Score 0.98. Review candidate.
+
 ## Required delivery gate
 
 Before final delivery, search the Markdown and dashboard output for signs that parameterized text leaked into prose.
+
+Also inspect `agent_row_semantic_judgments.csv` or `.jsonl` when it exists. Block delivery if it reads like generated boilerplate or if accepted rows do not explain the protective human evidence.
 
 Block delivery when client-facing prose contains:
 

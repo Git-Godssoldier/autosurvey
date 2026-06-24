@@ -19,6 +19,7 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - Read `references/agentic-escalation-path.md`.
    - Read `references/client-terminology-glossary.md` and use it to define client, PM, survey, and quality terms before writing final artifacts.
    - Read `references/decipher-blind-authenticity-review.md` for every normal Autosurvey run on a blank Decipher export. Use it to apply learned signal questions without using labels.
+   - Read `references/agent-authored-row-review.md` before any respondent-level scoring, validation, or final review. This is the rule that prevents Autosurvey from becoming a rigid checklist.
    - Read `references/authenticity-first-calibration.md` when TFG status labels, client annotations, fraud suspicion, bot suspicion, LLM-assistance suspicion, or calibration against accepted/rejected rows are in scope.
    - Read `references/semantic-signal-expansion.md` before evaluating straightlining, speed, open ends, duplicate technical signals, semantic similarity, topic fit, bot suspicion, LLM suspicion, or fabricated-response detection.
    - Read `references/tfg-status-derived-detection-methodology.md` when TFG status-labeled training workbooks, status-derived rules, bot suspicion, LLM suspicion, or fabricated-response detection are part of the task.
@@ -42,6 +43,7 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - Stitch the full question chain before scoring. Use the Datamap or codebook prompt text when available. Fall back to ordered source columns when prompt text is not available.
    - Stitch each respondent's full response chain from all nonempty respondent-answer fields before final semantic review. Also build a focused semantic chain around `qcoe1`, `q9`, `q9r10oe`, `q10`, `q32`, `q43`, and `outro` when those fields exist. The final discard decision must review these chains, not just the field that triggered a flag.
    - Plan for a whole-population read from the start. The final package must include an independent full-response audit with one row per source respondent and a stitched chain for every row. Signal discovery can prioritize deeper review, but it cannot be the only review surface.
+   - Plan for row-level agent authorship from the start. Every source respondent must receive an agent-written semantic judgment that uses the full response chain, the question contract, discovered signals, and protective accepted-row guardrails. Scripts may prefill candidate evidence, but they do not make the final row judgment.
    - Build an agent-authored question-set authenticity map before scoring text quality. For every major question set, state the intended respondent universe, the field role, what an authentic answer should sound like, what a fabricated or bot-like answer might sound like, what learned guardrails apply, and which source fields support that interpretation. This is natural-language analyst work, not a scripted template.
    - Build a Question Contract and question-relation graph before respondent analysis. Connect awareness, preference, use, consideration, recommendation, satisfaction, purchase, matrices, allocations, and open-ended explanations into relationship chains such as parallel, inverse, prerequisite, funnel progression, mutually exclusive, temporal, numerical, routing, or open/closed contradiction.
    - Build a semantic signal expansion plan before final weighting. For each discovered check, write how the agent will expand it beyond the raw flag. Straightlining must include question similarity and answer-time context when available. Speed must include page, section, question, and chain context when available. Open-end concerns must include semantic authenticity, prompt fit, respondent-universe fit, and learned false-positive guardrails.
@@ -52,6 +54,7 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - State which fabricated, bot-like, LLM-assisted, inattentive, or otherwise unauthentic response patterns are plausible in this dataset.
    - State what evidence would confirm each pattern and what evidence would make it a false positive.
    - Turn annotated-data learnings into semantic reading questions, not keyword rules. Ask whether each respondent sounds like the qualified survey audience, whether the answer fits the prompt's requested evidence type, whether polished prose has lived detail, whether a coherent answer belongs to the wrong domain, whether survey-meta language replaced a respondent answer, and whether the full chain recovers or contradicts the concern.
+   - Treat learned labels such as `badopen` as boundaries to understand, not fields to imitate. The agent must read the rejected rows and accepted controls to explain the semantic distinction. A concise answer can be human and acceptable. A polished answer can be fabricated when it lacks personal grounding, prompt fit, or chain support.
    - Give every discovery a provisional weight with a plain-language rationale. The weight should reflect prompt fit, question similarity, time plausibility, semantic authenticity, cross-chain coherence, signal independence, recurrence, learned false-positive guardrails, and survey-design ambiguity. Do not let a script assign the meaning of the weight.
    - Aggregate evidence by family before routing. Multiple straightlining metrics count as one matrix-behavior family unless another independent family also supports concern.
    - Separate row-level authenticity evidence from wave-level context and survey-design findings.
@@ -94,6 +97,7 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - For methodology-development runs only, reveal `status` after blind review and run a label-aware contrastive pass that explains misses, false positives, protective evidence, and non-authenticity client rejection patterns.
    - For methodology-development runs only, keep two scores separate after the blind record is frozen. `client_reject_probability` estimates similarity to the client cleaning process. `semantic_risk_score` estimates authenticity concern from full-chain review. Do not use the client-process score as proof of fraud, and do not use the semantic score as a complete model of every client removal.
    - Read the full response chain and focused semantic chain for each candidate.
+   - Write a respondent-level semantic judgment for every row, not only the first-pass candidates. For rows that are not risky, the judgment can be concise, but it must still name the protective reason, such as valid short answer, coherent chain, plausible timing, or accepted-row precedent.
    - Read enough of the all-row audit to understand every response family, not just the rows surfaced by the first pass.
    - Compare each possible discard against the question-set authenticity map. The final call should explain how the respondent's answer fits or violates the expected evidence type for that exact prompt family.
    - Consider the strongest benign explanation.
@@ -115,6 +119,7 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - `question_contract.md` and `question_relation_graph.csv`: question families, relation types, timing burden, funnel logic, routing, contradiction rules, and guardrails.
    - `semantic_signal_expansion_notes.md`: agent-authored explanation of how raw checks became weighted evidence or stayed review-only.
    - `deep_semantic_review_sample.md`: a small set of reviewed rows with deeper semantic reasoning and next-pass learning.
+   - `agent_row_semantic_judgments.csv` or `.jsonl`: one row per source respondent, authored after full-chain reading, with the semantic judgment, strongest discard signal, strongest protective signal, final tier, and next-pass learning.
    - `agent_findings_essay.md`: cited natural prose analysis of the run, discoveries, decisions, demographic context, and workflow learning.
    - `agent_final_review_dashboard.html` and `agent_final_visual_findings_report.md`: final dashboard, charts, tables, findings, and artifact index for content review.
    - Use `build_agent_review_artifacts.py` after the independent full-response audit to create the agent judgment table, discard set, kept-review synthesis, and verified quality brief.
@@ -122,6 +127,7 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - Check that the required artifacts exist.
    - Verify that source rows, `row_scores.csv`, `respondent_review_table.csv`, and `independent_full_response_audit.csv` have the same row count. If they do not, stop and fix the run.
    - Verify that the independent audit contains a `full_response_chain` field and that the final judgment table was built after that audit.
+   - Verify that the row semantic judgment artifact has one record per source respondent. If a run only contains scored flags, counts, or templated explanations, it has not completed the agent review.
    - Reconcile counts across respondent review, agent judgment, discard set, kept synthesis, essay, escalation packet, and dashboard.
    - Verify that every discard row appears in the escalation packet.
    - If the task is methodology development against annotated data, verify that `blind_authenticity_review_table.csv`, `label_aware_contrast_table.csv`, `authenticity_signal_family_lift.csv`, `protective_human_evidence.md`, and `agentic_fraud_training_report.md` exist. Do not require these artifacts for normal blank Decipher runs.
@@ -149,6 +155,7 @@ Each run must produce:
 - blind authenticity tiering and label-aware contrast when labels exist
 - semantic signal expansion notes that explain how each raw discovery was weighted after agent review
 - independent full-response audit of every source row, not just sampled or first-pass rows
+- agent-authored row semantic judgment for every source row, not just sampled or first-pass rows
 - provisional weights with support counts and rationale
 - generated action thresholds
 - second-pass disposition and discard-only escalation routing
@@ -182,6 +189,8 @@ For each major finding, the agent should state:
 Do not over-polish uncertainty into confidence. If a claim is indirect, say that it appears likely or needs PM review. If a source was unavailable, name the gap.
 
 The final discard call should be stronger than the initial score. It should reflect the score, the Datamap, the response chain, internal comments, counterevidence, and the agent's own semantic read.
+
+The row judgment should be stronger than the first-pass feature vector. It should explain what the row means after the agent has read the answer chain. It should not say only that a criterion fired.
 
 Use the five-tier routing model from `references/authenticity-first-calibration.md`. Only Tier 5, Exclude candidate, is the discard set. Tiers 2-4 are review or protection surfaces, not exclusion.
 

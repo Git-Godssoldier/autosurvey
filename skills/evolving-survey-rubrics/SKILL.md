@@ -38,6 +38,7 @@ This skill should evolve analysis methodology, generated criteria, discovery cov
    - signal-bank mismatch: a prior internal signal would have helped, but was not used
    - false-positive regression: a prior false-positive guardrail was ignored
    - analysis-quality miss: the final essay or escalation packet was too shallow for a PM to act on
+   - row-authorship miss: rows were scored or templated, but not judged by an agent reading the full response chain
    - semantic-expansion miss: a raw check was treated as decisive before reviewing question similarity, answer timing, open-end authenticity, chain coherence, or accepted-row guardrails
    - weighting miss: a generated weight was too high or too low because the agent did not explain prompt fit, signal independence, recurrence, or false-positive risk
    - label-leakage miss: the analysis explained a row as bad only after seeing `status = 5`, without a blind semantic basis
@@ -54,6 +55,7 @@ This skill should evolve analysis methodology, generated criteria, discovery cov
    - evidence rows
    - metric delta
    - annotation-quality delta when PM feedback shows the explanation was too shallow, too rigid, or linguistically unconvincing
+   - row-level semantic delta when a change improves the agent's ability to separate rejected rows from accepted controls
    - risk notes
    - rollback condition
 
@@ -75,6 +77,7 @@ python3 ../cleaning-survey-quality/scripts/run_quality_loop.py \
 - Treat the provided graded workbook as a sneak peek used to seed and test the loop, not as the expected future input shape.
 - Prefer new generated candidate criteria, tags, dimension-level open-end evidence, and evaluation tests over static point changes.
 - Prefer semantic-expansion improvements over point changes. If a straightline, speed, duplicate technical, or open-end rule failed, first ask whether the next run needs better question-set mapping, question similarity assessment, answer-time interpretation, open-end authenticity review, or accepted-row guardrails.
+- Prefer agent row-review improvements over static rule changes. If a labeled validation fails because accepted controls share the same surface pattern as rejected rows, update the semantic questions and guardrails before changing numeric thresholds.
 - Prefer high-support criteria over one-off examples.
 - If candidate and final labels already match, report rubric stability.
 - Track provenance: source file, sheet, respondent key, columns used, old value, new decision.
@@ -84,6 +87,7 @@ python3 ../cleaning-survey-quality/scripts/run_quality_loop.py \
 - Preserve the five-tier model. Only Tier 5 is an exclusion candidate; Tiers 2-4 can increase review volume but should not be counted as discards.
 - Aggregate within evidence families before claiming convergence.
 - Evolve agent annotation guidance when reviewers had to redo the reasoning because the semantic analysis, fluency assessment, or trust rationale lacked depth.
+- Evolve the mandatory row judgment artifact when validation shows that rows were not being read deeply enough. The artifact must show what the agent understood from each row, not only what a script measured.
 - Evolve the findings essay and escalation packet guidance when a PM could not act from the prose alone.
 - Keep false-positive guardrails as important as discard signals. A signal that prevents over-discarding is a successful evolution.
 - Update `internal_quality_signal_bank.md` when a run confirms, weakens, retires, or reframes an internal criterion.

@@ -25,8 +25,11 @@ Before any scoring or scripting, read the workbook and Datamap. Then author thes
 - `question_contract.md`: the survey's audience, role assumptions, routing prerequisites, timing burden, brand or product funnel, matrix logic, open-ended burden, and protective human evidence.
 - `question_relation_graph.csv`: field relationships such as prerequisite, funnel progression, parallel, inverse, mutually exclusive, temporal, numerical, routing, and open or closed contradiction.
 - `semantic_signal_expansion_notes.md`: how each raw signal was weighted after reading prompt context, timing context, response-chain context, and accepted-row guardrails.
+- `agent_row_semantic_judgments.csv` or `.jsonl`: one agent-authored judgment per respondent after full-chain review.
 
 These are authored review artifacts. Scripts may stage candidate fields and counts, but the agent must decide what the question set asks and what authentic response evidence should look like.
+
+The row judgment artifact is not optional. It is where Autosurvey uses agent intelligence on every respondent rather than relying on a rigid checklist. A large dataset can use concise row judgments, but every judgment must reflect the row's chain, not only a rule name.
 
 ## Learned signal questions for any Decipher survey
 
@@ -46,6 +49,8 @@ Ask these questions on every blank dataset. Adapt them to the Datamap and the re
 
 5. **Open-end grounding**
    Does each open end refer to the respondent's own selections, role, brand use, product experience, location, time period, or prior answers? Generic praise, generic business language, or answers that could fit any survey are weak evidence of authentic responding.
+
+   Learned guardrail: short, plain, or generic-looking answers can be acceptable when the prompt asks for a simple topic, product, or survey summary. Learned risk: polished topical prose can be weak when it does not show personal grounding or chain support.
 
 6. **Prompt-fit and answer burden**
    Did the respondent answer the type of evidence requested? A prompt asking for a place, brand, simple object, or short factor can accept a short answer. A prompt asking for an experience, use case, trade role, explanation, or reason needs more grounded detail.
