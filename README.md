@@ -151,7 +151,21 @@ python3 skills/reporting-survey-quality/scripts/build_tfg_discard_rulebook.py \
 python3 skills/reporting-survey-quality/scripts/build_status_semantic_review_packets.py \
   --input /path/to/tfg_status_labeled_workbooks_or_zip \
   --output-dir /path/to/private_outputs/status-ground-truth-calibration
+
+python3 skills/reporting-survey-quality/scripts/build_semantic_authenticity_loop.py \
+  --annotated-dir /path/to/Data-Sets-with-Cleaning-Answer \
+  --client-root /path/to/client-package-root \
+  --prior-run-dir /path/to/private_outputs/status-ground-truth-calibration/authenticity_discovery_loop \
+  --blinded-workbook /path/to/blinded-test-workbook.xlsx \
+  --output-dir /path/to/private_outputs/status-ground-truth-calibration/authenticity_semantic_loop
 ```
+
+The semantic loop must report two outcomes separately. `client_reject_probability`
+estimates how closely a row resembles the client's labeled removals.
+`semantic_risk_score` records authenticity concerns from blind full-chain
+reading. Do not collapse those into one claim. A row can match the client
+cleaning process without proving fabrication, and a row can carry authenticity
+risk without matching every client process rule.
 
 The run is not complete until an agent has reviewed the flagged rows and the output
 folder contains:
@@ -233,6 +247,48 @@ When the task is methodology development from annotated TFG workbooks, the calib
 - `semantic_review_packet_index.csv` when TFG status-labeled workbooks are available
 - `semantic_review_packets/` when TFG status-labeled workbooks are available
 - `semantic_packet_notes/` when TFG status-labeled workbooks are available
+- `semantic_loop_provenance.json` when running the full annotated semantic loop
+- `prior_run_verification.md` when running the full annotated semantic loop
+- `blinded_test_freeze_verification.json` when running the full annotated semantic loop
+- `semantic_leakage_audit.json` when running the full annotated semantic loop
+- `question_contracts.jsonl` when running the full annotated semantic loop
+- `question_contract_coverage.csv` when running the full annotated semantic loop
+- `seed_field_semantic_map.md` when running the full annotated semantic loop
+- `unresolved_question_contracts.csv` when running the full annotated semantic loop
+- `respondent_claim_graphs/` when running the full annotated semantic loop
+- `respondent_semantic_features.parquet` or documented fallback when running the full annotated semantic loop
+- `claim_relation_evidence.csv` when running the full annotated semantic loop
+- `semantic_feature_coverage.csv` when running the full annotated semantic loop
+- `blind_full_chain_reviews.jsonl` when running the full annotated semantic loop
+- `blind_review_coverage.csv` when running the full annotated semantic loop
+- `contrastive_pair_reviews.jsonl` when running the full annotated semantic loop
+- `accepted_guardrail_casebook.jsonl` when running the full annotated semantic loop
+- `semantic_panel_disagreements.csv` when running the full annotated semantic loop
+- `full_chain_casebook.md` when running the full annotated semantic loop
+- `semantic_signal_candidates.csv` when running the full annotated semantic loop
+- `semantic_pairwise_interactions.csv` when running the full annotated semantic loop
+- `semantic_higher_order_patterns.csv` when running the full annotated semantic loop
+- `contrastive_proposition_clusters.jsonl` when running the full annotated semantic loop
+- `population_coordination_clusters.parquet` or documented fallback when running the full annotated semantic loop
+- `accepted_counterexample_matrix.csv` when running the full annotated semantic loop
+- `accepted_guardrail_bank.yaml` when running the full annotated semantic loop
+- `accepted_guardrail_metrics.csv` when running the full annotated semantic loop
+- `guardrail_casebook.md` when running the full annotated semantic loop
+- `signal_after_guardrail_ablation.csv` when running the full annotated semantic loop
+- `semantic_model_comparison.csv` when running the full annotated semantic loop
+- `leave_one_dataset_out_semantic_results.csv` when running the full annotated semantic loop
+- `calibration_results.csv` when running the full annotated semantic loop
+- `family_ablation_results.csv` when running the full annotated semantic loop
+- `tier_volume_and_precision.csv` when running the full annotated semantic loop
+- `signal_promotion_decisions.yaml` when running the full annotated semantic loop
+- `semantic_validation_report.md` when running the full annotated semantic loop
+- `semantic_false_negatives.csv` when running the full annotated semantic loop
+- `semantic_false_positives.csv` when running the full annotated semantic loop
+- `semantic_disagreement_cases.csv` when running the full annotated semantic loop
+- `residual_clusters.jsonl` when running the full annotated semantic loop
+- `residual_loop_changes.md` when running the full annotated semantic loop
+- `unexplained_client_decisions.csv` when running the full annotated semantic loop
+- `semantic_methodology_freeze_manifest.json` when running the full annotated semantic loop
 
 Do not require the status-labeled calibration artifacts for a normal blank Decipher run.
 

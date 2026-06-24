@@ -15,6 +15,8 @@ If a blank export has a column named `status`, inspect the Datamap before using 
 
 Before scoring a blinded dataset, confirm that the methodology is frozen. The calibration folder should contain the frozen input manifest, blind-vs-label contrast, transferable signal specifications, control-match notes, and a statement that no stable new signal remains unresolved. If those artifacts are missing, continue methodology development and do not score the blinded file.
 
+The learned methodology separates two ideas. Client rejection probability means a row resembles the client's labeled removals. Authenticity risk means the response chain suggests the respondent may not have answered faithfully as a qualified human. In a blank runtime pass, use both ideas as review questions, but do not claim that a client-like row is fraudulent unless the current full response chain provides independent evidence.
+
 ## What to build before scoring
 
 Before any scoring or scripting, read the workbook and Datamap. Then author these materials in plain language:

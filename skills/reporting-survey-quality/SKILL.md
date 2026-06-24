@@ -24,6 +24,8 @@ Before reporting labeled calibration, status comparisons, authenticity risk, fiv
 
 Before reporting annotated fraud-signal discovery, status-derived training, antisignals, blind-vs-label contrast, or a naive unannotated rerun plan, read `references/agentic-fraud-training-reporting.md`. These outputs must read as agentic fraud-model training reports, not generic quality summaries.
 
+When reporting the full annotated semantic loop, keep client-process fit and authenticity risk separate. `client_reject_probability` describes how much a row resembles the client's labeled removals. `semantic_risk_score` describes what the blind full-chain reviewer saw about faithful human response behavior. The report must not say that either score alone proves bot activity, LLM use, or fraud.
+
 Before explaining weights, semantic similarity, straightlining, speed, open-end authenticity, duplicate technical evidence, or convergence, read `../cleaning-survey-quality/references/semantic-signal-expansion.md`. Reports must show how raw checks became weighted evidence after agent reasoning.
 
 ## Report Shape
@@ -160,6 +162,48 @@ Use outputs from `run_quality_loop.py`:
 - `semantic_review_packet_index.csv` when TFG status-labeled training workbooks are available
 - `semantic_review_packets/` when TFG status-labeled training workbooks are available
 - `semantic_packet_notes/` when TFG status-labeled training workbooks are available
+- `semantic_loop_provenance.json` when the full annotated semantic loop is run
+- `prior_run_verification.md` when the full annotated semantic loop is run
+- `blinded_test_freeze_verification.json` when the full annotated semantic loop is run
+- `semantic_leakage_audit.json` when the full annotated semantic loop is run
+- `question_contracts.jsonl` when the full annotated semantic loop is run
+- `question_contract_coverage.csv` when the full annotated semantic loop is run
+- `seed_field_semantic_map.md` when the full annotated semantic loop is run
+- `unresolved_question_contracts.csv` when the full annotated semantic loop is run
+- `respondent_claim_graphs/` when the full annotated semantic loop is run
+- `respondent_semantic_features.parquet` or documented CSV and pickle fallback when no Parquet engine is installed
+- `claim_relation_evidence.csv` when the full annotated semantic loop is run
+- `semantic_feature_coverage.csv` when the full annotated semantic loop is run
+- `blind_full_chain_reviews.jsonl` when the full annotated semantic loop is run
+- `blind_review_coverage.csv` when the full annotated semantic loop is run
+- `contrastive_pair_reviews.jsonl` when the full annotated semantic loop is run
+- `accepted_guardrail_casebook.jsonl` when the full annotated semantic loop is run
+- `semantic_panel_disagreements.csv` when the full annotated semantic loop is run
+- `full_chain_casebook.md` when the full annotated semantic loop is run
+- `semantic_signal_candidates.csv` when the full annotated semantic loop is run
+- `semantic_pairwise_interactions.csv` when the full annotated semantic loop is run
+- `semantic_higher_order_patterns.csv` when the full annotated semantic loop is run
+- `contrastive_proposition_clusters.jsonl` when the full annotated semantic loop is run
+- `population_coordination_clusters.parquet` or documented CSV and pickle fallback when no Parquet engine is installed
+- `accepted_counterexample_matrix.csv` when the full annotated semantic loop is run
+- `accepted_guardrail_bank.yaml` when the full annotated semantic loop is run
+- `accepted_guardrail_metrics.csv` when the full annotated semantic loop is run
+- `guardrail_casebook.md` when the full annotated semantic loop is run
+- `signal_after_guardrail_ablation.csv` when the full annotated semantic loop is run
+- `semantic_model_comparison.csv` when the full annotated semantic loop is run
+- `leave_one_dataset_out_semantic_results.csv` when the full annotated semantic loop is run
+- `calibration_results.csv` when the full annotated semantic loop is run
+- `family_ablation_results.csv` when the full annotated semantic loop is run
+- `tier_volume_and_precision.csv` when the full annotated semantic loop is run
+- `signal_promotion_decisions.yaml` when the full annotated semantic loop is run
+- `semantic_validation_report.md` when the full annotated semantic loop is run
+- `semantic_false_negatives.csv` when the full annotated semantic loop is run
+- `semantic_false_positives.csv` when the full annotated semantic loop is run
+- `semantic_disagreement_cases.csv` when the full annotated semantic loop is run
+- `residual_clusters.jsonl` when the full annotated semantic loop is run
+- `residual_loop_changes.md` when the full annotated semantic loop is run
+- `unexplained_client_decisions.csv` when the full annotated semantic loop is run
+- `semantic_methodology_freeze_manifest.json` when the full annotated semantic loop is run
 - `deep_findings_analysis.md`
 - `workflow_improvement_log.md`
 - `respondent_review_table.md`
@@ -226,6 +270,13 @@ python3 scripts/build_annotated_authenticity_discovery.py \
 python3 scripts/build_status_signal_derivation.py \
   --input /path/to/status_labeled_workbooks_or_zip \
   --output-dir /path/to/private_outputs/status-ground-truth-calibration
+
+python3 scripts/build_semantic_authenticity_loop.py \
+  --annotated-dir /path/to/Data-Sets-with-Cleaning-Answer \
+  --client-root /path/to/client-package-root \
+  --prior-run-dir /path/to/private_outputs/status-ground-truth-calibration/authenticity_discovery_loop \
+  --blinded-workbook /path/to/blinded-test-workbook.xlsx \
+  --output-dir /path/to/private_outputs/status-ground-truth-calibration/authenticity_semantic_loop
 ```
 
 Build the complete rejected-row rulebook:
