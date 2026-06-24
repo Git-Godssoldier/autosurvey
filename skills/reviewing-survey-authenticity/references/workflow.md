@@ -13,6 +13,14 @@ Identify every input file and note its role before reading respondent content:
 
 Client labels and annotations stay closed until after the blind ledger is sealed.
 
+Before reading respondent rows, verify the environment can expose workbook cells
+through a native file or spreadsheet surface that the agent can directly read.
+Opening a file in a GUI is not enough. The agent must be able to see row and
+cell values without a script, parser, formula extraction, dataframe, or packet
+builder. If the native app hangs, exposes only an unreadable remote connection,
+or does not provide cell text, stop with
+`BLOCKED_NATIVE_WORKBOOK_READER_REQUIRED`.
+
 ## 2. Build the Question Contract
 
 Before reviewing respondents, reconstruct the survey itself:
