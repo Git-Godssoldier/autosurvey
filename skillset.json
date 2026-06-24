@@ -4,6 +4,14 @@
   "created_on": "2026-06-17",
   "skills": [
     {
+      "path": "reviewing-survey-authenticity",
+      "purpose": "Conduct label-blind, agent-native respondent authenticity review from native workbook inspection, full question contracts, complete response-chain reading, human guardrails, and sealed semantic decisions. This skill contains no scripts."
+    },
+    {
+      "path": "evaluating-survey-authenticity",
+      "purpose": "After the blind ledger is sealed, verify hashes, join labels by stable ID, compute metrics, audit errors, and protect the semantic workflow from label leakage or evaluator-written decisions."
+    },
+    {
       "path": "cleaning-survey-quality",
       "purpose": "Run auditable survey quality scoring, produce respondent-level evidence, and add Opulent-generated semantic annotations."
     },

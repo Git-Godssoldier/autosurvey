@@ -1,12 +1,14 @@
 # autosurvey
 
-Reusable Opulent skills for autonomous survey-quality cleaning, rubric evolution, and reporting.
+Reusable Opulent skills for survey-authenticity review, respondent-fraud discovery, quality cleaning, rubric evolution, and reporting.
 
 This repository contains only reusable skill instructions, scripts, and methodology docs. It intentionally excludes client source data, generated outputs, workbooks, row-level exports, dashboards, and PDFs.
 
 ## Skills
 
 - `skills/cleaning-survey-quality`: profiles unannotated survey exports, discovers candidate quality analyses, generates criteria and provisional weights, writes row-level evidence, and prepares agent semantic review surfaces.
+- `skills/reviewing-survey-authenticity`: conducts the pre-seal, label-blind, agent-native review of survey respondent authenticity. It contains no scripts. The agent must natively read the workbook, build the question contract, review every response chain, and author the sealed decision ledger.
+- `skills/evaluating-survey-authenticity`: runs only after the blind semantic ledger is sealed. It verifies hashes, joins by stable respondent ID, computes post-seal metrics, and checks that evaluator code never writes decision columns.
 - `skills/evolving-survey-rubrics`: compares generated recommendations against adjudicated PM review and proposes bounded methodology, criteria, weight, or escalation improvements.
 - `skills/reporting-survey-quality`: builds PM/client briefs and final visual review packages with criteria, semantic decisions, survey-design recommendations, charts, citations, and artifact indexes.
 - `skills/external-validation-survey-authenticity`: runs sealed one-shot external validation for a previously blinded workbook after client decisions become available, with pre-registration, prediction sealing, respondent reconciliation, accuracy profiling, leakage audits, and benchmark consumption tracking.
@@ -19,19 +21,19 @@ Use `skills/cleaning-survey-quality/references/project-context-template.md` for 
 
 ## Basic Flow
 
-Autosurvey has two separate paths.
+Autosurvey now has three separate paths.
 
-1. **Methodology development from annotated data.** Use TFG cleaning-answer workbooks to discover correlated authenticity signals, false-positive guardrails, and signal interactions. Keep these outputs in a calibration folder. Use the labels to improve reusable natural-language instructions. Do not treat annotated data as a normal runtime input.
-2. **Blind Autosurvey runtime on blank Decipher exports.** Run Autosurvey on the current unannotated respondent file, Datamap, codebook, prior signal bank, and learned natural-language signal questions. Do not use `status = 3`, `status = 5`, client flags, or hidden cleaning outcomes.
+1. **Agent-native blind authenticity review.** Use `skills/reviewing-survey-authenticity` when respondent authenticity, fraud, bot behavior, fabricated open ends, or LLM-assisted survey answers are the decision target. Before the blind decision ledger is sealed, no script may inspect respondent content. The agent must use native workbook viewing, direct cell inspection, question contracts, complete response-chain reading, and authored reasoning. If the environment cannot expose workbook values directly to the agent, stop with `BLOCKED_NATIVE_WORKBOOK_READER_REQUIRED`.
+2. **Post-seal evaluation.** Use `skills/evaluating-survey-authenticity` only after the semantic ledger is sealed. The evaluator verifies hashes, joins labels by stable ID, computes metrics, and produces residual learning. It cannot create or edit discard decisions.
+3. **Legacy/staging scripts and reporting.** Existing cleaning and reporting scripts can stage deterministic artifacts, build dashboards, and run retrospective development baselines, but they are not the agent-native authenticity decision system. They must not be used for respondent-content inference before a blind semantic seal.
 
-The normal path is the blank Decipher runtime. The annotated path exists so the method can improve.
+Annotated TFG cleaning-answer workbooks are development data. Use them only after a blind ledger has been sealed, then learn portable natural-language signal specifications and accepted-row guardrails. The normal runtime remains the blank Decipher dataset path.
 
-Before running the scoring script, explore the workbook. Read the sheet names,
-row count, column count, Datamap or codebook, and examples from every response
-family. Map field roles first. Do not run topic mismatch or low-effort scoring
-until you know whether a field is a job-role screener, brand list, narrative
-open end, other-specify field, survey-feedback field, timing field,
-supplier/source field, identifier field, or review/helper field.
+Before any respondent decision, explore the workbook natively. Read the sheet
+names, row count, column count, Datamap or codebook, and examples from every
+response family. Map field roles first. Do not apply topic mismatch, low-effort
+scoring, model prediction, timing features, or scripted packet generation until
+the pre-seal semantic decision boundary has been satisfied.
 
 Field-role mapping must adapt to the workbook. Do not assume that role context
 is always named `qcoe1`. A study may use fields such as `qIndustry`, `CLASSIFY`,

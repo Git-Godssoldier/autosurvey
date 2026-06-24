@@ -7,8 +7,15 @@ description: Creates PM-facing and client-facing survey quality reports from res
 
 Use this skill after running `cleaning-survey-quality` or `evolving-survey-rubrics`.
 
+For respondent-authenticity decisions, prefer `../reviewing-survey-authenticity`
+for the pre-seal blind review and `../evaluating-survey-authenticity` for
+post-seal metrics. Reporting scripts can summarize and visualize sealed
+decisions, but they must not become the pre-seal inference system.
+
 Reports should make clear whether the run was:
 
+- agent-native blind authenticity review
+- post-seal authenticity evaluation
 - raw unannotated scoring
 - candidate-vs-final rubric calibration
 - final PM adjudication summary
