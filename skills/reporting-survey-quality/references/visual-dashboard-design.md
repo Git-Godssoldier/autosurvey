@@ -2,10 +2,15 @@
 
 Final survey-quality artifacts should feel like a compact research publication, not a raw script output. The reference direction is open-design-style craft applied to a CBRE-quality figures report: disciplined hierarchy, high information density, confident whitespace, clear chart titles, strong source notes, and charts that a reviewer can trust without reopening the CSV.
 
+When the run uses annotated `status = 3/5` files, the dashboard is a fraud-signal training dashboard. It should show how the agentic detector learns from rejected rows and accepted-row antisignals. Do not lead with generic quality counts when the core task is training a stronger authenticity detector.
+
+When the run is a normal blank Decipher export, the dashboard is a blind authenticity decision dashboard. It should not mention `status = 3`, `status = 5`, client flags, or hidden outcomes. It should show the learned signal questions applied to the current workbook, the current evidence families, final Tier 5 exclusion-review rows, protected rows, and next-pass learning.
+
 ## Design Principles
 
 - Start with a publication header: uppercase metadata line, concise report title, one-sentence deck, run/source note, and a restrained brand accent.
 - Use KPI cards for the decision funnel: total responses, review-tagged rows, agent discard rows, and kept review rows.
+- For annotated training runs, use KPI cards for the labeled corpus: total labeled respondents, status-5 rejected rows, status-3 accepted rows, blind Tier 5 candidates, false-exclude risk, and blind-miss count.
 - Use title-first chart headers. The main heading should say what the chart means, such as "Scoring actions" or "Final review decisions." A small secondary label such as `Chart 1` is acceptable. Do not make `Figure 1` the main heading.
 - Add source notes below every chart. State whether the chart comes from scoring artifacts, second-pass disposition, or final agent judgment artifacts.
 - Use a restrained palette with a strong dark text color, a deep green or charcoal anchor, one mint/teal accent, and one or two secondary colors. Do not make the page a single-hue gradient theme.
@@ -13,6 +18,7 @@ Final survey-quality artifacts should feel like a compact research publication, 
 - Use narrative callouts sparingly for the main policy: early scoring finds candidates; full-chain semantic review makes final discard judgments; kept review rows become survey-improvement guidance.
 - Treat tables as ledgers, not prose containers. Do not put long semantic judgments, trust rationales, or response-chain text into narrow table cells.
 - Add an agent findings essay section from `agent_findings_essay.md`. This section is required for delivery and should read like a senior analyst wrote it after studying the run.
+- Add an agentic fraud training section from `agentic_fraud_training_report.md` when labels exist. This section should explain learned fraud signals, accepted-row antisignals, broad signals that failed, and what will transfer to naive unannotated reruns.
 - Add a positive findings section from `agent_positive_insights_report.md`. It should explain strong retained response chains, useful research findings, false-positive guardrails, and what the next pass should learn from good data. Display it as readable prose, not as a cramped table.
 - Add a concise terminology note when the dashboard uses client-specific shorthand, PM terms, quality terms, or field names that are not self-explanatory. Use the glossary in `../../cleaning-survey-quality/references/client-terminology-glossary.md`.
 - Link `agent_escalation_packet.md` and `internal_quality_signal_bank.md` in the artifact index. Summarize them in prose when they change the final decision. Do not turn internal learning into client-facing accusation language.
@@ -26,6 +32,19 @@ Final survey-quality artifacts should feel like a compact research publication, 
 ## Required Visualizations
 
 Use Recharts in HTML dashboards when React is available:
+
+For annotated fraud-signal training runs, include:
+
+- Labeled corpus overview: total rows, status-3 accepted, status-5 rejected, and reject rate.
+- Blind tier by status: stacked bar that shows Tier 1-5 by status after the blind pass.
+- Contrast outcome funnel: status-5 blind match, status-5 review match, status-5 blind miss, status-3 false-exclude risk, and status-3 protective review.
+- Signal-family lift: horizontal bars or heatmap showing family threshold, reject rate, lift, status-5 coverage, and status-3 exposure.
+- Precision and coverage by tier: show the tradeoff between Tier 5 precision and Tier 3-5 review coverage.
+- Antisignal gallery: accepted rows that look suspicious but contain protective human evidence.
+- Blind-miss gallery: rejected rows that looked acceptable in the blind pass and what new semantic signal they suggest.
+- Detector upgrade roadmap: promote, hold for agent-only review, demote, retire.
+
+These training visuals come before generic action-count charts in annotated calibration reports.
 
 - Action counts: radial bar or compact part-to-whole chart with total row counts when there are few categories.
 - Second-pass disposition: horizontal `BarChart` showing `discard_candidate`, `keep_with_recommendation`, and `keep_no_issue`.
@@ -49,6 +68,7 @@ Hover states should add useful evidence. Tooltips should show the category, coun
 ## Writing Style
 
 - Dashboard prose must come from agent-authored Markdown artifacts or from a manual rewrite after reading those artifacts. Generated blocks are placeholders until reviewed.
+- For annotated training dashboards, write in the language of detector learning: learned signals, antisignals, broad/failed signals, blind misses, false-exclude risk, and transfer readiness.
 - Use concise research-report language: `Finding`, `Decision Rule`, `Design Implication`, `Source`.
 - Lead with the decision, then explain the evidence. Do not make readers infer meaning from scores alone.
 - For discard rows, write an expert judgment memo: semantic pattern, language quality, source evidence, benign alternative considered, and final recommended action.
@@ -57,6 +77,7 @@ Hover states should add useful evidence. Tooltips should show the category, coun
 - Keep templates in the minority. The dashboard must have stable sections and verified artifacts, but the prose should be written from the run evidence rather than assembled from static fields.
 - Do not expose raw parameter strings in prose. Translate model labels, status values, support rates, and source-column lists into readable findings.
 - Never let keyword mismatch, AI-likelihood, or supplier/source concentration read as a final semantic decision.
+- Never let `status = 5` read as proof of fraud. Label it as client rejection unless the evidence supports a stronger authenticity-risk interpretation.
 - Use plain writing. Prefer common words. Use complete sentences. Remove filler. Avoid jargon unless you explain it. Do not hide the decision behind phrases such as "may indicate" when the agent has made a final judgment.
 - Cite every material claim. Counts should cite local tables. Criteria should cite the generated criteria catalog or criterion evidence table. Agent decisions should cite the agent judgment table. Design and writing choices should cite the design and writing references.
 
@@ -72,6 +93,7 @@ Before delivery, verify that the dashboard:
 - contains no raw parameter phrases such as `best_score=`, `risk=`, `narrative=`, `support_rate=`, or unconverted internal status labels in client-facing prose
 - includes `agent_findings_essay.md` prose, or clearly blocks delivery until the agent writes it
 - includes `agent_positive_insights_report.md` prose, or clearly blocks delivery until the agent writes it
+- includes `agentic_fraud_training_report.md` prose for annotated status training runs, or clearly blocks delivery until the agent writes it
 - links the escalation packet and internal signal bank when they exist
 - does not require PMs to reopen CSV files to understand the main findings
 - clearly marks final discard decisions as agent-generated semantic judgments

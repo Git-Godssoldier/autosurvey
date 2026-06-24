@@ -9,6 +9,8 @@ Use this skill to run a reproducible survey quality pass on unannotated Decipher
 
 The default input is raw respondent data. The skill autonomously discovers meaningful candidate analyses, evaluates which analyses are safe to score, writes row-level justifications, generates agent annotations for intelligence and linguistic fluency, and reports which criteria need project-specific mapping.
 
+Keep methodology development and runtime execution separate. Annotated TFG workbooks are used to develop the method and update reusable natural-language signal instructions. Normal Autosurvey runs are blind runs on blank Decipher exports. A blank run must not depend on `status = 3`, `status = 5`, client flags, or hidden cleaning outcomes.
+
 This skill must favor data-analysis discovery and rigorous evaluation over flat scripted rubric scoring. Scoring is one output of the process, not the method itself.
 
 ## Workflow
@@ -16,17 +18,22 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
 1. Frame the run before writing or running scoring scripts:
    - Read `references/agentic-escalation-path.md`.
    - Read `references/client-terminology-glossary.md` and use it to define client, PM, survey, and quality terms before writing final artifacts.
+   - Read `references/decipher-blind-authenticity-review.md` for every normal Autosurvey run on a blank Decipher export. Use it to apply learned signal questions without using labels.
+   - Read `references/authenticity-first-calibration.md` when TFG status labels, client annotations, fraud suspicion, bot suspicion, LLM-assistance suspicion, or calibration against accepted/rejected rows are in scope.
+   - Read `references/semantic-signal-expansion.md` before evaluating straightlining, speed, open ends, duplicate technical signals, semantic similarity, topic fit, bot suspicion, LLM suspicion, or fabricated-response detection.
+   - Read `references/tfg-status-derived-detection-methodology.md` when TFG status-labeled training workbooks, status-derived rules, bot suspicion, LLM suspicion, or fabricated-response detection are part of the task.
    - Read `references/dataset-cycle-loop.md` when the run is part of an improvement cycle, a rerun, a multi-dataset pass, or a workflow-hardening request.
    - State the definition of done for this dataset in plain words.
    - Identify the source files, expected final artifacts, and what would block final delivery.
    - If the run includes internal comments, PM notes, client annotations, or prior criteria, read `references/internal-signal-learning.md`.
    - Start a short decision trail for non-obvious choices. The trail can be Markdown or TSV, but it must cite the artifact or command that supports each decision.
    - If a missing decision would change safety, scope, or final authority, ask one short question with a recommended default. If the answer can be discovered from available files, discover it instead of asking.
-   - If a client annotated workbook exists, treat it as the baseline validation set. The run must later compare autosurvey rows against the client actions, flags, and review families before any benchmark claim.
+   - If a client annotated workbook exists, treat it as methodology-development data. The run must later compare autosurvey rows against the client actions, flags, review families, and TFG status labels before any benchmark claim. In TFG cleaning-answer workbooks, `status = 3` means the respondent was accepted, and `status = 5` means the respondent was rejected by TFG because of quality or authenticity concerns.
+   - Separate client rejection probability from fabrication or authenticity risk. A `status = 5` row is an observed client rejection, not proof of bot behavior, LLM use, or fraud.
 2. Explore the workbook before writing or running scoring scripts:
    - Read the sheet names, row count, column count, and Datamap or codebook when present.
    - Inspect representative raw rows and nonempty examples from every open-ended field family.
-   - Read any internal comments, review notes, client annotations, prior quality essays, prior escalation packets, prior signal inventories, and prior signal banks that are available for the same client, survey family, or product area.
+   - Read any internal comments, review notes, prior quality essays, prior escalation packets, prior signal inventories, and prior signal banks that are available for the same client, survey family, or product area. Read client annotations and TFG status labels only when the task is a methodology-development or benchmark task, not during a blind runtime pass.
    - Parse the Datamap before scoring. Extract prompt text, value labels, field groups, and response options. Treat Datamap parsing as the source of truth for field-role mapping when it is available.
    - Map field roles before scoring. At minimum, separate job-role screeners, brand-list fields, narrative open ends, other-specify fields, survey-feedback fields, timing fields, supplier/source fields, respondent identifiers, IP/device fields, and review/helper fields.
    - Field-role mapping must adapt to the workbook's actual language. Do not assume that role context is always named `qcoe1`. Treat fields such as `qIndustry`, `CLASSIFY`, buyer-role fields, product-involvement fields, use-case fields, and eligibility fields as role or qualification context when the Datamap shows that is their purpose.
@@ -34,13 +41,19 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - Stitch the full question chain before scoring. Use the Datamap or codebook prompt text when available. Fall back to ordered source columns when prompt text is not available.
    - Stitch each respondent's full response chain from all nonempty respondent-answer fields before final semantic review. Also build a focused semantic chain around `qcoe1`, `q9`, `q9r10oe`, `q10`, `q32`, `q43`, and `outro` when those fields exist. The final discard decision must review these chains, not just the field that triggered a flag.
    - Plan for a whole-population read from the start. The final package must include an independent full-response audit with one row per source respondent and a stitched chain for every row. Signal discovery can prioritize deeper review, but it cannot be the only review surface.
+   - Build an agent-authored question-set authenticity map before scoring text quality. For every major question set, state the intended respondent universe, the field role, what an authentic answer should sound like, what a fabricated or bot-like answer might sound like, what learned guardrails apply, and which source fields support that interpretation. This is natural-language analyst work, not a scripted template.
+   - Build a Question Contract and question-relation graph before respondent analysis. Connect awareness, preference, use, consideration, recommendation, satisfaction, purchase, matrices, allocations, and open-ended explanations into relationship chains such as parallel, inverse, prerequisite, funnel progression, mutually exclusive, temporal, numerical, routing, or open/closed contradiction.
+   - Build a semantic signal expansion plan before final weighting. For each discovered check, write how the agent will expand it beyond the raw flag. Straightlining must include question similarity and answer-time context when available. Speed must include page, section, question, and chain context when available. Open-end concerns must include semantic authenticity, prompt fit, respondent-universe fit, and learned false-positive guardrails.
    - Decide which fields can be scored in the first pass, which fields need PM mapping, and which fields should only produce review notes.
    - Do not run topic mismatch or low-effort scoring until the field role is clear. A job-role screener should not be scored like a product-topic open end. An unaided brand-list field should not penalize short valid brand names.
    - Build a project-specific topic and answer map from the Datamap, prompt wording, value labels, and sampled open ends before topic or answer-depth scoring. If a prompt asks for a physical item, location, product use, brand, simple reason, or short factor, short noun phrases may be complete answers. Protect those rows unless the full chain remains non-responsive, nonsensical, or contradicted by other strong evidence.
 3. Build quality hypotheses from exploration:
-   - State which bad-response or fabricated-response patterns are plausible in this dataset.
+   - State which fabricated, bot-like, LLM-assisted, inattentive, or otherwise unauthentic response patterns are plausible in this dataset.
    - State what evidence would confirm each pattern and what evidence would make it a false positive.
-   - Separate row-level discard evidence from wave-level context and survey-design findings.
+   - Turn annotated-data learnings into semantic reading questions, not keyword rules. Ask whether each respondent sounds like the qualified survey audience, whether the answer fits the prompt's requested evidence type, whether polished prose has lived detail, whether a coherent answer belongs to the wrong domain, whether survey-meta language replaced a respondent answer, and whether the full chain recovers or contradicts the concern.
+   - Give every discovery a provisional weight with a plain-language rationale. The weight should reflect prompt fit, question similarity, time plausibility, semantic authenticity, cross-chain coherence, signal independence, recurrence, learned false-positive guardrails, and survey-design ambiguity. Do not let a script assign the meaning of the weight.
+   - Aggregate evidence by family before routing. Multiple straightlining metrics count as one matrix-behavior family unless another independent family also supports concern.
+   - Separate row-level authenticity evidence from wave-level context and survey-design findings.
    - Add relevant internal comments or criteria as hypotheses, not as automatic rules.
 4. Profile the workbook:
    - Identify the main respondent sheet, usually `A1`.
@@ -75,8 +88,12 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - Keep rows marked `keep_with_recommendation` or `keep_no_issue`; aggregate their survivor rationales and survey-question recommendations.
 10. Run the agent critic review over every possible discard and read the all-row audit before finalizing:
    - Treat the generated criteria as the case file.
+   - For normal blank runs, do not use `status`, client flags, helper labels, or final-review fields as decision evidence. Apply the learned signal questions from `decipher-blind-authenticity-review.md` directly to the current workbook.
+   - For methodology-development runs only, first conduct a blind semantic review with `status`, client flags, helper labels, and final-review fields hidden. Assign one of five tiers before reading the label.
+   - For methodology-development runs only, reveal `status` after blind review and run a label-aware contrastive pass that explains misses, false positives, protective evidence, and non-authenticity client rejection patterns.
    - Read the full response chain and focused semantic chain for each candidate.
    - Read enough of the all-row audit to understand every response family, not just the rows surfaced by the first pass.
+   - Compare each possible discard against the question-set authenticity map. The final call should explain how the respondent's answer fits or violates the expected evidence type for that exact prompt family.
    - Consider the strongest benign explanation.
    - Decide whether evidence is verified, not verified, or inconclusive.
    - Promote rows into the final discard set only when the agent can explain the discard in plain language with citations.
@@ -93,6 +110,8 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - `agent_positive_insights_report.md`: readable prose analysis of strong retained response chains, positive findings, false-positive guardrails, and what good data looks like in this dataset.
    - `next_pass_signal_inventory.csv`: critical signals that should shape the next first-pass analysis.
    - `next_pass_first_pass_config.json`: proposed next-pass rules, evidence needs, and escalation guardrails.
+   - `question_contract.md` and `question_relation_graph.csv`: question families, relation types, timing burden, funnel logic, routing, contradiction rules, and guardrails.
+   - `semantic_signal_expansion_notes.md`: agent-authored explanation of how raw checks became weighted evidence or stayed review-only.
    - `deep_semantic_review_sample.md`: a small set of reviewed rows with deeper semantic reasoning and next-pass learning.
    - `agent_findings_essay.md`: cited natural prose analysis of the run, discoveries, decisions, demographic context, and workflow learning.
    - `agent_final_review_dashboard.html` and `agent_final_visual_findings_report.md`: final dashboard, charts, tables, findings, and artifact index for content review.
@@ -103,7 +122,8 @@ This skill must favor data-analysis discovery and rigorous evaluation over flat 
    - Verify that the independent audit contains a `full_response_chain` field and that the final judgment table was built after that audit.
    - Reconcile counts across respondent review, agent judgment, discard set, kept synthesis, essay, escalation packet, and dashboard.
    - Verify that every discard row appears in the escalation packet.
-   - If a client annotated workbook exists, verify that `client_annotation_validation.md`, `.csv`, and `_summary.json` exist and that their blocking findings are resolved or named plainly.
+   - If the task is methodology development against annotated data, verify that `blind_authenticity_review_table.csv`, `label_aware_contrast_table.csv`, `authenticity_signal_family_lift.csv`, `protective_human_evidence.md`, and `agentic_fraud_training_report.md` exist. Do not require these artifacts for normal blank Decipher runs.
+   - If a client annotated workbook exists for benchmark work, verify that `client_annotation_validation.md`, `.csv`, and `_summary.json` exist and that their blocking findings are resolved or named plainly.
    - Verify that the dashboard renders without unreadable tables or overlapping prose.
    - Assign a terminal state from `references/dataset-cycle-loop.md`: success, clean no-op, blocked, approval required, or no-progress stop. Do not treat missing artifacts, unreconciled counts, unreadable dashboards, or errors as success.
    - Preview the main artifacts before responding to the user. Inspect the findings essay, positive insights report, escalation packet, internal signal bank, dashboard, visual findings report, discard set, final judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
@@ -120,6 +140,10 @@ Each run must produce:
 
 - generated candidate criteria with tags, source columns, and rationale
 - Datamap-derived field roles, question-chain context, full response-chain context, and focused semantic-chain context for final semantic review
+- an agent-authored question-set authenticity map that explains each major question family before scoring or final review
+- a Question Contract and question-relation graph before respondent scoring
+- blind authenticity tiering and label-aware contrast when labels exist
+- semantic signal expansion notes that explain how each raw discovery was weighted after agent review
 - independent full-response audit of every source row, not just sampled or first-pass rows
 - provisional weights with support counts and rationale
 - generated action thresholds
@@ -134,7 +158,9 @@ Each run must produce:
 - deep semantic review sample for a subset of reviewed rows
 - evaluation metrics when adjudicated labels exist
 
-Weights are trial artifacts, not policy. They should evolve from discoveries, PM findings, adjudicated examples, and feedback. Do not auto-remove respondents from this skill alone. Output discard-candidate escalations with evidence and row-level justifications only after a second pass has found converging discard evidence. Treat scripted scoring as the evidence substrate, not the reader-facing judgment.
+Weights are trial artifacts, not policy. They should evolve from discoveries, semantic expansion, PM findings, adjudicated examples, accepted-row guardrails, and feedback. Do not auto-remove respondents from this skill alone. Output discard-candidate escalations with evidence and row-level justifications only after a second pass has found converging discard evidence. Treat scripted scoring as the evidence substrate, not the reader-facing judgment.
+
+Every generated weight must be explainable. A higher weight needs a stronger reason than "the check fired." It should say why the question context, timing context, semantic chain, and false-positive guardrails make the evidence more or less probative. If the agent cannot explain the weight after reading the response chain, keep the signal as review routing.
 
 ## Research-Grade Analysis Standard
 
@@ -152,6 +178,8 @@ For each major finding, the agent should state:
 Do not over-polish uncertainty into confidence. If a claim is indirect, say that it appears likely or needs PM review. If a source was unavailable, name the gap.
 
 The final discard call should be stronger than the initial score. It should reflect the score, the Datamap, the response chain, internal comments, counterevidence, and the agent's own semantic read.
+
+Use the five-tier routing model from `references/authenticity-first-calibration.md`. Only Tier 5, Exclude candidate, is the discard set. Tiers 2-4 are review or protection surfaces, not exclusion.
 
 Definitions of done must be checkable and demanding. A phase is not done because a script finished. It is done when the expected artifact exists, the count or citation gate passes, and the agent has read the material needed to make the next decision.
 
@@ -245,11 +273,21 @@ response chain is coherent. Keyword topic mismatch is review routing only until
 the agent builds a project-specific semantic topic map from the Datamap,
 accepted answers, and sampled open ends.
 
+Straightlining is also routing evidence until expanded. The agent must compare the semantic similarity of the grid questions, inspect answer-time or page-time context when available, and decide whether the repeated pattern is a plausible uniform opinion, a survey-design artifact, review routing, or a contributor to discard. Repeated answers across similar questions should carry less weight than repeated answers across clearly different or reverse-coded concepts, especially when the open-ended chain shows authentic engagement.
+
+Open-ended authenticity is the central semantic review surface. For each important open end, the agent must compare the answer to the prompt's requested evidence type and the respondent universe. Related-but-not-identical topics should be classified carefully. For example, a home-renovation prompt can validly include construction language when the answer clearly addresses renovation work, materials, contractors, costs, or homeowner decision-making. It becomes suspicious when the answer drifts into generic construction management, unrelated commercial projects, or polished business language with no lived respondent detail.
+
 The script also discovers brand/preference/recommendation columns, but it reports those as candidate mappings unless a project-specific consistency rule exists. Do not infer brand inconsistency from column names alone.
 
 The script also discovers fielding timestamp fields such as `date`, `start_date`, `start_time`, `started_at`, or comparable export fields. Odd-hour starts and concentrated start bursts are fielding-pattern evidence by default. Report them by supplier/source and timestamp bucket, but do not turn them into row-level discard evidence unless the final agent sees corroborating respondent-quality problems or the project has an approved fielding rule.
 
-Client-annotated workbooks are the minimum benchmark, not the target. If a prior workbook contains columns such as `qtime_Under_4_Minutes`, brand inconsistency, grid straightline detail, open-end topic relevance, duplicate IP, `Respondent Flags`, `Respondent Score`, or `Recommended_Action`, autosurvey must preserve the equivalent audit surface and then surpass it with full-chain semantic reasoning, counterevidence, kept-row learning, survey-improvement guidance, and readable analyst prose.
+Client-annotated workbooks are the minimum benchmark, not the target. If a prior workbook contains columns such as `qtime_Under_4_Minutes`, brand inconsistency, grid straightline detail, open-end topic relevance, duplicate IP, `Respondent Flags`, `Respondent Score`, or `Recommended_Action`, autosurvey must preserve the equivalent audit surface and then surpass it with full-chain semantic reasoning, counterevidence, kept-row learning, survey-improvement guidance, and readable analyst prose. If a TFG cleaning-answer workbook contains `status`, treat `status = 3` as an accepted training label and `status = 5` as a rejected training label for methodology development. The workflow should learn why TFG rejected those respondents, not merely memorize the status field. The agent must read rejected and accepted response chains, derive the detection methodology, and then convert the learning into general signal questions that can run on blank Decipher workbooks. The blinded test dataset and all future blank datasets must be scored without using any hidden status label.
+
+The larger method is question-set semantic detection. For each dataset, examine all question sets before scoring: screeners, role qualifiers, brand or product lists, matrices, allocation tasks, use-case prompts, other-specify fields, narrative open ends, and final feedback. For each set, decide what kind of real-world evidence the prompt asks for. Then look for the learned TFG authenticity failures inside that prompt context: abstract business language without lived detail, survey-meta answers, role mismatch, personal-home answers in professional contexts, generic project claims, sentence drift, bare lists where examples were required, off-domain professional claims, contradictions, copied chains, and low-attention behavior. These are reasoning lenses. They become discard evidence only after the agent reads the full response chain and accepted-row guardrails.
+
+Status-labeled training is how the methodology improves. Use rejected rows to discover likely fabricated, bot-like, LLM-assisted, inattentive, contradictory, or unauthentic response patterns. Use accepted rows to discover guardrails that protect real respondents from over-flagging. A promoted signal must explain both sides before it affects blank Decipher scoring.
+
+The discard rulebook must cover every TFG rejected row. Build `tfg_rejected_row_rule_ledger.csv` from all `status = 5` rows and `tfg_accepted_guardrail_ledger.csv` from all `status = 3` rows that fire any staged rule. Rows with no script-staged rule are not misses to hide. They are semantic-discovery rows that require full-chain reading and packet notes before the methodology is considered mature.
 
 ## Open-End Evaluation Method
 
@@ -328,6 +366,9 @@ The synthesis must always preserve these reusable patterns when they appear:
 ## When To Read References
 
 - Read `references/agentic-escalation-path.md` before running a full dataset from raw export to final discard choices.
+- Read `references/decipher-blind-authenticity-review.md` before every normal Autosurvey run on a blank Decipher export.
+- Read `references/authenticity-first-calibration.md` before using TFG status labels, client annotations, blind/label-aware calibration, five-tier routing, question contracts, or authenticity risk modeling.
+- Read `references/semantic-signal-expansion.md` before changing or applying signal weighting, semantic similarity, straightlining, duration, open-end authenticity, or convergence logic.
 - Read `references/internal-signal-learning.md` when internal comments, PM notes, client annotations, prior criteria, prior findings essays, or recurring bad-response patterns are available.
 - Read `references/rubric-seed.md` only as historical seed context, not as a source of fixed weights.
 - Read `references/autonomous-discovery.md` before changing discovery behavior.

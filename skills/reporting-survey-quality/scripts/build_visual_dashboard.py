@@ -176,6 +176,14 @@ def artifact_links(run_dir: Path) -> list[tuple[str, str]]:
     files = [
         "agent_final_review_dashboard.html",
         "agent_final_visual_findings_report.md",
+        "agentic_fraud_training_report.md",
+        "blind_authenticity_review_table.csv",
+        "label_aware_contrast_table.csv",
+        "authenticity_signal_family_lift.csv",
+        "protective_human_evidence.md",
+        "question_contract.md",
+        "question_relation_graph.csv",
+        "semantic_signal_expansion_notes.md",
         "agent_review_judgment_table.csv",
         "agent_review_judgment_summary.md",
         "agent_findings_essay.md",
@@ -222,6 +230,11 @@ def citation_map(run_dir: Path) -> list[tuple[str, str, str]]:
         ("C12", "Deep semantic review sample", str(run_dir / "deep_semantic_review_sample.md")),
         ("C13", "Demographic summary", str(run_dir / "demographic_summary.csv")),
         ("C14", "Positive findings and response-quality report", str(run_dir / "agent_positive_insights_report.md")),
+        ("C15", "Agentic fraud training report", str(run_dir / "agentic_fraud_training_report.md")),
+        ("C16", "Blind authenticity review table", str(run_dir / "blind_authenticity_review_table.csv")),
+        ("C17", "Label-aware contrast table", str(run_dir / "label_aware_contrast_table.csv")),
+        ("C18", "Authenticity signal family lift", str(run_dir / "authenticity_signal_family_lift.csv")),
+        ("C19", "Protective human evidence", str(run_dir / "protective_human_evidence.md")),
         ("C7", "CBRE figures report format reference", "https://mktgdocs.cbre.com/2299/12439527-d1a2-46eb-b485-4fd377f0d618-223048296/European_Data_Centres_Figures_.pdf"),
         ("C8", "Plain writing skill", "https://github.com/shreyashankar/plain-writing-skill"),
         ("C9", "Recharts documentation", "https://recharts.org/"),
@@ -311,6 +324,138 @@ def positive_insights_html(run_dir: Path) -> str:
             "and research insights are visible beside the exclusion review.</p></section>"
         )
     return f"<section class='panel editorial'><div class='prose'>{simple_markdown_html(markdown)}</div></section>"
+
+
+def fraud_training_markdown(run_dir: Path) -> str:
+    return sanitize_markdown(read_text(run_dir / "agentic_fraud_training_report.md").strip())
+
+
+def fraud_training_html(run_dir: Path) -> str:
+    markdown = fraud_training_markdown(run_dir)
+    if not markdown:
+        return (
+            "<section class='panel editorial'><p>The agentic fraud training report was not found. "
+            "Annotated status runs are not ready for client review until <code>agentic_fraud_training_report.md</code> "
+            "explains the rejected-row corpus, accepted-row antisignals, blind-vs-label contrast, signal lift, "
+            "false-exclude risk, blind misses, and transfer plan.</p></section>"
+        )
+    return f"<section class='panel editorial fraud'><div class='prose'>{simple_markdown_html(markdown)}</div></section>"
+
+
+def first_existing_csv(run_dir: Path, names: list[str]) -> pd.DataFrame:
+    for name in names:
+        df = read_csv(run_dir / name)
+        if not df.empty:
+            return df
+    return pd.DataFrame()
+
+
+def annotated_training_available(run_dir: Path, blind: pd.DataFrame, contrast: pd.DataFrame, family: pd.DataFrame) -> bool:
+    return any(
+        [
+            not blind.empty,
+            not contrast.empty,
+            not family.empty,
+            bool(read_text(run_dir / "agentic_fraud_training_report.md").strip()),
+        ]
+    )
+
+
+def status_label(value: object) -> str:
+    raw = text(value)
+    if raw.endswith(".0"):
+        raw = raw[:-2]
+    if raw == "3":
+        return "Accepted status 3"
+    if raw == "5":
+        return "Rejected status 5"
+    return raw or "Missing"
+
+
+def training_stats(blind: pd.DataFrame, status_summary: pd.DataFrame) -> dict[str, int | float]:
+    accepted = rejected = total = 0
+    if not blind.empty and "status" in blind.columns:
+        temp = blind.copy()
+        temp["_status_label"] = temp["status"].map(status_label)
+        if "rows" in temp.columns:
+            row_counts = pd.to_numeric(temp["rows"], errors="coerce").fillna(0)
+            status_counts = temp.assign(_rows=row_counts).groupby("_status_label")["_rows"].sum()
+        else:
+            status_counts = temp["_status_label"].value_counts()
+        accepted = int(status_counts.get("Accepted status 3", 0))
+        rejected = int(status_counts.get("Rejected status 5", 0))
+        total = accepted + rejected
+    elif not status_summary.empty:
+        accepted = int(pd.to_numeric(status_summary.get("accepted_status_3", pd.Series(dtype=int)), errors="coerce").fillna(0).sum())
+        rejected = int(pd.to_numeric(status_summary.get("rejected_status_5", pd.Series(dtype=int)), errors="coerce").fillna(0).sum())
+        total = accepted + rejected
+    return {
+        "accepted": accepted,
+        "rejected": rejected,
+        "total": total,
+        "reject_rate": (rejected / total) if total else 0,
+    }
+
+
+def blind_tier_records(blind: pd.DataFrame) -> list[dict[str, int | str]]:
+    if blind.empty:
+        return []
+    if {"blind_tier_name", "status", "rows"} <= set(blind.columns):
+        grouped = blind.copy()
+        grouped["_status"] = grouped["status"].map(status_label)
+        pivot = grouped.pivot_table(index="blind_tier_name", columns="_status", values="rows", aggfunc="sum", fill_value=0)
+    elif {"blind_tier_name", "status"} <= set(blind.columns):
+        grouped = blind.copy()
+        grouped["_status"] = grouped["status"].map(status_label)
+        pivot = grouped.groupby(["blind_tier_name", "_status"]).size().unstack(fill_value=0)
+    else:
+        return []
+    rows = []
+    for tier, row in pivot.iterrows():
+        accepted = int(row.get("Accepted status 3", 0))
+        rejected = int(row.get("Rejected status 5", 0))
+        rows.append({"name": str(tier), "accepted": accepted, "rejected": rejected, "total": accepted + rejected})
+    return rows
+
+
+def contrast_records(contrast: pd.DataFrame) -> list[dict[str, int | str]]:
+    if contrast.empty:
+        return []
+    if {"contrast_outcome", "rows"} <= set(contrast.columns):
+        series = contrast.set_index("contrast_outcome")["rows"]
+    elif "contrast_outcome" in contrast.columns:
+        series = contrast["contrast_outcome"].fillna("missing").astype(str).value_counts()
+    else:
+        return []
+    return chart_records(series)
+
+
+def family_lift_records(family: pd.DataFrame) -> list[dict[str, object]]:
+    if family.empty or "family" not in family.columns:
+        return []
+    df = family.copy()
+    for col in ["threshold", "n", "rejected", "accepted", "reject_rate_when_present", "lift_vs_base", "status5_coverage", "status3_false_positive_exposure"]:
+        if col in df:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+    if "threshold" in df.columns and (df["threshold"] == 2).any():
+        df = df[df["threshold"] == 2].copy()
+    if "lift_vs_base" in df.columns:
+        df = df.sort_values(["lift_vs_base", "n"], ascending=[False, False])
+    elif "n" in df.columns:
+        df = df.sort_values("n", ascending=False)
+    rows = []
+    for _, row in df.head(12).iterrows():
+        rows.append(
+            {
+                "name": chart_label(row.get("family")),
+                "value": round(float(row.get("lift_vs_base", 0)), 2),
+                "support": int(row.get("n", 0)),
+                "rejected": int(row.get("rejected", 0)),
+                "accepted": int(row.get("accepted", 0)),
+                "reject_rate": f"{float(row.get('reject_rate_when_present', 0)) * 100:.1f}%",
+            }
+        )
+    return rows
 
 
 def discovery_summary(discovery: dict) -> dict[str, object]:
@@ -684,11 +829,18 @@ def main() -> None:
     evidence = read_csv(run_dir / "response_criteria_evidence_table.csv")
     demographics = read_csv(run_dir / "demographic_summary.csv")
     discovery = read_json(run_dir / "discovery_profiles.json")
+    status_summary = first_existing_csv(run_dir, ["status_dataset_summary.csv", "workbook_status_summary.csv"])
+    blind_training = first_existing_csv(run_dir, ["blind_tier_by_status_summary.csv", "blind_authenticity_review_table.csv"])
+    contrast_training = first_existing_csv(run_dir, ["contrast_outcome_summary.csv", "label_aware_contrast_table.csv"])
+    family_lift = read_csv(run_dir / "authenticity_signal_family_lift.csv")
+    has_training = annotated_training_available(run_dir, blind_training, contrast_training, family_lift)
+    training = training_stats(blind_training, status_summary)
 
     total = int(len(respondent))
     review_total = int(len(judgments)) if not judgments.empty else int((respondent.get("computed_action", pd.Series(dtype=str)) != "Keep").sum())
     discard_total = int(len(discard))
     kept_review_total = max(0, review_total - discard_total)
+    has_quality_run = total > 0 or not judgments.empty or not discard.empty
 
     action_counts = count_series(respondent, "computed_action")
     disposition_counts = count_series(respondent, "second_pass_decision")
@@ -734,8 +886,16 @@ def main() -> None:
     editorial_markdown = agent_findings_markdown(run_dir)
     positive_html = positive_insights_html(run_dir)
     positive_markdown = positive_insights_markdown(run_dir)
+    fraud_html = fraud_training_html(run_dir) if has_training else ""
+    fraud_markdown = fraud_training_markdown(run_dir) if has_training else ""
+    blind_records = blind_tier_records(blind_training)
+    contrast_outcomes = contrast_records(contrast_training)
+    family_records = family_lift_records(family_lift)
 
     chart_payload = {
+        "blindTiers": blind_records,
+        "contrastOutcomes": contrast_outcomes,
+        "familyLift": family_records,
         "actions": chart_records(action_counts),
         "dispositions": chart_records(disposition_counts),
         "agentDecisions": chart_records(agent_counts),
@@ -754,7 +914,16 @@ def main() -> None:
     top_finding = (
         f"We reviewed {review_total} rows and recommend {discard_total} for exclusion review. "
         f"The remaining {kept_review_total} rows stayed in the data and became survey improvement signals. [C1][C5][C6]"
+        if has_quality_run
+        else "This dashboard is showing annotated training artifacts only. A respondent-level unannotated scoring run was not present in this output folder."
     )
+    training_finding = (
+        f"We calibrated on {int(training['total']):,} labeled respondents: {int(training['rejected']):,} TFG-rejected rows and "
+        f"{int(training['accepted']):,} TFG-accepted rows. The rejected rows train client-removal signals; the accepted rows "
+        "train antisignals that protect real respondents from over-exclusion. [C15][C16][C17]"
+    )
+    if not has_training:
+        training_finding = ""
     trend_note = "Review volume was low relative to the full data file. Use the trend chart to see whether review rows came from one fielding window or appeared across the whole run. [C1][C5]"
     cluster_note = "The cluster view plots review candidates by completion time and score. Discard rows should stand apart because they combine evidence, not because one score is high. [C5]"
 
@@ -807,7 +976,7 @@ def main() -> None:
       el.innerHTML = htmlRows + more;
     }}
     function renderFallbacks() {{
-      ['actions','dispositions','agentDecisions','keptThemes','allThemes','suppliers','trend','supplierStack'].forEach((key) => renderFallback('chart-' + key, window.__SURVEY_CHARTS__[key]));
+      ['blindTiers','contrastOutcomes','familyLift','actions','dispositions','agentDecisions','keptThemes','allThemes','suppliers','trend','supplierStack'].forEach((key) => renderFallback('chart-' + key, window.__SURVEY_CHARTS__[key]));
       renderFallback('chart-clusters', window.__SURVEY_CHARTS__.clusterFallback);
     }}
     function renderCharts() {{
@@ -903,6 +1072,17 @@ def main() -> None:
           e(R.Bar, {{ dataKey: 'discard', stackId: 'a', fill: '#d87855', radius: [0, 4, 4, 0], name: 'Recommended exclusion' }}));
         mount(id, chart);
       }}
+      function StackedStatusPanel(id, data) {{
+        const chart = e(R.BarChart, {{ data, layout: 'vertical', margin: {{ top: 6, right: 28, left: 16, bottom: 6 }} }},
+          e(R.CartesianGrid, {{ stroke: '#d7dfdc', horizontal: false }}),
+          e(R.XAxis, {{ type: 'number', tick: {{ fill: '#607074', fontSize: 11 }}, allowDecimals: false }}),
+          e(R.YAxis, {{ type: 'category', dataKey: 'name', width: 220, tick: {{ fill: '#607074', fontSize: 11 }} }}),
+          tooltip,
+          e(R.Legend, {{ wrapperStyle: {{ fontSize: 12 }} }}),
+          e(R.Bar, {{ dataKey: 'accepted', stackId: 'a', fill: '#7fbfaf', name: 'Accepted status 3' }}),
+          e(R.Bar, {{ dataKey: 'rejected', stackId: 'a', fill: '#d87855', radius: [0, 4, 4, 0], name: 'Rejected status 5' }}));
+        mount(id, chart);
+      }}
       function ClusterPanel(id, series) {{
         const chart = e(R.ScatterChart, {{ margin: {{ top: 12, right: 22, bottom: 24, left: 4 }} }},
           e(R.CartesianGrid, {{ stroke: '#d7dfdc' }}),
@@ -923,89 +1103,134 @@ def main() -> None:
       TrendPanel('chart-trend', window.__SURVEY_CHARTS__.trend);
       StackedSupplierPanel('chart-supplierStack', window.__SURVEY_CHARTS__.supplierStack);
       ClusterPanel('chart-clusters', window.__SURVEY_CHARTS__.clusters);
+      StackedStatusPanel('chart-blindTiers', window.__SURVEY_CHARTS__.blindTiers);
+      BarPanel('chart-contrastOutcomes', window.__SURVEY_CHARTS__.contrastOutcomes, 'horizontal');
+      BarPanel('chart-familyLift', window.__SURVEY_CHARTS__.familyLift, 'horizontal');
     }}
     window.addEventListener('load', renderCharts);
     """
     discard_cards = "".join(semantic_card_html(row) for _, row in semantic[semantic.get("agent_final_decision", pd.Series(dtype=str)).eq("discard")].iterrows())
     keep_cards = "".join(semantic_card_html(row) for _, row in semantic[semantic.get("agent_final_decision", pd.Series(dtype=str)).ne("discard")].head(6).iterrows())
+    page_title = "Agentic Fraud Signal Training Review" if has_training else "Survey Quality Review"
+    header_eyebrow = "Agentic Fraud Training | Authenticity Calibration" if has_training else "Survey Quality Intelligence | Final Review"
+    header_deck = (
+        "This report explains how we learned from TFG-rejected rows, protected accepted respondents as antisignals, and translated that evidence into a stronger authenticity detector for unannotated datasets."
+        if has_training
+        else "This report explains what we found in the data, which rows we recommend for exclusion review, and which retained rows should improve the next survey pass."
+    )
+    training_sections: list[str] = []
+    if has_training:
+        training_sections = [
+            "<h2 class='section-title'>Annotated corpus and detector learning</h2>",
+            "<section class='kpi-grid'>",
+            kpi("Labeled respondents", f"{int(training['total']):,}", "Rows with TFG status labels."),
+            kpi("TFG rejected", f"{int(training['rejected']):,}", f"{float(training['reject_rate']) * 100:.1f}% of labeled rows."),
+            kpi("TFG accepted", f"{int(training['accepted']):,}", "Accepted rows train false-positive guardrails."),
+            kpi("Training frame", "Blind first", "Labels are used after the first semantic pass."),
+            "</section>",
+            f"<div class='callout'>{html.escape(training_finding)}</div>",
+            "<section class='narrative'>",
+            "<div class='text-box'><strong>Training objective</strong>We are learning client-removal probability and authenticity risk separately. A TFG rejection is training evidence, not proof that a respondent is fraudulent.</div>",
+            "<div class='text-box'><strong>Antisignal objective</strong>Accepted rows with surface anomalies are not noise. They teach the system when speed, straightlining, duplicate context, or short text should stay review-only.</div>",
+            "<div class='text-box'><strong>Transfer objective</strong>The useful output is a set of semantic questions and weighted evidence families that can run naively on blinded and future unannotated datasets.</div>",
+            "</section>",
+            "<section class='report-grid'>",
+            "<section class='panel'><div class='chart-kicker'>Training Chart 1</div><h2>Blind tier by TFG status</h2><div id='chart-blindTiers' class='chart'></div><div class='source'>Source: blind authenticity review and status contrast. [C16][C17]</div></section>",
+            "<section class='panel'><div class='chart-kicker'>Training Chart 2</div><h2>Blind-vs-label contrast outcomes</h2><div id='chart-contrastOutcomes' class='chart'></div><div class='source'>Source: label-aware contrast table. [C17]</div></section>",
+            "</section><section class='wide-grid'>",
+            "<section class='panel'><div class='chart-kicker'>Training Chart 3</div><h2>Signal-family lift and accepted-row exposure</h2><div id='chart-familyLift' class='chart short'></div><p>Lift is useful only when accepted-row exposure is understood. Broad families can be excellent review routers and still be unsafe as exclusion rules. [C18]</p><div class='source'>Source: authenticity signal family lift. [C18]</div></section>",
+            "</section>",
+            "<h2 class='section-title'>Agentic fraud training narrative</h2>",
+            fraud_html,
+        ]
+    if has_quality_run:
+        quality_sections = [
+            "<section class='kpi-grid'>",
+            kpi("Total responses", str(total), "Rows in the respondent review table."),
+            kpi("Review-tagged", str(review_total), f"{pct(review_total, total)} of responses."),
+            kpi("Recommended exclusions", str(discard_total), f"{pct(discard_total, total)} of responses."),
+            kpi("Kept review rows", str(kept_review_total), "Rows kept with notes and design guidance."),
+            "</section>",
+            f"<div class='callout'>{html.escape(top_finding)}</div>",
+            "<section class='narrative'>",
+            "<div class='text-box'><strong>Decision rule</strong>Scoring finds rows to review. We make the final recommendation after reading the evidence and the full response context.</div>",
+            "<div class='text-box'><strong>Semantic rule</strong>Keyword mismatch is not a final decision. We check whether the answer is actually off topic or only worded differently.</div>",
+            "<div class='text-box'><strong>Survey design rule</strong>Rows that survive review become recommendations for better questions and clearer fielding controls.</div>",
+            "</section>",
+            "<h2 class='section-title'>Decision funnel</h2><section class='report-grid'>",
+            "<section class='panel'><div class='chart-kicker'>Chart 1</div><h2>Scoring actions</h2><div id='chart-actions' class='chart'></div><div class='source'>Source: Opulent scoring artifacts. [C1]</div></section>",
+            "<section class='panel'><div class='chart-kicker'>Chart 2</div><h2>Second-pass disposition</h2><div id='chart-dispositions' class='chart'></div><div class='source'>Source: respondent review table. [C1]</div></section>",
+            "</section><section class='report-grid'>",
+            "<section class='panel soft'><div class='chart-kicker'>Chart 3</div><h2>Final review decisions</h2><div id='chart-agentDecisions' class='chart'></div><div class='source'>Source: final judgment table. [C5]</div></section>",
+            "<section class='panel soft'><div class='chart-kicker'>Chart 4</div><h2>Review themes</h2><div id='chart-allThemes' class='chart'></div><div class='source'>Source: final judgment table. [C5]</div></section>",
+            "</section>",
+            "<h2 class='section-title'>Trends and clusters</h2><section class='report-grid'>",
+            f"<section class='panel'><div class='chart-kicker'>Chart 5</div><h2>Fielding trend</h2><div id='chart-trend' class='chart'></div><p>{html.escape(trend_note)}</p><div class='source'>Source: respondent date field and final decisions. [C1][C5]</div></section>",
+            f"<section class='panel'><div class='chart-kicker'>Chart 6</div><h2>Review candidate cluster</h2><div id='chart-clusters' class='chart'></div><p>{html.escape(cluster_note)}</p><div class='source'>X axis is qtime. Y axis is generated score. Point color is final decision.</div></section>",
+            "</section>",
+            "<h2 class='section-title'>Supplier and improvement views</h2><section class='report-grid'>",
+            "<section class='panel'><div class='chart-kicker'>Chart 7</div><h2>Supplier review stack</h2><div id='chart-supplierStack' class='chart'></div><div class='source'>Supplier concentration is context. It is not proof of poor quality. [C5]</div></section>",
+            "<section class='panel'><div class='chart-kicker'>Chart 8</div><h2>Kept review themes</h2><div id='chart-keptThemes' class='chart'></div><div class='source'>Rows kept after review are used to improve questions and fielding controls. [C6]</div></section>",
+            "</section><section class='wide-grid'>",
+            "<section class='panel'><div class='chart-kicker'>Chart 9</div><h2>Review rows by supplier</h2><div id='chart-suppliers' class='chart short'></div><div class='source'>Source: final judgment table. [C5]</div></section>",
+            "</section>",
+            "<h2 class='section-title'>Discovery and scorer criteria</h2>",
+            "<section class='panel'><h2>New discoveries from the raw export</h2>",
+            discovery_html(discoveries),
+            "</section>",
+            "<section class='panel'><h2>Expanded scorer criteria shape</h2>",
+            table_html(criteria_expanded, ["criterion_id", "status", "tags", "source_columns", "generated_weight", "support_rows", "support_rate", "decision_role", "rationale", "citation"], 40),
+            "</section>",
+            "<section class='panel'><h2>Response analysis criteria</h2>",
+            table_html(response_criteria_display, ["criterion_id", "rows", "scoring_discard_candidates", "kept_with_recommendation_before_final_review", "sample_field", "sample_value", "how_to_read", "citation"], 40),
+            "</section>",
+            "<h2 class='section-title'>Dataset observations</h2>",
+            "<section class='panel'><h2>Observed semantic and scoring patterns</h2><ul class='observation-list'>",
+            "".join(f"<li>{html.escape(note)}</li>" for note in observation_notes),
+            "</ul></section>",
+            "<h2 class='section-title'>Findings narrative</h2>",
+            editorial_html or "<section class='panel editorial'><p>The required findings narrative was not found. The run is not ready for client review until <code>agent_findings_essay.md</code> explains the exploration, field-role mapping, full-chain review, final recommendations, demographic context, and next-pass learning.</p></section>",
+            "<h2 class='section-title'>Positive findings and strong responses</h2>",
+            positive_html,
+            "<h2 class='section-title'>Review reasoning</h2>",
+            "<section class='memo-grid'>",
+            discard_cards or "<p>No discard rows were found.</p>",
+            "</section>",
+            "<section class='panel'><h2>All reviewed rows</h2>",
+            ledger_html(semantic_display, 40).replace("<table>", "<table class='semantic-table'>"),
+            "</section>",
+            "<h2 class='section-title'>Kept rows that improve the survey</h2>",
+            "<section class='memo-grid'>",
+            keep_cards or "<p>No kept review rows were found.</p>",
+            "</section>",
+            "<section class='panel'><h2>Kept review synthesis</h2>",
+            table_html(kept_synthesis, ["theme", "kept_review_rows", "why_kept", "survey_question_or_parameter_recommendation", "suggested_quality_parameter"], 10),
+            "</section>",
+            "<section class='panel'><h2>Next-pass signals</h2>",
+            table_html(next_pass_signals, ["signal_id", "support_rows", "critical_signal", "first_pass_change", "evidence_needed", "escalation_rule"], 12),
+            "<div class='source'>Source: next-pass signal inventory. [C11]</div>",
+            "</section>",
+            "<h2 class='section-title'>Demographic and aggregate insights</h2>",
+            "<section class='panel'><h2>Demographic profile</h2>",
+            table_html(demographics, ["field", "question_text", "nonempty_rows", "mean", "median", "top_values"], 20),
+            "<div class='source'>Source: demographic summary from respondent data and Datamap labels. [C13]</div>",
+            "</section>",
+        ]
+    else:
+        quality_sections = [
+            "<h2 class='section-title'>Unannotated scoring package</h2>",
+            "<section class='panel editorial'><p>This output folder contains annotated training artifacts, not a full unannotated respondent-level scoring package. Decision-funnel charts, discard queues, demographic summaries, and kept-row synthesis should appear after the learned detector is rerun on a source dataset with respondent review artifacts.</p></section>",
+        ]
     html_doc = [
-        "<!doctype html><html><head><meta charset='utf-8'><title>Survey Quality Dashboard</title>",
+        f"<!doctype html><html><head><meta charset='utf-8'><title>{html.escape(page_title)}</title>",
         "<meta name='viewport' content='width=device-width, initial-scale=1'>",
         f"<style>{css}</style></head><body>",
-        "<header><div class='eyebrow'>Survey Quality Intelligence | Final Review</div>",
-        "<h1>Survey Quality Review</h1>",
-        "<p class='deck'>This report explains what we found in the data, which rows we recommend for exclusion review, and which retained rows should improve the next survey pass.</p>",
+        f"<header><div class='eyebrow'>{html.escape(header_eyebrow)}</div>",
+        f"<h1>{html.escape(page_title)}</h1>",
+        f"<p class='deck'>{html.escape(header_deck)}</p>",
         f"<div class='sub'>Run directory: {html.escape(str(run_dir))}</div></header><main>",
-        "<section class='kpi-grid'>",
-        kpi("Total responses", str(total), "Rows in the respondent review table."),
-        kpi("Review-tagged", str(review_total), f"{pct(review_total, total)} of responses."),
-        kpi("Recommended exclusions", str(discard_total), f"{pct(discard_total, total)} of responses."),
-        kpi("Kept review rows", str(kept_review_total), "Rows kept with notes and design guidance."),
-        "</section>",
-        f"<div class='callout'>{html.escape(top_finding)}</div>",
-        "<section class='narrative'>",
-        "<div class='text-box'><strong>Decision rule</strong>Scoring finds rows to review. We make the final recommendation after reading the evidence and the full response context.</div>",
-        "<div class='text-box'><strong>Semantic rule</strong>Keyword mismatch is not a final decision. We check whether the answer is actually off topic or only worded differently.</div>",
-        "<div class='text-box'><strong>Survey design rule</strong>Rows that survive review become recommendations for better questions and clearer fielding controls.</div>",
-        "</section>",
-        "<h2 class='section-title'>Decision funnel</h2><section class='report-grid'>",
-        "<section class='panel'><div class='chart-kicker'>Chart 1</div><h2>Scoring actions</h2><div id='chart-actions' class='chart'></div><div class='source'>Source: Opulent scoring artifacts. [C1]</div></section>",
-        "<section class='panel'><div class='chart-kicker'>Chart 2</div><h2>Second-pass disposition</h2><div id='chart-dispositions' class='chart'></div><div class='source'>Source: respondent review table. [C1]</div></section>",
-        "</section><section class='report-grid'>",
-        "<section class='panel soft'><div class='chart-kicker'>Chart 3</div><h2>Final review decisions</h2><div id='chart-agentDecisions' class='chart'></div><div class='source'>Source: final judgment table. [C5]</div></section>",
-        "<section class='panel soft'><div class='chart-kicker'>Chart 4</div><h2>Review themes</h2><div id='chart-allThemes' class='chart'></div><div class='source'>Source: final judgment table. [C5]</div></section>",
-        "</section>",
-        "<h2 class='section-title'>Trends and clusters</h2><section class='report-grid'>",
-        f"<section class='panel'><div class='chart-kicker'>Chart 5</div><h2>Fielding trend</h2><div id='chart-trend' class='chart'></div><p>{html.escape(trend_note)}</p><div class='source'>Source: respondent date field and final decisions. [C1][C5]</div></section>",
-        f"<section class='panel'><div class='chart-kicker'>Chart 6</div><h2>Review candidate cluster</h2><div id='chart-clusters' class='chart'></div><p>{html.escape(cluster_note)}</p><div class='source'>X axis is qtime. Y axis is generated score. Point color is final decision.</div></section>",
-        "</section>",
-        "<h2 class='section-title'>Supplier and improvement views</h2><section class='report-grid'>",
-        "<section class='panel'><div class='chart-kicker'>Chart 7</div><h2>Supplier review stack</h2><div id='chart-supplierStack' class='chart'></div><div class='source'>Supplier concentration is context. It is not proof of poor quality. [C5]</div></section>",
-        "<section class='panel'><div class='chart-kicker'>Chart 8</div><h2>Kept review themes</h2><div id='chart-keptThemes' class='chart'></div><div class='source'>Rows kept after review are used to improve questions and fielding controls. [C6]</div></section>",
-        "</section><section class='wide-grid'>",
-        "<section class='panel'><div class='chart-kicker'>Chart 9</div><h2>Review rows by supplier</h2><div id='chart-suppliers' class='chart short'></div><div class='source'>Source: final judgment table. [C5]</div></section>",
-        "</section>",
-        "<h2 class='section-title'>Discovery and scorer criteria</h2>",
-        "<section class='panel'><h2>New discoveries from the raw export</h2>",
-        discovery_html(discoveries),
-        "</section>",
-        "<section class='panel'><h2>Expanded scorer criteria shape</h2>",
-        table_html(criteria_expanded, ["criterion_id", "status", "tags", "source_columns", "generated_weight", "support_rows", "support_rate", "decision_role", "rationale", "citation"], 40),
-        "</section>",
-        "<section class='panel'><h2>Response analysis criteria</h2>",
-        table_html(response_criteria_display, ["criterion_id", "rows", "scoring_discard_candidates", "kept_with_recommendation_before_final_review", "sample_field", "sample_value", "how_to_read", "citation"], 40),
-        "</section>",
-        "<h2 class='section-title'>Dataset observations</h2>",
-        "<section class='panel'><h2>Observed semantic and scoring patterns</h2><ul class='observation-list'>",
-        "".join(f"<li>{html.escape(note)}</li>" for note in observation_notes),
-        "</ul></section>",
-        "<h2 class='section-title'>Findings narrative</h2>",
-        editorial_html or "<section class='panel editorial'><p>The required findings narrative was not found. The run is not ready for client review until <code>agent_findings_essay.md</code> explains the exploration, field-role mapping, full-chain review, final recommendations, demographic context, and next-pass learning.</p></section>",
-        "<h2 class='section-title'>Positive findings and strong responses</h2>",
-        positive_html,
-        "<h2 class='section-title'>Review reasoning</h2>",
-        "<section class='memo-grid'>",
-        discard_cards or "<p>No discard rows were found.</p>",
-        "</section>",
-        "<section class='panel'><h2>All reviewed rows</h2>",
-        ledger_html(semantic_display, 40).replace("<table>", "<table class='semantic-table'>"),
-        "</section>",
-        "<h2 class='section-title'>Kept rows that improve the survey</h2>",
-        "<section class='memo-grid'>",
-        keep_cards or "<p>No kept review rows were found.</p>",
-        "</section>",
-        "<section class='panel'><h2>Kept review synthesis</h2>",
-        table_html(kept_synthesis, ["theme", "kept_review_rows", "why_kept", "survey_question_or_parameter_recommendation", "suggested_quality_parameter"], 10),
-        "</section>",
-        "<section class='panel'><h2>Next-pass signals</h2>",
-        table_html(next_pass_signals, ["signal_id", "support_rows", "critical_signal", "first_pass_change", "evidence_needed", "escalation_rule"], 12),
-        "<div class='source'>Source: next-pass signal inventory. [C11]</div>",
-        "</section>",
-        "<h2 class='section-title'>Demographic and aggregate insights</h2>",
-        "<section class='panel'><h2>Demographic profile</h2>",
-        table_html(demographics, ["field", "question_text", "nonempty_rows", "mean", "median", "top_values"], 20),
-        "<div class='source'>Source: demographic summary from respondent data and Datamap labels. [C13]</div>",
-        "</section>",
+        *training_sections,
+        *quality_sections,
         "<section class='panel'><h2>Citations</h2>",
         citations_html(citations),
         "</section>",
@@ -1026,66 +1251,105 @@ def main() -> None:
     (run_dir / "agent_final_review_dashboard.html").write_text("\n".join(html_doc), encoding="utf-8")
 
     md = [
-        "# Survey quality visual companion",
+        f"# {page_title} visual companion",
         "",
         f"Run directory: `{run_dir}`",
         "",
         "## Read this first",
-        top_finding,
+        training_finding if has_training else top_finding,
         "",
         "This companion explains how to read the dashboard and points to the authored research reports. It should not replace `agent_findings_essay.md`, `agent_positive_insights_report.md`, `agent_escalation_packet.md`, or `deep_findings_analysis.md`. Those files carry the final interpretation, row-level reasoning, and next-pass recommendations.",
         "",
-        "## KPI summary",
-        f"- Total responses: {total}",
-        f"- Review-tagged rows: {review_total} ({pct(review_total, total)})",
-        f"- Recommended exclusion-review rows: {discard_total} ({pct(discard_total, total)})",
-        f"- Kept review rows used for survey improvements: {kept_review_total}",
-        "",
-        "## How to read the dashboard",
-        "- Scoring actions shows the first-pass action mix.",
-        "- Second-pass disposition shows the review status before final recommendations.",
-        "- Final review decisions shows the rows kept or recommended for exclusion after semantic review.",
-        "- Review themes shows the main patterns found during review.",
-        "- Fielding trend shows review and discard volume by date.",
-        "- Review candidate cluster plots completion time against generated score.",
-        "- Supplier review stack shows final outcomes by source.",
-        "- Kept review themes shows retained rows that became survey-improvement guidance.",
-        "- Review rows by supplier shows source concentration for review routing.",
-        "",
-        "## Dashboard interpretation",
-        trend_note,
-        "",
-        cluster_note,
-        "",
-        "The charts are evidence surfaces. They show where review volume came from and which patterns need attention. They do not make the final respondent decision by themselves. The final decision comes from reading the full response chain and checking whether technical signals, speed, and narrative evidence agree. [C5][C6]",
-        "",
-        "## Raw export context",
-        f"- Duration fields: {', '.join(discoveries.get('qtime_columns', [])) or 'none'} [C3]",
-        f"- Fielding timestamp fields: {', '.join(discoveries.get('fielding_timestamp_columns', [])) or 'none'} [C3]",
-        f"- IP fields: {', '.join(discoveries.get('ip_columns', [])) or 'none'} [C3]",
-        f"- Open-end fields: {', '.join(discoveries.get('open_end_columns', [])) or 'none'} [C3]",
-        "",
-        "## Dataset observations",
-        *[f"- {note}" for note in observation_notes],
-        "",
-        "## Recommended exclusion-review set",
-        *markdown_table(discard_display, ["respondent_key", "exclusion_review_rationale", "observed_evidence", "supplier", "qtime", "review_explanation", "evidence_rationale"], 10),
-        "",
-        "## Findings narrative",
-        editorial_markdown or "The required findings narrative was not found. Write `agent_findings_essay.md` before delivery.",
-        "",
-        "## Positive findings and strong responses",
-        positive_markdown or "Write `agent_positive_insights_report.md` before delivery so strong retained responses and research insights sit beside the exclusion review.",
-        "",
-        "## Final review rule",
-        "Use scoring to find candidates. Make the final recommendation only after reading the full response context. Use kept review rows to improve the next survey. [C5][C6]",
-        "",
-        "## Citations",
-        *[f"- [{key}] {label}: {source}" for key, label, source in citations],
-        "",
-        "## Artifact index",
-        *[f"- `{name}`: `{path}`" for name, path in artifact_links(run_dir)],
     ]
+    if has_training:
+        md.extend(
+            [
+                "## Agentic fraud training frame",
+                f"- Labeled respondents: {int(training['total']):,}",
+                f"- TFG accepted status 3: {int(training['accepted']):,}",
+                f"- TFG rejected status 5: {int(training['rejected']):,} ({float(training['reject_rate']) * 100:.1f}%)",
+                "- Status is a client decision label. It trains client rejection probability, but it is not proof that every rejected respondent is fraudulent, a bot, or LLM-generated.",
+                "- Accepted rows are the antisignal corpus. They protect legitimate respondents who share surface anomalies with rejected rows.",
+                "- The blind tier, label-aware contrast, signal-family lift, and protective evidence artifacts should drive the next naive unannotated rerun.",
+                "",
+                "## Training dashboard interpretation",
+                "- Blind tier by status shows what the system would have surfaced before seeing labels.",
+                "- Label-aware contrast shows where the blind pass matched TFG, missed TFG-rejected rows, or over-flagged accepted rows.",
+                "- Signal-family lift shows which evidence families separate rejected rows from accepted rows and which families are too broad for exclusion.",
+                "- Broad signals should become review routers. Only convergent evidence with full-chain semantic support should become exclusion review.",
+                "",
+                "## Agentic fraud training narrative",
+                fraud_markdown or "Write `agentic_fraud_training_report.md` before delivery.",
+                "",
+            ]
+        )
+    if has_quality_run:
+        md.extend(
+            [
+                "## KPI summary",
+                f"- Total responses: {total}",
+                f"- Review-tagged rows: {review_total} ({pct(review_total, total)})",
+                f"- Recommended exclusion-review rows: {discard_total} ({pct(discard_total, total)})",
+                f"- Kept review rows used for survey improvements: {kept_review_total}",
+                "",
+                "## How to read the dashboard",
+                "- Scoring actions shows the first-pass action mix.",
+                "- Second-pass disposition shows the review status before final recommendations.",
+                "- Final review decisions shows the rows kept or recommended for exclusion after semantic review.",
+                "- Review themes shows the main patterns found during review.",
+                "- Fielding trend shows review and discard volume by date.",
+                "- Review candidate cluster plots completion time against generated score.",
+                "- Supplier review stack shows final outcomes by source.",
+                "- Kept review themes shows retained rows that became survey-improvement guidance.",
+                "- Review rows by supplier shows source concentration for review routing.",
+                "",
+                "## Dashboard interpretation",
+                trend_note,
+                "",
+                cluster_note,
+                "",
+                "The charts are evidence surfaces. They show where review volume came from and which patterns need attention. They do not make the final respondent decision by themselves. The final decision comes from reading the full response chain and checking whether technical signals, speed, and narrative evidence agree. [C5][C6]",
+                "",
+                "## Raw export context",
+                f"- Duration fields: {', '.join(discoveries.get('qtime_columns', [])) or 'none'} [C3]",
+                f"- Fielding timestamp fields: {', '.join(discoveries.get('fielding_timestamp_columns', [])) or 'none'} [C3]",
+                f"- IP fields: {', '.join(discoveries.get('ip_columns', [])) or 'none'} [C3]",
+                f"- Open-end fields: {', '.join(discoveries.get('open_end_columns', [])) or 'none'} [C3]",
+                "",
+                "## Dataset observations",
+                *[f"- {note}" for note in observation_notes],
+                "",
+                "## Recommended exclusion-review set",
+                *markdown_table(discard_display, ["respondent_key", "exclusion_review_rationale", "observed_evidence", "supplier", "qtime", "review_explanation", "evidence_rationale"], 10),
+                "",
+                "## Findings narrative",
+                editorial_markdown or "The required findings narrative was not found. Write `agent_findings_essay.md` before delivery.",
+                "",
+                "## Positive findings and strong responses",
+                positive_markdown or "Write `agent_positive_insights_report.md` before delivery so strong retained responses and research insights sit beside the exclusion review.",
+                "",
+                "## Final review rule",
+                "Use scoring to find candidates. Make the final recommendation only after reading the full response context. Use kept review rows to improve the next survey. [C5][C6]",
+                "",
+            ]
+        )
+    else:
+        md.extend(
+            [
+                "## Unannotated scoring package",
+                "This output folder contains annotated training artifacts, not a full respondent-level unannotated scoring run. Decision-funnel charts, discard queues, demographic summaries, and kept-row synthesis should be produced after the learned detector is rerun on a source dataset.",
+                "",
+            ]
+        )
+    md.extend(
+        [
+            "## Citations",
+            *[f"- [{key}] {label}: {source}" for key, label, source in citations],
+            "",
+            "## Artifact index",
+            *[f"- `{name}`: `{path}`" for name, path in artifact_links(run_dir)],
+        ]
+    )
     (run_dir / "agent_final_visual_findings_report.md").write_text("\n".join(md) + "\n", encoding="utf-8")
     print(run_dir / "agent_final_review_dashboard.html")
     print(run_dir / "agent_final_visual_findings_report.md")

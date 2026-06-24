@@ -25,6 +25,15 @@ The final analysis should answer these questions in prose:
 5. What statistics change the interpretation, and what statistics are only routing context?
 6. What should change in the next pass?
 
+For annotated fraud-signal training runs, the final analysis must also answer:
+
+1. What did the rejected corpus teach us about likely client-removal and authenticity-risk signals?
+2. What did the accepted corpus teach us as antisignals or protective human evidence?
+3. Which signals have real lift, and which are too broad because they also appear in many accepted rows?
+4. Which blind misses reveal new semantic signals?
+5. Which apparent Tier 5 findings are false-exclude risks that need guardrails?
+6. What detector upgrade should be used in the naive unannotated rerun?
+
 ## What good looks like
 
 The report should combine statistics with clear analyst writing. Counts should answer "how big is the pattern." Prose should answer "what does the pattern mean."
@@ -39,6 +48,10 @@ A strong paragraph has this shape:
 Example:
 
 > We found a large group of retained rows with weak narrative detail. This covered 1,148 reviewed rows, so it is too broad to use as an exclusion rule by itself. The next pass should add PM examples of acceptable and unacceptable answer depth before scoring this signal more harshly. Source: `agent_kept_review_synthesis_table.csv`.
+
+Annotated training example:
+
+> We learned that answer-time and text coupling is a stronger training signal than speed alone. Rows with severe coupling had a higher status-5 rate than the labeled baseline, while ordinary timing flags also appeared in many accepted rows. The next unannotated pass should route fast polished narratives into agent review, but it should not exclude speed-only rows unless open-end grounding or another independent family also fails. Source: `authenticity_signal_family_lift.csv`.
 
 ## What to avoid
 
@@ -55,6 +68,8 @@ Avoid:
 - long source column lists
 - table headers pasted into body prose
 - "This response chain is useful because it was retained as..."
+- "status=5 proves fraud"
+- "the model found fraud because the row was rejected"
 
 Translate them.
 
@@ -98,6 +113,12 @@ For discard rows, write why the full chain still fails after the benign explanat
 Good discard-row prose:
 
 > `n628rrzbjm9ecbya` should remain in the exclusion-review set because the main open end repeats an incoherent phrase and the rest of the chain does not recover a usable project narrative. The concern is not shortness. The concern is that the answer does not become meaningful when read with the full chain. Source: `agent_discard_set.csv`.
+
+For training rows, separate label from interpretation.
+
+Good training prose:
+
+> The client rejected this row, but the training value is more specific than the label. The open-ended answer describes a software rollout in a contractor survey, so the transferable signal is wrong-universe professional language. The next pass should route similar role-domain mismatches into agent review, then compare them with accepted contractor rows that use office language but still give concrete trade context.
 
 ## Required delivery gate
 

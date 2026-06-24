@@ -2,6 +2,8 @@
 
 These templates define the minimum artifact shape. They are not the analysis. The report should be majority agent-written insight and minority fixed template. Use the structure below so every run is complete, but write the conclusions from the workbook, Datamap, response chains, audit outputs, demographic summaries, and prior learning.
 
+Keep annotated methodology development separate from blank Decipher runtime reporting. Status-labeled artifacts belong in calibration reports. Normal Autosurvey reports should apply the learned signal questions to the current blank workbook and should not cite hidden status labels as decision evidence.
+
 Before using client, PM, or survey-quality shorthand, read `../../cleaning-survey-quality/references/client-terminology-glossary.md` and define ambiguous terms in the report.
 
 For reruns and multi-dataset cycles, read `../../cleaning-survey-quality/references/dataset-cycle-loop.md`. Report the terminal state and learning records in the workflow improvement log. Keep client-facing prose focused on findings, recommendations, evidence, and next actions.
@@ -84,7 +86,18 @@ Sections:
    - Cohen's kappa
    - ordinal action disagreement
    - over-escalation and under-escalation counts
-12. Table artifact index
+12. Agentic fraud-signal training when annotated `status = 3/5` labels exist
+   - training objective: rejected corpus and accepted antisignal corpus
+   - ground-truth limits: client rejection is not proof of fraud
+   - blind tier distribution before label reveal
+   - label-aware contrast outcomes
+   - signal-family lift and accepted-row exposure
+   - signal interactions that outperform individual checks
+   - accepted-row protective evidence and antisignals
+   - blind-miss rows that reveal new semantic checks
+   - detector upgrade plan for naive unannotated reruns
+   - readiness statement for unannotated transfer
+13. Table artifact index
    - generated criteria catalog
    - demographic summary
    - respondent review table
@@ -100,9 +113,14 @@ Sections:
    - deep semantic review sample
    - independent full-response audit
    - client annotation validation when a client annotated workbook exists
+   - agentic fraud training report when annotated `status = 3/5` labels exist
+   - blind authenticity review table when annotated `status = 3/5` labels exist
+   - label-aware contrast table when annotated `status = 3/5` labels exist
+   - authenticity signal family lift when annotated `status = 3/5` labels exist
+   - protective human evidence when annotated `status = 3/5` labels exist
    - deep findings analysis
    - PM-facing Markdown sample
-13. Final visual review package
+14. Final visual review package
    - KPI cards: total responses, review-tagged rows, agent discard rows, kept review rows
    - bar charts: action counts, second-pass disposition, agent review decisions, kept-review themes, supplier/source concentrations
    - discard table with agent rationale and source evidence
@@ -113,7 +131,7 @@ Sections:
    - full-chain analyst readout explaining the best and worst examples in prose
    - deep findings memo with final interpretation and workflow audit
    - final guidance on what to discard, what to keep, and what to improve in the survey instrument
-14. Annotated-workbook benchmark coverage
+15. Annotated-workbook benchmark coverage
    - qtime speeders and long-duration outliers
    - fielding start/date patterns, odd-hour starts, and concentrated start bursts
    - grid straightlining or near-straightlining
@@ -122,7 +140,7 @@ Sections:
    - duplicate IP or comparable technical identifiers, with independent-cluster context
    - respondent flags, score, and recommended action equivalents
    - explanation of where autosurvey went beyond the annotated workbook through full-chain semantic reasoning, counterevidence, kept-row learning, and next-pass signal updates
-15. Demographic and aggregate insights
+16. Demographic and aggregate insights
    - `qGender`
    - `qager1` and `age`
    - `qEthnic*`
@@ -246,6 +264,23 @@ The essay should do the following in whatever structure best serves the dataset:
 - describe any rerun or correction cycle in plain language: what the first pass misunderstood, how the final review caught it, what changed, and how the next dataset should benefit
 
 Do not turn this essay into a list of required fields. The point is to let the agent reason in prose after reading the evidence. Tables can support the essay, but they are not the analysis.
+
+`agentic_fraud_training_report.md` is required when annotated `status = 3/5` training data is used. It should read as an agentic model-training memo, not as a generic survey-quality report.
+
+It should explain:
+
+- how rejected rows are used as the client-removal corpus
+- how accepted rows are used as the antisignal and protective-evidence corpus
+- why `status = 5` is not automatically proof of fraud
+- what the blind pass found before labels were revealed
+- what the label-aware contrast taught after labels were revealed
+- which evidence families have lift and which are too broad
+- which accepted rows prevent overfitting
+- which blind misses reveal new semantic checks
+- which signals should be promoted, held as agent-only, demoted, or retired
+- whether the detector is ready for naive unannotated reruns
+
+The report should explicitly distinguish client rejection probability from fabrication/authenticity risk. It should never imply that every rejected respondent is a bot, LLM user, or fraudulent respondent.
 
 The essay should include a short glossary or definitions paragraph when the run uses client-specific shorthand, survey field names, PM terms, or quality terms that a new reviewer may not know. Do not over-explain common words. Explain only terms that affect interpretation or decisions.
 

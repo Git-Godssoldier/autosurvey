@@ -12,12 +12,19 @@ Reports should make clear whether the run was:
 - raw unannotated scoring
 - candidate-vs-final rubric calibration
 - final PM adjudication summary
+- methodology development from annotated TFG workbooks
 
 Before writing PM-facing or client-facing prose, read `../cleaning-survey-quality/references/client-terminology-glossary.md`. Define any client-specific shorthand, study fields, quality terms, PM terms, or internal criteria before using them in final artifacts.
 
 When reporting a rerun, next-dataset pass, or workflow-hardening cycle, also read `../cleaning-survey-quality/references/dataset-cycle-loop.md`. Use it to state the terminal state, learning records, and next action without turning the client-facing report into an internal log.
 
 Before writing final prose, read `references/analyst-prose-standard.md`. Use its standard for blending statistics, evidence, and readable explanation. This is an agent authoring requirement, not a script-generation requirement.
+
+Before reporting labeled calibration, status comparisons, authenticity risk, five-tier routing, Question Contracts, or protective accepted-row evidence, read `../cleaning-survey-quality/references/authenticity-first-calibration.md`.
+
+Before reporting annotated fraud-signal discovery, status-derived training, antisignals, blind-vs-label contrast, or a naive unannotated rerun plan, read `references/agentic-fraud-training-reporting.md`. These outputs must read as agentic fraud-model training reports, not generic quality summaries.
+
+Before explaining weights, semantic similarity, straightlining, speed, open-end authenticity, duplicate technical evidence, or convergence, read `../cleaning-survey-quality/references/semantic-signal-expansion.md`. Reports must show how raw checks became weighted evidence after agent reasoning.
 
 ## Report Shape
 
@@ -40,13 +47,20 @@ Produce three report layers:
    - aggregate counts only unless row detail is approved
    - defensible rationale for exclusions or review flags
    - note that final decisions remain human-adjudicated unless explicitly automated
+   - when annotated status labels are used, explain that the system is learning client-rejection signals and authenticity-risk signals separately
 3. Final visual review package:
    - publication-quality KPI dashboard for total responses, review-tagged rows, agent discard rows, and kept review rows
    - Recharts visualizations for action counts, second-pass disposition, agent review decisions, review themes, trend analysis, candidate clusters, stacked supplier outcomes, kept-review themes, and supplier/source concentrations
    - discovery section showing new candidate analyses, field groups, open-end fields, mapping needs, and unavailable analyses
    - Datamap-derived field-role section showing how the workflow mapped key fields before scoring
+   - question-set authenticity map explaining each major question family, expected evidence type, fabricated-response risks, and accepted-row guardrails
+   - Question Contract and question-relation graph explaining funnel, prerequisite, inverse, parallel, routing, numerical, temporal, and open/closed relationships
    - expanded scorer criteria section showing criterion id, tags, source columns, generated weight, support, decision role, rationale, and citation
    - response analysis criteria section showing which criteria actually fired, how many rows they touched, and how to read each criterion
+   - semantic signal expansion section explaining how straightlining, speed, open-end, duplicate technical, and topic-fit discoveries were weighted after question-set review
+   - blind authenticity tier and label-aware contrast section when labels exist
+   - protective human evidence section showing accepted-row guardrails
+   - fraud-signal training section showing learned signals, antisignals, blind misses, false-exclude risk, and transfer plan for naive unannotated reruns
    - dataset observations section with a cited list of semantic patterns, trend findings, supplier/source patterns, and survey-design implications
    - structured discard table with agent rationale and source evidence
    - full semantic decision table for all rows the agent investigated, including the number of fields reviewed from the stitched full response chain, early screening recommendation, full-chain counterevidence, and semantic discard basis
@@ -73,6 +87,19 @@ Use outputs from `run_quality_loop.py`:
 - `quality_summary.json`
 - `row_scores.csv`
 - `question_chain_map.csv`
+- `question_set_authenticity_map.md`
+- `question_contract.md`
+- `question_relation_graph.csv`
+- `semantic_signal_expansion_notes.md`
+- `blind_authenticity_review_table.csv` when TFG status-labeled training workbooks are available
+- `label_aware_contrast_table.csv` when TFG status-labeled training workbooks are available
+- `authenticity_signal_family_lift.csv` when TFG status-labeled training workbooks are available
+- `protective_human_evidence.md` when TFG status-labeled training workbooks are available
+- `agentic_fraud_training_report.md` when TFG status-labeled training workbooks are available
+- `frozen_input_manifest.json` when TFG status-labeled training workbooks are available
+- `agentic_calibration_loop_report.md` when TFG status-labeled training workbooks are available
+- `transferable_signal_specifications.csv` when TFG status-labeled training workbooks are available
+- `control_match_backlog.csv` when TFG status-labeled training workbooks are available
 - `demographic_summary.csv`
 - `demographic_summary.md`
 - `discovery_profiles.json`
@@ -102,6 +129,20 @@ Use outputs from `run_quality_loop.py`:
 - `client_annotation_validation.csv` when a client annotated workbook is available
 - `client_annotation_validation_summary.json` when a client annotated workbook is available
 - `client_annotation_validation.md` when a client annotated workbook is available
+- `status_dataset_summary.csv` when TFG status-labeled training workbooks are available
+- `status_respondent_signal_map.csv` when TFG status-labeled training workbooks are available
+- `status_signal_derivation.csv` when TFG status-labeled training workbooks are available
+- `status_signal_derivation.md` when TFG status-labeled training workbooks are available
+- `tfg_rejected_row_rule_ledger.csv` when TFG status-labeled training workbooks are available
+- `tfg_rejected_semantic_discovery_backlog.csv` when TFG status-labeled training workbooks are available
+- `tfg_accepted_guardrail_ledger.csv` when TFG status-labeled training workbooks are available
+- `tfg_discard_rule_evidence.csv` when TFG status-labeled training workbooks are available
+- `tfg_discard_rulebook_dataset_summary.csv` when TFG status-labeled training workbooks are available
+- `tfg_discard_signal_rulebook.md` when TFG status-labeled training workbooks are available
+- `status_semantic_reading_protocol.md` when TFG status-labeled training workbooks are available
+- `semantic_review_packet_index.csv` when TFG status-labeled training workbooks are available
+- `semantic_review_packets/` when TFG status-labeled training workbooks are available
+- `semantic_packet_notes/` when TFG status-labeled training workbooks are available
 - `deep_findings_analysis.md`
 - `workflow_improvement_log.md`
 - `respondent_review_table.md`
@@ -156,6 +197,55 @@ python3 scripts/build_client_annotation_validation.py \
   --client-workbook /path/to/client_annotated_final_review.xlsx
 ```
 
+When TFG status-labeled training workbooks exist, build the supervised status signal derivation before the next scoring pass:
+
+```bash
+python3 scripts/build_status_signal_derivation.py \
+  --input /path/to/status_labeled_workbooks_or_zip \
+  --output-dir /path/to/private_outputs/status-ground-truth-calibration
+```
+
+Build the complete rejected-row rulebook:
+
+```bash
+python3 scripts/build_tfg_discard_rulebook.py \
+  --input /path/to/status_labeled_workbooks_or_zip \
+  --output-dir /path/to/private_outputs/status-ground-truth-calibration
+```
+
+Then build semantic review packets for literal row reading:
+
+```bash
+python3 scripts/build_status_semantic_review_packets.py \
+  --input /path/to/status_labeled_workbooks_or_zip \
+  --output-dir /path/to/private_outputs/status-ground-truth-calibration
+```
+
+Then freeze the calibration loop and write transferable signal specifications:
+
+```bash
+python3 scripts/build_agentic_calibration_loop.py \
+  --annotated-input /path/to/status_labeled_workbooks_or_zip \
+  --calibration-dir /path/to/private_outputs/status-ground-truth-calibration \
+  --heldout-input /path/to/blinded_holdout.xlsx
+```
+
+The status derivation and rulebook must iterate every labeled row. Read all `status = 5` rows to derive likely fabricated, bot-like, LLM-assisted, inattentive, or unauthentic response signals. Read all `status = 3` rows to derive stronger false-positive guardrails. Do not treat script-staged signals as final truth. The final signal bank must explain each promoted signal in plain language, give supporting examples, give accepted-row counterexamples, and say whether the signal affects review routing, final discard escalation, or only the analyst report.
+
+The semantic packet workflow is mandatory when the goal is to build the detection methodology. The agent must read the packets across multiple turns if needed, write packet notes, and then update the internal signal bank and next-pass configuration. This is how autosurvey builds detection muscle for unannotated datasets. The labeled `status` field is training evidence only. It must not be required or available when scoring the blinded or future unannotated files.
+
+The agentic calibration loop report is mandatory before scoring the blinded dataset. It must freeze inputs, name held-out files, summarize blind-vs-label contrast, list transferable signal specifications, and state which residual errors still need review. If stable residual errors remain, continue methodology development instead of scoring the blinded file.
+
+Before using status labels in the final interpretation, report the blind-then-contrast sequence. The report must say what the review found with `status` and client flags hidden, then what changed after the label-aware contrast. Do not reverse-engineer explanations from `status = 5`. Say plainly when a client rejection appears to reflect authenticity risk, ordinary quality risk, routing or survey-design ambiguity, or a client-only rule not yet learned.
+
+When the run uses annotated `status = 3/5` files, write `agentic_fraud_training_report.md`. This is the main training narrative. It should explain that Autosurvey is using rejected rows as the client-removal corpus and accepted rows as the antisignal corpus, then show which evidence families and interactions are likely to transfer to unannotated data. It must include blind-vs-label contrast, false-exclude risk, accepted-row protective evidence, blind misses, and the detector upgrade plan before the naive rerun.
+
+Before the final essay or dashboard, write `question_set_authenticity_map.md` in natural language. Do not delegate this to a script-generated table. The map should explain every major survey section, what evidence the question asks for, what authentic answers can look like, what fabricated or unqualified answers can look like, and which accepted-row guardrails prevent over-discarding. Use the map to interpret TFG-derived signals as semantic questions. For example, ask whether a polished answer lacks lived detail, whether a survey-meta answer replaced a personal answer, whether a personal-home example violates a professional respondent universe, whether a coherent answer belongs to the wrong domain, and whether a list is acceptable for that prompt.
+
+Also write `question_contract.md` and `question_relation_graph.csv`. The contract should explain the intended respondent universe, valid answer types, timing burden, routing prerequisites, brand or product funnels, and protective human evidence. The graph should classify relationships as parallel, inverse, prerequisite, funnel progression, mutually exclusive, temporal, numerical, routing, or open/closed contradiction.
+
+Also write `semantic_signal_expansion_notes.md`. This is an agent-authored evidence-weighting memo, not a script output. It should explain how each major discovery changed after semantic review. Straightlining notes must discuss question similarity and answer-time context when available. Speed notes must discuss page, section, question, or total duration context when available. Open-end notes must discuss prompt fit, respondent-universe fit, semantic authenticity, and accepted-row guardrails. Duplicate technical notes must distinguish one repeated technical fact from independent repeated response chains. Topic-fit notes must distinguish direct fit, adjacent fit, wrong universe, survey meta-answer, generic filler, and semantic drift.
+
 Then do the findings essay pass before the dashboard is built. This is not a rote script step and it is not a form to fill out. Read the Datamap field-role mapping, discovery profile, demographic summary, scorer criteria, independent full-response audit, full-chain analyst readout, deep semantic sample, final judgment table, kept review synthesis, and next-pass signal inventory. Also read the prior run's findings essay, escalation packet, internal signal bank, and next-pass inventory when they exist, so this run can test whether earlier signals improved or failed. Then write:
 
 - `agent_findings_essay.md`: a natural prose essay with citations. It should explain what we discovered in the run, what the field-role mapping changed, what the best and worst response chains reveal, what the final discard or keep recommendations mean, what demographic and aggregate context matters, what should change in the next pass, and where the workflow should challenge itself.
@@ -184,19 +274,29 @@ python3 scripts/build_visual_dashboard.py \
 - Explain criteria in business language, not model language.
 - Use statistics inside analyst prose. State what the count means before showing detailed tables. Do not dump rows, criteria, or parameter fields as the report itself.
 - Explain that criteria and provisional weights were generated from discovery, trial evidence, findings, and feedback.
+- Explain how each important weight was derived from semantic expansion, not only from a raw scripted flag. A report should say why the evidence became stronger, weaker, or stayed review-only after the agent checked question similarity, timing, open-ended authenticity, chain coherence, and accepted-row guardrails.
 - Include justifications for each scoring criterion.
 - Include respondent metadata in review tables wherever source fields are available.
 - Include the stitched question chain and full response chain before final semantic review. The final agent judgment table must carry `response_chain_field_count`, `full_response_chain`, `semantic_review_chain_field_count`, and `semantic_review_chain`. The final discard decision must be based on those chains plus the surfaced evidence.
 - The independent full-response audit is a blocking artifact. It must contain one row per source respondent. Before publishing, reconcile it against the source row count, `row_scores.csv`, and `respondent_review_table.csv`. If any count differs, stop and fix the run.
 - Read the independent full-response audit as a whole-population review surface. The final report must say what the all-row audit found among unflagged rows, not only what happened to the first-pass review queue.
 - Parse the Datamap into field roles before scoring or reporting. The final report should show that the workflow understood the role of `qcoe1`, `q9`, `q10`, `q32`, `q43`, and `outro` when present, and should also identify project-specific equivalents such as `qIndustry`, `CLASSIFY`, buyer-role fields, product-involvement fields, and use-case fields.
+- Examine all question sets and report the authenticity logic for each one before presenting discard findings. This includes screeners, role qualifiers, brand or product lists, matrices, allocation tasks, use-case prompts, other-specify fields, narrative open ends, final feedback, demographics, timing, supplier fields, and technical identifiers.
 - Build and report a project-specific topic and answer map before scoring text relevance or answer depth. If the prompt asks for a physical item, location, product use, brand, simple reason, or short factor, the report must explain how short valid answers were protected from over-discard.
 - Include demographic and aggregate insights from source data. These are report context, not quality-discard evidence by themselves.
 - Treat client-annotated Excel review files as the minimum audit surface. The report should match their practical columns and counts where relevant, then go further with prose analysis, chain-level semantic judgment, full-chain counterevidence, kept-row learning, and next-pass signal updates.
+- Treat TFG `status` labels as observed client outcomes for methodology development when they are present. `status = 3` means TFG accepted the respondent. `status = 5` means TFG rejected the respondent because of quality or authenticity concerns. Reports must state the status counts, the rejected rate, the strongest rejection signals, the strongest accepted-row guardrails, and what should be tested on the blinded dataset.
+- Separately report client rejection probability and fabrication/authenticity risk. Do not call a respondent fraudulent only because `status = 5`.
+- Frame annotated-set outputs as model-training artifacts, not normal Autosurvey runtime outputs. The main question is what the rejected set teaches, what the accepted set protects, and how those lessons transfer to blank Decipher detection.
+- For blank Decipher runs, do not mention `status = 3`, `status = 5`, or hidden client outcomes in row-level decisions. Report the learned signal questions applied to the current workbook, the current workbook evidence, the final Tier 5 rows, and the protected rows.
+- Keep the five tiers separated. Only Tier 5 is the discard set. Report Tiers 2-4 as protective notes or review volume, not exclusion.
 - When a client annotated workbook exists, treat it as a baseline validation set. Build `client_annotation_validation.md` and read it before finalizing. The run must report client action counts, client flag-family counts, autosurvey coverage by client signal family, autosurvey rows the client marked `No concerns`, autosurvey discard rows the client kept, and any artifact count contradictions.
+- When TFG status labels exist, the report must separately show status-5 recall and status-3 false-positive risk. A run cannot claim success because it finds a small high-confidence discard set if it misses most TFG-rejected rows. It also cannot claim success by catching many status-5 rows if it sweeps in large groups of status-3 respondents without a clear guardrail.
 - Do not call a benchmark run complete when the final reports disagree with the discard set, when client `Review closely` rows were not semantically reviewed, or when a client signal family has low coverage without an analyst explanation and a next-pass fix.
 - Always report fielding start/date/timestamp discoveries when the source file contains them. Odd-hour starts and start bursts are fielding-context findings unless corroborating evidence or project rules make them row-level evidence.
 - Treat scoring criteria as the initial case file. The final review must act as a critic and analyst that can supersede static checks when the full chain gives a meaningful semantic explanation.
+- Treat straightlining as a semantic and timing problem, not only a repeated-answer problem. Report whether repeated answers occurred across similar or dissimilar items, whether answer-time or page-time evidence made the behavior plausible, and whether open-ended responses supported or weakened the concern.
+- Treat open ends as the primary authenticity readout. Reports must explain whether the respondent answered the requested evidence type and belonged to the expected respondent universe. Related topic language should not be penalized when the chain shows a real answer; polished but generic or off-domain language should not be rescued by fluency alone.
 - Treat the dashboard and final report as client-facing research products, not formatted log output. The final prose must synthesize the exploration, field-role mapping, response chains, early screening signals, counterevidence, demographics, and next-pass learning before publishing.
 - Do not let scripted string assembly substitute for analysis. A script can assemble charts, ledgers, citations, and HTML, but the deciding prose must come from `agent_findings_essay.md`, written after studying the run materials.
 - Do not let the run become discard-only. The final package must also include `agent_positive_insights_report.md`, with strong retained response chains, useful aggregate findings, guardrails that protected good data, and next-pass learning that improves quality without over-excluding real respondents.
@@ -206,6 +306,12 @@ python3 scripts/build_visual_dashboard.py \
 - Produce readable prose analysis for the best and worst full response chains. The prose must explain what the agent saw, why strong rows are strong, why bad rows remain bad after full-chain review, and where the workflow should challenge itself.
 - Do not treat generated tables, charts, or flags as the final communication layer. They support analysis, but the report must include agent-written interpretation for the human reviewer.
 - Treat templates as scaffolding, not the product. The final essay, escalation packet, positive insights report, and dashboard prose must include fresh run-specific insight, client terminology definitions where needed, and citations to the evidence that produced each claim.
+- Treat TFG-derived semantic criteria as reusable detection questions, not fixed prose or keyword recipes. The report should explain how those questions changed the review of this dataset's actual question sets.
+- Report every promoted signal with its weight basis: prompt fit, question similarity, time plausibility, semantic authenticity, chain coherence, independence, recurrence, accepted guardrail, and survey-design ambiguity. If the basis is weak, say it remains review-only.
+- Aggregate correlated evidence within families before reporting convergence. Do not present many related straightlining or timing metrics as independent reasons.
+- Treat AI-assistance concern as weak supporting evidence only. Polished prose, formality, low typo rate, or em dashes must never independently determine exclusion.
+- Explicitly report broad or failed signals. If a signal catches many status-5 rows but also sweeps many status-3 rows, call it an overbroad training signal and document the required antisignal guardrail.
+- Report blind misses as the highest-value source of new semantic rules. A status-5 row that looked acceptable blind should trigger careful reading, not automatic rationalization.
 - Treat every script-produced prose block as draft evidence, not final copy. Scripts may stage counts, examples, citations, charts, and tables. The agent must author or rewrite the final findings essay, positive report, escalation packet, dashboard prose, and visual findings report after reading the run evidence.
 - Apply the authorship rule to every PM-facing or client-facing artifact. No artifact passes because a script wrote a file. It passes only after the agent reads the evidence, decides the narrative, verifies the citations, and rewrites generated text into interpretable research prose.
 - Do not solve poor prose by teaching scripts to fill nicer templates. The repair is agent authoring: read the artifacts, decide what the evidence means, write the explanation, and cite the supporting table or row.
@@ -261,7 +367,9 @@ python3 scripts/build_visual_dashboard.py \
 
 - Read `references/report-templates.md` before writing PM or client summaries.
 - Read `references/analyst-prose-standard.md` before writing client-facing findings, positive insights, dashboard prose, or visual findings reports.
+- Read `references/agentic-fraud-training-reporting.md` before writing annotated fraud-signal training reports, calibration dashboard prose, or naive-rerun readiness summaries.
 - Read `../cleaning-survey-quality/references/client-terminology-glossary.md` before using client, PM, or survey-quality shorthand in final prose.
+- Read `../cleaning-survey-quality/references/semantic-signal-expansion.md` before reporting weights, straightlining, speed, open-end authenticity, semantic similarity, or convergence logic.
 - Read `../cleaning-survey-quality/references/dataset-cycle-loop.md` before summarizing reruns, next-dataset cycles, workflow hardening, terminal states, or learning records.
 - Read `references/client-annotation-benchmark.md` when using client-provided annotated workbooks as examples or calibration material.
 - Read `references/escalation-reporting.md` before changing escalation sections.

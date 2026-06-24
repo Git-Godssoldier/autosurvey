@@ -14,14 +14,14 @@ import pandas as pd
 from openpyxl import load_workbook
 
 
-REQUIRED_CLIENT_COLUMNS = [
+FARNSWORTH_CLIENT_COLUMNS = [
     "Respondent Flags",
     "Respondent Score",
     "Recommended_Action",
 ]
 
 
-FLAG_FAMILIES: list[tuple[str, Callable[[dict[str, object]], bool]]] = [
+FARNSWORTH_FLAG_FAMILIES: list[tuple[str, Callable[[dict[str, object]], bool]]] = [
     ("client_any_flag", lambda row: text(row.get("Respondent Flags")) not in {"", "No concerns"}),
     (
         "client_light_or_close_review",
@@ -49,6 +49,11 @@ FLAG_FAMILIES: list[tuple[str, Callable[[dict[str, object]], bool]]] = [
     ),
 ]
 
+STATUS_FLAG_FAMILIES: list[tuple[str, Callable[[dict[str, object]], bool]]] = [
+    ("tfg_accepted_status_3", lambda row: normalized_status(row.get("status")) == "3"),
+    ("tfg_rejected_status_5", lambda row: normalized_status(row.get("status")) == "5"),
+]
+
 
 def text(value: object) -> str:
     if value is None:
@@ -56,6 +61,35 @@ def text(value: object) -> str:
     if isinstance(value, float) and pd.isna(value):
         return ""
     return str(value).strip()
+
+
+def normalized_status(value: object) -> str:
+    raw = text(value)
+    if raw.endswith(".0"):
+        raw = raw[:-2]
+    return raw
+
+
+def status_action(value: object) -> str:
+    status = normalized_status(value)
+    if status == "3":
+        return "TFG accepted"
+    if status == "5":
+        return "TFG rejected"
+    if status:
+        return f"status {status}"
+    return ""
+
+
+def status_flag(value: object) -> str:
+    status = normalized_status(value)
+    if status == "3":
+        return "TFG accepted status 3"
+    if status == "5":
+        return "TFG rejected status 5"
+    if status:
+        return f"client status {status}"
+    return ""
 
 
 def pct(numerator: int, denominator: int) -> str:
@@ -84,7 +118,14 @@ def client_rows(path: Path, sheet: str, id_column: str) -> tuple[list[dict[str, 
     ws = workbook[sheet]
     headers = [ws.cell(1, column).value for column in range(1, ws.max_column + 1)]
     index = {text(header): column + 1 for column, header in enumerate(headers) if text(header)}
-    missing = [column for column in REQUIRED_CLIENT_COLUMNS + [id_column] if column not in index]
+    has_farnsworth_review = all(column in index for column in FARNSWORTH_CLIENT_COLUMNS)
+    has_status_review = "status" in index
+    if not has_farnsworth_review and not has_status_review:
+        raise SystemExit(
+            "Client workbook must contain either Farnsworth review columns "
+            f"({', '.join(FARNSWORTH_CLIENT_COLUMNS)}) or a TFG `status` column."
+        )
+    missing = [column for column in [id_column] if column not in index]
     if missing:
         raise SystemExit(f"Client workbook is missing required columns: {', '.join(missing)}")
 
@@ -98,7 +139,12 @@ def client_rows(path: Path, sheet: str, id_column: str) -> tuple[list[dict[str, 
             row[header] = ws.cell(row_index, column).value
         rows.append(row)
 
-    summary: dict[str, object] = {}
+    status_counts = Counter(normalized_status(row.get("status")) for row in rows if normalized_status(row.get("status")))
+    summary: dict[str, object] = {
+        "annotation_schema": "farnsworth_review" if has_farnsworth_review else "tfg_status",
+        "has_status_column": has_status_review,
+        "status_counts": dict(status_counts),
+    }
     if "Cleaning Summary" in workbook.sheetnames:
         summary_ws = workbook["Cleaning Summary"]
         for row_index in range(1, summary_ws.max_row + 1):
@@ -107,6 +153,25 @@ def client_rows(path: Path, sheet: str, id_column: str) -> tuple[list[dict[str, 
             if key:
                 summary[key] = value
     return rows, summary
+
+
+def client_action(row: dict[str, object]) -> str:
+    action = text(row.get("Recommended_Action"))
+    return action or status_action(row.get("status"))
+
+
+def client_flags(row: dict[str, object]) -> str:
+    flags = text(row.get("Respondent Flags"))
+    return flags or status_flag(row.get("status"))
+
+
+def flag_families(summary: dict[str, object]) -> list[tuple[str, Callable[[dict[str, object]], bool]]]:
+    if summary.get("annotation_schema") == "tfg_status":
+        return STATUS_FLAG_FAMILIES
+    families = list(FARNSWORTH_FLAG_FAMILIES)
+    if summary.get("has_status_column"):
+        families.extend(STATUS_FLAG_FAMILIES)
+    return families
 
 
 def indexed(df: pd.DataFrame) -> dict[str, dict[str, object]]:
@@ -162,6 +227,7 @@ def main() -> None:
     run_dir = args.run_dir.expanduser().resolve()
     client_workbook = args.client_workbook.expanduser().resolve()
     clients, workbook_summary = client_rows(client_workbook, args.sheet, args.id_column)
+    families = flag_families(workbook_summary)
 
     row_scores = indexed(read_csv(run_dir / "row_scores.csv"))
     judgments = indexed(read_csv(run_dir / "agent_review_judgment_table.csv"))
@@ -173,13 +239,14 @@ def main() -> None:
         scored = row_scores.get(key, {})
         judgment = judgments.get(key, {})
         discard = discards.get(key, {})
-        family_hits = [name for name, predicate in FLAG_FAMILIES if predicate(row)]
+        family_hits = [name for name, predicate in families if predicate(row)]
         validation_rows.append(
             {
                 "respondent_key": key,
                 "client_row_number": row.get("client_row_number"),
-                "client_recommended_action": text(row.get("Recommended_Action")),
-                "client_respondent_flags": text(row.get("Respondent Flags")),
+                "client_status": normalized_status(row.get("status")),
+                "client_recommended_action": client_action(row),
+                "client_respondent_flags": client_flags(row),
                 "client_respondent_score": row.get("Respondent Score"),
                 "client_flag_families": "; ".join(family_hits),
                 "autosurvey_computed_action": text(scored.get("computed_action")),
@@ -196,7 +263,7 @@ def main() -> None:
     validation.to_csv(run_dir / "client_annotation_validation.csv", index=False)
 
     family_summary = []
-    for name, predicate in FLAG_FAMILIES:
+    for name, predicate in families:
         keys = [text(row.get("respondent_key")) for row in clients if predicate(row)]
         reviewed = [key for key in keys if key in judgments]
         discarded = [key for key in keys if key in discards]
@@ -212,19 +279,19 @@ def main() -> None:
             }
         )
 
-    action_counts = Counter(text(row.get("Recommended_Action")) for row in clients)
-    flag_counts = Counter(text(row.get("Respondent Flags")) for row in clients)
+    action_counts = Counter(client_action(row) for row in clients)
+    flag_counts = Counter(client_flags(row) for row in clients)
     over_reviewed = [
         key
         for key in judgments
-        if text(next((row for row in clients if text(row.get("respondent_key")) == key), {}).get("Respondent Flags"))
-        == "No concerns"
+        if client_flags(next((row for row in clients if text(row.get("respondent_key")) == key), {}))
+        in {"No concerns", "TFG accepted status 3"}
     ]
     client_keep_discards = [
         key
         for key in discards
-        if text(next((row for row in clients if text(row.get("respondent_key")) == key), {}).get("Recommended_Action"))
-        == "Keep"
+        if client_action(next((row for row in clients if text(row.get("respondent_key")) == key), {}))
+        in {"Keep", "TFG accepted"}
     ]
     artifact_claims = detect_discard_claims(run_dir, len(discards))
     summary = {
@@ -233,6 +300,7 @@ def main() -> None:
         "client_rows": len(clients),
         "client_summary": workbook_summary,
         "client_action_counts": dict(action_counts),
+        "client_status_counts": workbook_summary.get("status_counts", {}),
         "top_client_flag_counts": dict(flag_counts.most_common(20)),
         "autosurvey_scored_rows": len(row_scores),
         "autosurvey_agent_reviewed_rows": len(judgments),
@@ -254,16 +322,19 @@ def validation_note(
     judgments: dict[str, dict[str, object]],
     discards: dict[str, dict[str, object]],
 ) -> str:
-    client_action = text(client_row.get("Recommended_Action"))
-    client_flags = text(client_row.get("Respondent Flags"))
-    if key in discards and client_action == "Keep":
+    action = client_action(client_row)
+    flags = client_flags(client_row)
+    status = normalized_status(client_row.get("status"))
+    if key in discards and action in {"Keep", "TFG accepted"}:
         return "Autosurvey discard conflicts with client keep baseline. Requires analyst explanation and PM review."
-    if client_action in {"Light review", "Review closely"} and key not in judgments:
+    if status == "5" and key not in judgments and key not in discards:
+        return "TFG rejected this row with status 5, but autosurvey did not include it in final semantic review."
+    if action in {"Light review", "Review closely"} and key not in judgments:
         return "Client routed this row to review, but autosurvey did not include it in final semantic review."
-    if client_flags != "No concerns" and key not in judgments:
+    if flags not in {"", "No concerns", "TFG accepted status 3"} and key not in judgments:
         return "Client flagged this row, but autosurvey did not include it in final semantic review."
-    if client_flags == "No concerns" and key in judgments:
-        return "Autosurvey reviewed this row despite no client concern. Explain the added signal or demote it."
+    if action in {"Keep", "TFG accepted"} and key in judgments:
+        return "Autosurvey reviewed this client-accepted row. Explain the added authenticity signal or demote it."
     if key in judgments:
         return "Autosurvey included this row in final semantic review."
     return "No baseline discrepancy."
@@ -284,6 +355,11 @@ def markdown(summary: dict[str, object], validation: pd.DataFrame) -> str:
     ]
     for action, count in summary["client_action_counts"].items():
         lines.append(f"- {action}: {count}")
+    if summary.get("client_status_counts"):
+        lines.extend(["", "Client status counts:"])
+        for status, count in summary["client_status_counts"].items():
+            label = status_action(status)
+            lines.append(f"- status {status} ({label}): {count}")
     lines.extend(["", "Top client flags:"])
     for flag, count in summary["top_client_flag_counts"].items():
         lines.append(f"- {flag}: {count}")
