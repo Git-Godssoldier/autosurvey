@@ -13,6 +13,7 @@ Reports should make clear whether the run was:
 - candidate-vs-final rubric calibration
 - final PM adjudication summary
 - methodology development from annotated TFG workbooks
+- retrospective continuous evolution over already-used TFG development pairs
 
 Before writing PM-facing or client-facing prose, read `../cleaning-survey-quality/references/client-terminology-glossary.md`. Define any client-specific shorthand, study fields, quality terms, PM terms, or internal criteria before using them in final artifacts.
 
@@ -25,6 +26,8 @@ Before reporting labeled calibration, status comparisons, authenticity risk, fiv
 Before reporting annotated fraud-signal discovery, status-derived training, antisignals, blind-vs-label contrast, or a naive unannotated rerun plan, read `references/agentic-fraud-training-reporting.md`. These outputs must read as agentic fraud-model training reports, not generic quality summaries.
 
 When reporting the full annotated semantic loop, keep client-process fit and authenticity risk separate. `client_reject_probability` describes how much a row resembles the client's labeled removals. `semantic_risk_score` describes what the blind full-chain reviewer saw about faithful human response behavior. The report must not say that either score alone proves bot activity, LLM use, or fraud.
+
+When reporting the 11 existing TFG original/graded pairs, call the result retrospective development validation. These pairs are not untouched external tests because they have already shaped Autosurvey methodology.
 
 Before explaining weights, semantic similarity, straightlining, speed, open-end authenticity, duplicate technical evidence, or convergence, read `../cleaning-survey-quality/references/semantic-signal-expansion.md`. Reports must show how raw checks became weighted evidence after agent reasoning.
 
@@ -296,6 +299,17 @@ python3 scripts/build_status_semantic_review_packets.py \
   --input /path/to/status_labeled_workbooks_or_zip \
   --output-dir /path/to/private_outputs/status-ground-truth-calibration
 ```
+
+Build the continuous evolution public package for the 11 development pairs:
+
+```bash
+python3 scripts/build_continuous_evolution_loop.py \
+  --original-dir /path/to/original-workbooks \
+  --graded-dir /path/to/Data-Sets-with-Cleaning-Answer \
+  --output-dir /path/to/private_outputs/continuous-evolution
+```
+
+The public folder from that command must contain exactly `AUTOSURVEY_RESULTS.xlsx` and `AUTOSURVEY_EVOLUTION.md`. Keep pair registries, fold predictions, leakage audits, metrics, and error ledgers under `.autosurvey-internal/`.
 
 Then freeze the calibration loop and write transferable signal specifications:
 

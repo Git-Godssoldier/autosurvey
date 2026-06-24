@@ -9,6 +9,8 @@ Use this skill when a client supplies decisions for a previously blinded survey 
 
 External validation is not a calibration run. The benchmark is scored once, sealed, unblinded once, and then marked consumed.
 
+Do not use this skill name for the 11 existing TFG original/graded workbook pairs. Those pairs are development data because they have already been used for methodology development. Use `build_continuous_evolution_loop.py` from the reporting skill for retrospective nested validation on those pairs.
+
 ## Required order
 
 1. Inventory the repository, latest methodology, original blinded workbook, and candidate label files by metadata and headers only.

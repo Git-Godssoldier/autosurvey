@@ -9,6 +9,8 @@ Use this skill after at least one workbook has PM-adjudicated final review label
 
 This skill should evolve analysis methodology, generated criteria, discovery coverage, generated provisional weights, and evaluation quality. A flat scoring tweak is the last resort, not the default.
 
+When the task covers the 11 existing TFG original/graded pairs, treat them as development data and use dataset-level out-of-fold validation. Do not call those results external validation or a release claim.
+
 ## Workflow
 
 1. Load the candidate and adjudicated workbooks.

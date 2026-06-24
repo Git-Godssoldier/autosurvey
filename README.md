@@ -184,6 +184,33 @@ python3 skills/reporting-survey-quality/scripts/audit_external_validation_integr
 Once a label file is opened after a valid seal, that benchmark is consumed. It
 cannot be reused as an untouched holdout for future Autosurvey changes.
 
+Continuous evolution is the development-validation path for the 11 existing
+TFG original and cleaning-answer workbook pairs. These pairs are development
+data because their labels have already been used for methodology work. Do not
+describe their results as untouched external validation.
+
+```bash
+python3 skills/reporting-survey-quality/scripts/build_continuous_evolution_loop.py \
+  --original-dir "/Users/jeremyalston/Perfect/TFG Data Cleaning Sets" \
+  --graded-dir "/Users/jeremyalston/Perfect/Annnotated and test'/Data Sets with Cleaning Answer" \
+  --output-dir "/Users/jeremyalston/Perfect/TFG Data Cleaning Sets/autosurvey-outputs/continuous-evolution"
+```
+
+The public output folder from that command must contain exactly two files:
+
+- `AUTOSURVEY_RESULTS.xlsx`
+- `AUTOSURVEY_EVOLUTION.md`
+
+Detailed hashes, fold assignments, predictions, leakage audits, metrics, and
+error ledgers belong under `.autosurvey-internal/`, not in the public folder.
+See `docs/autosurvey-output-contract.md` for the reusable output schema.
+The terminal state must be honest. Use `TARGET_MET` only when the nested
+dataset-level metrics and the future untouched external benchmark gates are
+both satisfied. Otherwise use `IMPROVING_NOT_MET`,
+`PLATEAU_REQUIRES_NEW_SIGNAL`, `BLOCKED_REQUIRES_NEW_UNTOUCHED_HOLDOUT`,
+`BLOCKED_LABEL_AMBIGUITY`, `FAILED_RECONCILIATION`, or
+`FAILED_INTEGRITY_AUDIT`.
+
 The run is not complete until an agent has reviewed the flagged rows and the output
 folder contains:
 
