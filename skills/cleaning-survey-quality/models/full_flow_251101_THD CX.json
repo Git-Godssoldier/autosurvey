@@ -1,0 +1,84 @@
+{
+  "dataset": "251101_THD CX.xlsx",
+  "n_total": 1905,
+  "n_train": 1333,
+  "n_val": 286,
+  "n_test": 286,
+  "threshold": 0.5714070351758794,
+  "auc": 0.8390553247321233,
+  "ml": {
+    "accuracy": 0.9335664335664335,
+    "precision": 0.4,
+    "recall": 0.23529411764705882,
+    "f1": 0.2962962962962963,
+    "tp": 4,
+    "fp": 6,
+    "tn": 263,
+    "fn": 13
+  },
+  "combined": {
+    "accuracy": 0.9230769230769231
+  },
+  "top_features": [
+    {
+      "feature": "lang_LangAssessReadLevel",
+      "importance": 0.15717934557236163
+    },
+    {
+      "feature": "sig_clientflagsr1_nonzero",
+      "importance": 0.15698352788377823
+    },
+    {
+      "feature": "flag_CLIENTFLAGSr1",
+      "importance": 0.14422514537111622
+    },
+    {
+      "feature": "lang_LangAssessNumSyl",
+      "importance": 0.06492267189719757
+    },
+    {
+      "feature": "signals_x_matrix",
+      "importance": 0.0637622583012053
+    },
+    {
+      "feature": "rd_RD_Searchr1",
+      "importance": 0.048836190007972874
+    },
+    {
+      "feature": "coded_unique_ratio",
+      "importance": 0.03810232647735165
+    },
+    {
+      "feature": "lang_LangAssessNumWords",
+      "importance": 0.03438858318195487
+    },
+    {
+      "feature": "demo_q9",
+      "importance": 0.0300733560083723
+    },
+    {
+      "feature": "matrix_unique_count",
+      "importance": 0.02064714883981226
+    },
+    {
+      "feature": "matrix_most_common_freq",
+      "importance": 0.01799066047752278
+    },
+    {
+      "feature": "demo_qager1",
+      "importance": 0.017896971866782296
+    },
+    {
+      "feature": "demo_qNumEmployees",
+      "importance": 0.017244971009890468
+    },
+    {
+      "feature": "matrix_unique_ratio",
+      "importance": 0.014314442973211737
+    },
+    {
+      "feature": "supplier_x_signals",
+      "importance": 0.013987319604486403
+    }
+  ]
+}

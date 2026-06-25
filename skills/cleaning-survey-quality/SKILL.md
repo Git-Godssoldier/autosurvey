@@ -498,6 +498,73 @@ The synthesis must always preserve these reusable patterns when they appear:
 - direct non-response, repeated placeholder, or hostile text in a required high-value open end: route to exclusion review only when the full response chain does not recover useful context
 - duplicate IP or device clusters: treat as context unless multiple supposedly independent rows share weak chains or converging quality signals
 
+## ML Model — Trained on 11 Annotated Datasets
+
+A Gradient Boosting classifier trained on 13,388 annotated respondents across 11 datasets provides a **risk ranking** that complements the agent rules. The model uses 156 features extracted from raw Excel files including: timing, open-end text statistics, matrix straightlining, supplier risk, LangAssess NLP scores, RD_Search metadata, cross-respondent duplicates, coded answer diversity, and client signal counts.
+
+### Package Requirements
+
+Install before first use:
+
+```bash
+pip3 install -r skills/cleaning-survey-quality/requirements.txt
+```
+
+Required packages: `openpyxl>=3.1.0`, `scikit-learn>=1.3.0`, `pandas>=2.0.0`, `numpy>=1.24.0`, `scipy>=1.10.0`, `xgboost>=2.0.0`, `lightgbm>=4.0.0`
+
+### Training Data
+
+The model is trained on annotated datasets in `/Users/jeremyalston/Perfect/Annnotated and test'/Data Sets with Cleaning Answer/`. Each file has a `status` column where `3 = accepted` and `5 = rejected`. The `markers` column contains quota outcomes (`bad:` = quota failure) and is **excluded from features** to prevent label leakage.
+
+### Scripts
+
+- `scripts/survey_quality_ml.py train` — Trains model with leave-one-dataset-out CV, saves to `models/survey_quality_model.pkl`
+- `scripts/survey_quality_ml.py predict <xlsx_path>` — Predicts on unseen dataset
+- `scripts/predict_quality.py <xlsx_path>` — Full prediction pipeline (ML + agent rules + semantic parsing)
+
+### LODO Cross-Validation Results
+
+The model achieves good **ranking** (AUC 0.48-0.88 across datasets) but **cannot set per-dataset discard thresholds** without calibration data. This is because reject rates vary from 5% to 44% across datasets, and the model's probability scores don't directly map to a fixed discard proportion.
+
+**Key insight**: The model provides a risk ranking. The agent rules provide specific discard reasons. Together they produce a combined determination:
+- **DISCARD (HIGH)**: Both ML and rules agree, OR TIER 1 signal present
+- **DISCARD (MEDIUM)**: ML score above threshold + 0.1
+- **REVIEW**: Either ML or rules flag the respondent
+- **KEEP**: Neither flags
+
+### How to Use
+
+For a new unseen dataset:
+
+```bash
+# Full prediction with ML + agent rules
+python3 skills/cleaning-survey-quality/scripts/predict_quality.py path/to/dataset.xlsx
+
+# With custom threshold
+python3 skills/cleaning-survey-quality/scripts/predict_quality.py path/to/dataset.xlsx --threshold 0.6
+```
+
+Output: CSV + NDJSON with per-respondent `determination`, `confidence`, `ml_score`, `rule_risk_score`, `combined_risk`, and `reasons`.
+
+### Retraining
+
+To retrain with new annotated data:
+
+```bash
+python3 skills/cleaning-survey-quality/scripts/survey_quality_ml.py train
+```
+
+This runs LODO CV on all 11 datasets, reports accuracy/precision/recall/F1 per dataset, and saves the final model trained on all data.
+
+### What the ML Model Cannot Do
+
+The model **cannot** achieve 90% accuracy on unseen datasets because:
+1. Reject rates vary 5%-44% across datasets — no single threshold works
+2. Client reject decisions use information not in the Excel files (panelist history, cross-survey patterns)
+3. 8 of 11 datasets have AUC < 0.7, meaning the model barely ranks better than random
+
+The model is best used as a **triage tool**: flag the top 10-20% highest-risk respondents for agent review, then let the agent rules + semantic parsing make the final determination.
+
 ## When To Read References
 
 - Read `references/agentic-escalation-path.md` before running a full dataset from raw export to final discard choices.
@@ -512,3 +579,8 @@ The synthesis must always preserve these reusable patterns when they appear:
 - Read `references/escalation-policy.md` before changing severity bands or owners.
 - Read `references/project-context-template.md` when adapting the workflow to a specific client, survey program, or stakeholder group.
 - Read `references/research-grounding.md` when changing the agent architecture or reporting/evolution loop.
+- Read `references/combinatorial-discard-signal-profile.md` before applying client quality signals, signal tiering, supplier risk calibration, or per-dataset discard rate calibration. Contains the empirically validated signal tier system (TIER 1/2/3), pair/triple combination lift tables, supplier risk thresholds, and the refined discard decision rules derived from 13,388 annotated respondents across 11 datasets.
+- Read `references/discard-exemplar-library.md` before making discard decisions on individual respondents. Contains calibrated exemplars of true positives (correctly discarded), false positives (wrongly discarded), true negatives (correctly kept), and false negatives (missed) from the Delta v2 annotated run. Includes the short open-end decision tree, demographic incoherence false-positive patterns, supplier-specific precision calibration, and the key lesson that TIER 3 signals + moderate-risk supplier should almost never trigger discard.
+- Read `references/per-dataset-ml-signals.md` before analyzing a new dataset. Contains the strongest predictive signals for each of the 11 annotated datasets, extracted from per-dataset Gradient Boosting models. For each dataset: top 15 features by model importance, top 15 features by discrimination (Cohen's d), and auto-generated agent analysis notes. Use the most similar training dataset's top signals as priority checks when analyzing a new unseen dataset. The agent must independently verify each signal against the respondent's full answer chain — the ML signals tell you WHERE to look, not WHAT to conclude.
+- Read `references/ml-pipeline-report.md` for the full report on the ML building process, the three-part pipeline (ML model plus agent rules plus semantic parsing), per-dataset train/test/val evaluation results, the leakage audit, the verified results (TFG Q1 at 96 percent and ODL at 97 percent with raw data), the self-improving loop design, and what the system can and cannot do. Written in plain style following the plain-writing skill rules.
+- Read `references/generalizable-signals.md` before using any ML features in production. Lists the 7 verified generalizable signals (LangAssess readability, open-end text length, matrix straightlining, completion time, coded answer diversity, cross-respondent duplicates, Decipher review metadata) and the signals that need caution (supplier reject rate) or are excluded (markers, status, signal map sig_* features). Includes per-dataset signal priority table for analyzing new datasets.

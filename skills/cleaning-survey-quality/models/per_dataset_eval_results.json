@@ -1,0 +1,838 @@
+[
+  {
+    "dataset": "251101_THD CX.xlsx",
+    "n_total": 286,
+    "n_train": 1333,
+    "n_val": 286,
+    "n_test": 286,
+    "n_test_rejected": 17,
+    "test_reject_rate": 0.05944055944055944,
+    "threshold": 0.01,
+    "auc": 0.8547999125300678,
+    "ml": {
+      "accuracy": 0.9370629370629371,
+      "precision": 0.46153846153846156,
+      "recall": 0.35294117647058826,
+      "f1": 0.4,
+      "tp": 6,
+      "fp": 7,
+      "tn": 262,
+      "fn": 11
+    },
+    "rules": {
+      "accuracy": 0.9300699300699301
+    },
+    "combined": {
+      "accuracy": 0.9265734265734266,
+      "precision": 0.375,
+      "recall": 0.35294117647058826,
+      "f1": 0.36363636363636365,
+      "tp": 6,
+      "fp": 10,
+      "tn": 259,
+      "fn": 11
+    },
+    "top_features": [
+      {
+        "feature": "sig_clientflagsr1_nonzero",
+        "importance": 0.19225153912596016
+      },
+      {
+        "feature": "lang_LangAssessReadLevel",
+        "importance": 0.1588684125989395
+      },
+      {
+        "feature": "flag_CLIENTFLAGSr1",
+        "importance": 0.1093516624709226
+      },
+      {
+        "feature": "signals_x_matrix",
+        "importance": 0.06434846046389528
+      },
+      {
+        "feature": "lang_LangAssessNumSyl",
+        "importance": 0.06354391308380518
+      },
+      {
+        "feature": "rd_RD_Searchr1",
+        "importance": 0.04897405402340786
+      },
+      {
+        "feature": "coded_unique_ratio",
+        "importance": 0.0361487772104423
+      },
+      {
+        "feature": "lang_LangAssessNumWords",
+        "importance": 0.034886999402697676
+      },
+      {
+        "feature": "demo_q9",
+        "importance": 0.030281859582849832
+      },
+      {
+        "feature": "matrix_unique_count",
+        "importance": 0.02092163919617095
+      }
+    ]
+  },
+  {
+    "dataset": "251205_TFG Contractor Index Q1.xlsx",
+    "n_total": 132,
+    "n_train": 614,
+    "n_val": 132,
+    "n_test": 132,
+    "n_test_rejected": 14,
+    "test_reject_rate": 0.10606060606060606,
+    "threshold": 0.6698994974874373,
+    "auc": 0.9188861985472155,
+    "ml": {
+      "accuracy": 0.9621212121212122,
+      "precision": 0.9090909090909091,
+      "recall": 0.7142857142857143,
+      "f1": 0.8,
+      "tp": 10,
+      "fp": 1,
+      "tn": 117,
+      "fn": 4
+    },
+    "rules": {
+      "accuracy": 0.8863636363636364
+    },
+    "combined": {
+      "accuracy": 0.9545454545454546,
+      "precision": 0.8333333333333334,
+      "recall": 0.7142857142857143,
+      "f1": 0.7692307692307693,
+      "tp": 10,
+      "fp": 2,
+      "tn": 116,
+      "fn": 4
+    },
+    "top_features": [
+      {
+        "feature": "supplier_x_signals",
+        "importance": 0.4191603450244595
+      },
+      {
+        "feature": "supplier_reject_rate",
+        "importance": 0.10926245040711041
+      },
+      {
+        "feature": "demo_qager1",
+        "importance": 0.06071974364224545
+      },
+      {
+        "feature": "lang_LangAssessReadLevel",
+        "importance": 0.043757697471495396
+      },
+      {
+        "feature": "lang_LangAssessNumSyl",
+        "importance": 0.03214600485166684
+      },
+      {
+        "feature": "ua_dup_count",
+        "importance": 0.030177835569597442
+      },
+      {
+        "feature": "coded_unique_ratio",
+        "importance": 0.027888691294320332
+      },
+      {
+        "feature": "matrix_most_common_freq",
+        "importance": 0.02115849692721419
+      },
+      {
+        "feature": "demo_qstate",
+        "importance": 0.01919784792764354
+      },
+      {
+        "feature": "oe_total_chars",
+        "importance": 0.015969015259326064
+      }
+    ]
+  },
+  {
+    "dataset": "260111_Delta Water Filtration.xlsx",
+    "n_total": 203,
+    "n_train": 947,
+    "n_val": 203,
+    "n_test": 203,
+    "n_test_rejected": 52,
+    "test_reject_rate": 0.2561576354679803,
+    "threshold": 0.01,
+    "auc": 0.8135506877228732,
+    "ml": {
+      "accuracy": 0.7783251231527094,
+      "precision": 0.6060606060606061,
+      "recall": 0.38461538461538464,
+      "f1": 0.47058823529411764,
+      "tp": 20,
+      "fp": 13,
+      "tn": 138,
+      "fn": 32
+    },
+    "rules": {
+      "accuracy": 0.7339901477832512
+    },
+    "combined": {
+      "accuracy": 0.7733990147783252,
+      "precision": 0.5833333333333334,
+      "recall": 0.40384615384615385,
+      "f1": 0.4772727272727273,
+      "tp": 21,
+      "fp": 15,
+      "tn": 136,
+      "fn": 31
+    },
+    "top_features": [
+      {
+        "feature": "tech_vos",
+        "importance": 0.0892777363710719
+      },
+      {
+        "feature": "lang_LangAssessReadLevel",
+        "importance": 0.08319724737699485
+      },
+      {
+        "feature": "lang_LangAssessNumSyl",
+        "importance": 0.06582932182983837
+      },
+      {
+        "feature": "matrix_most_common_freq",
+        "importance": 0.057321417567270896
+      },
+      {
+        "feature": "demo_qager1",
+        "importance": 0.05352576916083934
+      },
+      {
+        "feature": "matrix_unique_ratio",
+        "importance": 0.04403548615562184
+      },
+      {
+        "feature": "signals_x_matrix",
+        "importance": 0.03998274422619303
+      },
+      {
+        "feature": "rd_RD_Searchr1",
+        "importance": 0.036498611762137055
+      },
+      {
+        "feature": "demo_qstate",
+        "importance": 0.036300481303997156
+      },
+      {
+        "feature": "demo_q1",
+        "importance": 0.031903093250146355
+      }
+    ]
+  },
+  {
+    "dataset": "260200_SBD.xlsx",
+    "n_total": 119,
+    "n_train": 550,
+    "n_val": 118,
+    "n_test": 119,
+    "n_test_rejected": 53,
+    "test_reject_rate": 0.44537815126050423,
+    "threshold": 0.01,
+    "auc": 0.6703830760434534,
+    "ml": {
+      "accuracy": 0.5966386554621849,
+      "precision": 0.5384615384615384,
+      "recall": 0.660377358490566,
+      "f1": 0.5932203389830508,
+      "tp": 35,
+      "fp": 30,
+      "tn": 36,
+      "fn": 18
+    },
+    "rules": {
+      "accuracy": 0.5378151260504201
+    },
+    "combined": {
+      "accuracy": 0.5882352941176471,
+      "precision": 0.5303030303030303,
+      "recall": 0.660377358490566,
+      "f1": 0.5882352941176471,
+      "tp": 35,
+      "fp": 31,
+      "tn": 35,
+      "fn": 18
+    },
+    "top_features": [
+      {
+        "feature": "lang_LangAssessReadLevel",
+        "importance": 0.07921978799476466
+      },
+      {
+        "feature": "demo_qstate",
+        "importance": 0.06531930501412016
+      },
+      {
+        "feature": "qtime_seconds",
+        "importance": 0.05341258408659806
+      },
+      {
+        "feature": "oe_total_chars",
+        "importance": 0.050016317709451474
+      },
+      {
+        "feature": "matrix_most_common_freq",
+        "importance": 0.04636945763409741
+      },
+      {
+        "feature": "demo_qager1",
+        "importance": 0.04531849746959661
+      },
+      {
+        "feature": "demo_qNumEmployees",
+        "importance": 0.042047783201555854
+      },
+      {
+        "feature": "ua_dup_count",
+        "importance": 0.04185641480753978
+      },
+      {
+        "feature": "qtime_log",
+        "importance": 0.03887044083355236
+      },
+      {
+        "feature": "qtime_seconds_zscore",
+        "importance": 0.03872111345648892
+      }
+    ]
+  },
+  {
+    "dataset": "260206_OC BH.xlsx",
+    "n_total": 325,
+    "n_train": 1514,
+    "n_val": 325,
+    "n_test": 325,
+    "n_test_rejected": 56,
+    "test_reject_rate": 0.1723076923076923,
+    "threshold": 0.9604522613065327,
+    "auc": 0.7849176845459374,
+    "ml": {
+      "accuracy": 0.8553846153846154,
+      "precision": 0.7368421052631579,
+      "recall": 0.25,
+      "f1": 0.37333333333333335,
+      "tp": 14,
+      "fp": 5,
+      "tn": 264,
+      "fn": 42
+    },
+    "rules": {
+      "accuracy": 0.8276923076923077
+    },
+    "combined": {
+      "accuracy": 0.8492307692307692,
+      "precision": 0.6666666666666666,
+      "recall": 0.25,
+      "f1": 0.36363636363636365,
+      "tp": 14,
+      "fp": 7,
+      "tn": 262,
+      "fn": 42
+    },
+    "top_features": [
+      {
+        "feature": "matrix_most_common_freq",
+        "importance": 0.08414029131090708
+      },
+      {
+        "feature": "supplier_x_signals",
+        "importance": 0.07616230688965285
+      },
+      {
+        "feature": "matrix_unique_ratio",
+        "importance": 0.07524164049552053
+      },
+      {
+        "feature": "supplier_reject_rate",
+        "importance": 0.05998140236685986
+      },
+      {
+        "feature": "matrix_count",
+        "importance": 0.05680420938302229
+      },
+      {
+        "feature": "lang_LangAssessReadLevel",
+        "importance": 0.05484119463429004
+      },
+      {
+        "feature": "signals_x_matrix",
+        "importance": 0.052602564162808285
+      },
+      {
+        "feature": "demo_qager1",
+        "importance": 0.0407455533128793
+      },
+      {
+        "feature": "oe_mean_chars",
+        "importance": 0.03445017902138194
+      },
+      {
+        "feature": "qtime_seconds_zscore",
+        "importance": 0.033989211656285594
+      }
+    ]
+  },
+  {
+    "dataset": "260300_ECHO.xlsx",
+    "n_total": 235,
+    "n_train": 1096,
+    "n_val": 235,
+    "n_test": 235,
+    "n_test_rejected": 83,
+    "test_reject_rate": 0.35319148936170214,
+    "threshold": 0.9801507537688443,
+    "auc": 0.7340678503487634,
+    "ml": {
+      "accuracy": 0.7148936170212766,
+      "precision": 0.7352941176470589,
+      "recall": 0.30120481927710846,
+      "f1": 0.42735042735042733,
+      "tp": 25,
+      "fp": 9,
+      "tn": 143,
+      "fn": 58
+    },
+    "rules": {
+      "accuracy": 0.6468085106382979
+    },
+    "combined": {
+      "accuracy": 0.7148936170212766,
+      "precision": 0.7105263157894737,
+      "recall": 0.3253012048192771,
+      "f1": 0.4462809917355372,
+      "tp": 27,
+      "fp": 11,
+      "tn": 141,
+      "fn": 56
+    },
+    "top_features": [
+      {
+        "feature": "coded_count",
+        "importance": 0.11261379895973501
+      },
+      {
+        "feature": "coded_unique_ratio",
+        "importance": 0.0714101175735623
+      },
+      {
+        "feature": "matrix_most_common_freq",
+        "importance": 0.0700820259397871
+      },
+      {
+        "feature": "demo_qager1",
+        "importance": 0.06385139730588392
+      },
+      {
+        "feature": "ua_dup_count",
+        "importance": 0.05978914680534807
+      },
+      {
+        "feature": "lang_LangAssessReadLevel",
+        "importance": 0.05114526868972482
+      },
+      {
+        "feature": "demo_q9",
+        "importance": 0.044519733024211305
+      },
+      {
+        "feature": "matrix_unique_ratio",
+        "importance": 0.0443800667682131
+      },
+      {
+        "feature": "lang_LangAssessNumWords",
+        "importance": 0.04348808958782009
+      },
+      {
+        "feature": "demo_qstate",
+        "importance": 0.03439751807534125
+      }
+    ]
+  },
+  {
+    "dataset": "260306_TFG Contractor Index Q2.xlsx",
+    "n_total": 168,
+    "n_train": 781,
+    "n_val": 168,
+    "n_test": 168,
+    "n_test_rejected": 60,
+    "test_reject_rate": 0.35714285714285715,
+    "threshold": 0.33010050251256284,
+    "auc": 0.8367283950617285,
+    "ml": {
+      "accuracy": 0.8511904761904762,
+      "precision": 0.9069767441860465,
+      "recall": 0.65,
+      "f1": 0.7572815533980582,
+      "tp": 39,
+      "fp": 4,
+      "tn": 104,
+      "fn": 21
+    },
+    "rules": {
+      "accuracy": 0.6428571428571429
+    },
+    "combined": {
+      "accuracy": 0.8452380952380952,
+      "precision": 0.8863636363636364,
+      "recall": 0.65,
+      "f1": 0.75,
+      "tp": 39,
+      "fp": 5,
+      "tn": 103,
+      "fn": 21
+    },
+    "top_features": [
+      {
+        "feature": "supplier_x_signals",
+        "importance": 0.23281546201505715
+      },
+      {
+        "feature": "supplier_reject_rate",
+        "importance": 0.1838223034830978
+      },
+      {
+        "feature": "tech_vmobileos",
+        "importance": 0.04803561122468355
+      },
+      {
+        "feature": "lang_LangAssessReadLevel",
+        "importance": 0.0472276097660501
+      },
+      {
+        "feature": "ua_dup_count",
+        "importance": 0.03482119158958263
+      },
+      {
+        "feature": "demo_qager1",
+        "importance": 0.033902979904356374
+      },
+      {
+        "feature": "demo_q9",
+        "importance": 0.031630561093133065
+      },
+      {
+        "feature": "demo_qstate",
+        "importance": 0.030949022413569314
+      },
+      {
+        "feature": "demo_CLASSIFY",
+        "importance": 0.027808752220560597
+      },
+      {
+        "feature": "tech_vos",
+        "importance": 0.02714413110979461
+      }
+    ]
+  },
+  {
+    "dataset": "260401_ OC CAN.xlsx",
+    "n_total": 112,
+    "n_train": 520,
+    "n_val": 111,
+    "n_test": 112,
+    "n_test_rejected": 43,
+    "test_reject_rate": 0.38392857142857145,
+    "threshold": 0.99,
+    "auc": 0.9032692955847658,
+    "ml": {
+      "accuracy": 0.8482142857142857,
+      "precision": 0.9333333333333333,
+      "recall": 0.6511627906976745,
+      "f1": 0.7671232876712328,
+      "tp": 28,
+      "fp": 2,
+      "tn": 67,
+      "fn": 15
+    },
+    "rules": {
+      "accuracy": 0.5892857142857143
+    },
+    "combined": {
+      "accuracy": 0.8035714285714286,
+      "precision": 0.7837837837837838,
+      "recall": 0.6744186046511628,
+      "f1": 0.725,
+      "tp": 29,
+      "fp": 8,
+      "tn": 61,
+      "fn": 14
+    },
+    "top_features": [
+      {
+        "feature": "supplier_x_signals",
+        "importance": 0.3441801903105818
+      },
+      {
+        "feature": "qtime_seconds",
+        "importance": 0.05122739665126872
+      },
+      {
+        "feature": "matrix_unique_ratio",
+        "importance": 0.04971253076481199
+      },
+      {
+        "feature": "lang_LangAssessReadLevel",
+        "importance": 0.04558664788273451
+      },
+      {
+        "feature": "supplier_x_t2",
+        "importance": 0.04418519902667323
+      },
+      {
+        "feature": "qtime_log",
+        "importance": 0.042817759364291136
+      },
+      {
+        "feature": "matrix_most_common_freq",
+        "importance": 0.04171629074149561
+      },
+      {
+        "feature": "ua_dup_count",
+        "importance": 0.03599075819428609
+      },
+      {
+        "feature": "oe_max_chars",
+        "importance": 0.03478367199663788
+      },
+      {
+        "feature": "qtime_seconds_zscore",
+        "importance": 0.033993193224353034
+      }
+    ]
+  },
+  {
+    "dataset": "260403_Masterlock Conjoint.xlsx",
+    "n_total": 138,
+    "n_train": 641,
+    "n_val": 137,
+    "n_test": 138,
+    "n_test_rejected": 31,
+    "test_reject_rate": 0.2246376811594203,
+    "threshold": 0.812713567839196,
+    "auc": 0.6273741332529393,
+    "ml": {
+      "accuracy": 0.8188405797101449,
+      "precision": 0.75,
+      "recall": 0.2903225806451613,
+      "f1": 0.4186046511627907,
+      "tp": 9,
+      "fp": 3,
+      "tn": 104,
+      "fn": 22
+    },
+    "rules": {
+      "accuracy": 0.7753623188405797
+    },
+    "combined": {
+      "accuracy": 0.8188405797101449,
+      "precision": 0.75,
+      "recall": 0.2903225806451613,
+      "f1": 0.4186046511627907,
+      "tp": 9,
+      "fp": 3,
+      "tn": 104,
+      "fn": 22
+    },
+    "top_features": [
+      {
+        "feature": "matrix_most_common_freq",
+        "importance": 0.14263550070371545
+      },
+      {
+        "feature": "lang_LangAssessReadLevel",
+        "importance": 0.07611414620662109
+      },
+      {
+        "feature": "demo_qager1",
+        "importance": 0.06148694759909103
+      },
+      {
+        "feature": "demo_qIndustry",
+        "importance": 0.05868908643130101
+      },
+      {
+        "feature": "demo_qstate",
+        "importance": 0.052619495109310466
+      },
+      {
+        "feature": "oe_mean_chars",
+        "importance": 0.03455968337242561
+      },
+      {
+        "feature": "qtime_log",
+        "importance": 0.0321394667402965
+      },
+      {
+        "feature": "ua_dup_count",
+        "importance": 0.03148290354237759
+      },
+      {
+        "feature": "rd_RD_Searchr1",
+        "importance": 0.030903071048697425
+      },
+      {
+        "feature": "demo_REGION",
+        "importance": 0.0308464816521099
+      }
+    ]
+  },
+  {
+    "dataset": "260404_ADDO.xlsx",
+    "n_total": 204,
+    "n_train": 949,
+    "n_val": 203,
+    "n_test": 204,
+    "n_test_rejected": 54,
+    "test_reject_rate": 0.2647058823529412,
+    "threshold": 0.5566331658291458,
+    "auc": 0.8140740740740742,
+    "ml": {
+      "accuracy": 0.8382352941176471,
+      "precision": 0.7692307692307693,
+      "recall": 0.5555555555555556,
+      "f1": 0.6451612903225806,
+      "tp": 30,
+      "fp": 9,
+      "tn": 141,
+      "fn": 24
+    },
+    "rules": {
+      "accuracy": 0.7941176470588235
+    },
+    "combined": {
+      "accuracy": 0.8382352941176471,
+      "precision": 0.7692307692307693,
+      "recall": 0.5555555555555556,
+      "f1": 0.6451612903225806,
+      "tp": 30,
+      "fp": 9,
+      "tn": 141,
+      "fn": 24
+    },
+    "top_features": [
+      {
+        "feature": "oe_total_chars",
+        "importance": 0.12453936895142223
+      },
+      {
+        "feature": "lang_LangAssessReadLevel",
+        "importance": 0.061718646273246656
+      },
+      {
+        "feature": "oe_mean_chars",
+        "importance": 0.06032365925377137
+      },
+      {
+        "feature": "lang_LangAssessNumSyl",
+        "importance": 0.05143222505575839
+      },
+      {
+        "feature": "oe_max_chars",
+        "importance": 0.04704452308251986
+      },
+      {
+        "feature": "demo_qager1",
+        "importance": 0.04659927680423159
+      },
+      {
+        "feature": "qtime_seconds",
+        "importance": 0.04197742585741967
+      },
+      {
+        "feature": "matrix_most_common_freq",
+        "importance": 0.03975586727119006
+      },
+      {
+        "feature": "qtime_log",
+        "importance": 0.03537364562454458
+      },
+      {
+        "feature": "signals_x_matrix",
+        "importance": 0.034486218147327614
+      }
+    ]
+  },
+  {
+    "dataset": "260501_ODL.xlsx",
+    "n_total": 91,
+    "n_train": 422,
+    "n_val": 90,
+    "n_test": 91,
+    "n_test_rejected": 5,
+    "test_reject_rate": 0.054945054945054944,
+    "threshold": 0.8865829145728643,
+    "auc": 0.972093023255814,
+    "ml": {
+      "accuracy": 0.9230769230769231,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "tp": 0,
+      "fp": 2,
+      "tn": 84,
+      "fn": 5
+    },
+    "rules": {
+      "accuracy": 0.945054945054945
+    },
+    "combined": {
+      "accuracy": 0.9230769230769231,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "tp": 0,
+      "fp": 2,
+      "tn": 84,
+      "fn": 5
+    },
+    "top_features": [
+      {
+        "feature": "demo_q12",
+        "importance": 0.20185364514850263
+      },
+      {
+        "feature": "supplier_reject_rate",
+        "importance": 0.16245671118270558
+      },
+      {
+        "feature": "supplier_x_signals",
+        "importance": 0.0894498316977963
+      },
+      {
+        "feature": "matrix_most_common_freq",
+        "importance": 0.06327706868893493
+      },
+      {
+        "feature": "sig_matrix_near_straightline",
+        "importance": 0.05000946314666139
+      },
+      {
+        "feature": "demo_qstate",
+        "importance": 0.04990733124413757
+      },
+      {
+        "feature": "coded_unique_ratio",
+        "importance": 0.03302026676275581
+      },
+      {
+        "feature": "qtime_seconds_zscore",
+        "importance": 0.03245543542201849
+      },
+      {
+        "feature": "qtime_seconds",
+        "importance": 0.03184468720998977
+      },
+      {
+        "feature": "qtime_log",
+        "importance": 0.026527322188259008
+      }
+    ]
+  }
+]

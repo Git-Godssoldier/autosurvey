@@ -1,0 +1,158 @@
+{
+  "251205_TFG Contractor Index Q1.xlsx": [
+    {
+      "label": "all features",
+      "n_features": 143,
+      "accuracy": 0.9621212121212122,
+      "precision": 0.9090909090909091,
+      "recall": 0.7142857142857143,
+      "f1": 0.8,
+      "auc": 0.9176755447941889,
+      "threshold": 0.6698994974874373
+    },
+    {
+      "label": "no signal map",
+      "n_features": 143,
+      "accuracy": 0.9545454545454546,
+      "precision": 0.8333333333333334,
+      "recall": 0.7142857142857143,
+      "f1": 0.7692307692307693,
+      "auc": 0.9219128329297821,
+      "threshold": 0.5517085427135678
+    },
+    {
+      "label": "no supplier risk",
+      "n_features": 143,
+      "accuracy": 0.946969696969697,
+      "precision": 0.8181818181818182,
+      "recall": 0.6428571428571429,
+      "f1": 0.72,
+      "auc": 0.8498789346246972,
+      "threshold": 0.2611557788944724
+    },
+    {
+      "label": "no signals + no supplier",
+      "n_features": 143,
+      "accuracy": 0.9545454545454546,
+      "precision": 0.9,
+      "recall": 0.6428571428571429,
+      "f1": 0.75,
+      "auc": 0.8474576271186441,
+      "threshold": 0.5960301507537689
+    },
+    {
+      "label": "raw data only",
+      "n_features": 143,
+      "accuracy": 0.946969696969697,
+      "precision": 0.8181818181818182,
+      "recall": 0.6428571428571429,
+      "f1": 0.72,
+      "auc": 0.8571428571428571,
+      "threshold": 0.3941206030150754
+    }
+  ],
+  "251101_THD CX.xlsx": [
+    {
+      "label": "all features",
+      "n_features": 148,
+      "accuracy": 0.9335664335664335,
+      "precision": 0.4,
+      "recall": 0.23529411764705882,
+      "f1": 0.2962962962962963,
+      "auc": 0.8386179750710693,
+      "threshold": 0.01
+    },
+    {
+      "label": "no signal map",
+      "n_features": 148,
+      "accuracy": 0.9230769230769231,
+      "precision": 0.3333333333333333,
+      "recall": 0.29411764705882354,
+      "f1": 0.3125,
+      "auc": 0.8418980975289745,
+      "threshold": 0.03462311557788945
+    },
+    {
+      "label": "no supplier risk",
+      "n_features": 148,
+      "accuracy": 0.9335664335664335,
+      "precision": 0.375,
+      "recall": 0.17647058823529413,
+      "f1": 0.24,
+      "auc": 0.8532691887163788,
+      "threshold": 0.7782412060301508
+    },
+    {
+      "label": "no signals + no supplier",
+      "n_features": 148,
+      "accuracy": 0.9265734265734266,
+      "precision": 0.3333333333333333,
+      "recall": 0.23529411764705882,
+      "f1": 0.27586206896551724,
+      "auc": 0.8545812376995408,
+      "threshold": 0.03954773869346734
+    },
+    {
+      "label": "raw data only",
+      "n_features": 148,
+      "accuracy": 0.9370629370629371,
+      "precision": 0.4,
+      "recall": 0.11764705882352941,
+      "f1": 0.18181818181818182,
+      "auc": 0.8399300240542313,
+      "threshold": 0.01
+    }
+  ],
+  "260501_ODL.xlsx": [
+    {
+      "label": "all features",
+      "n_features": 150,
+      "accuracy": 0.9230769230769231,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "auc": 0.9744186046511628,
+      "threshold": 0.8274874371859297
+    },
+    {
+      "label": "no signal map",
+      "n_features": 150,
+      "accuracy": 0.9230769230769231,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "auc": 0.9627906976744186,
+      "threshold": 0.8373366834170854
+    },
+    {
+      "label": "no supplier risk",
+      "n_features": 150,
+      "accuracy": 0.967032967032967,
+      "precision": 0.6666666666666666,
+      "recall": 0.8,
+      "f1": 0.7272727272727273,
+      "auc": 0.9744186046511628,
+      "threshold": 0.12326633165829146
+    },
+    {
+      "label": "no signals + no supplier",
+      "n_features": 150,
+      "accuracy": 0.945054945054945,
+      "precision": 0.5,
+      "recall": 0.4,
+      "f1": 0.4444444444444444,
+      "auc": 0.9558139534883721,
+      "threshold": 0.31040201005025125
+    },
+    {
+      "label": "raw data only",
+      "n_features": 150,
+      "accuracy": 0.967032967032967,
+      "precision": 0.6666666666666666,
+      "recall": 0.8,
+      "f1": 0.7272727272727273,
+      "auc": 0.9558139534883721,
+      "threshold": 0.16758793969849248
+    }
+  ]
+}

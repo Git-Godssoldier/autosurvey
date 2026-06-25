@@ -1,0 +1,84 @@
+{
+  "dataset": "251205_TFG Contractor Index Q1.xlsx",
+  "n_total": 878,
+  "n_train": 614,
+  "n_val": 132,
+  "n_test": 132,
+  "threshold": 0.6698994974874373,
+  "auc": 0.9188861985472155,
+  "ml": {
+    "accuracy": 0.9621212121212122,
+    "precision": 0.9090909090909091,
+    "recall": 0.7142857142857143,
+    "f1": 0.8,
+    "tp": 10,
+    "fp": 1,
+    "tn": 117,
+    "fn": 4
+  },
+  "combined": {
+    "accuracy": 0.9545454545454546
+  },
+  "top_features": [
+    {
+      "feature": "supplier_x_signals",
+      "importance": 0.35198586309635943
+    },
+    {
+      "feature": "supplier_reject_rate",
+      "importance": 0.17645840220877732
+    },
+    {
+      "feature": "demo_qager1",
+      "importance": 0.05884996115285542
+    },
+    {
+      "feature": "lang_LangAssessReadLevel",
+      "importance": 0.043757699601862945
+    },
+    {
+      "feature": "lang_LangAssessNumSyl",
+      "importance": 0.03216740184755326
+    },
+    {
+      "feature": "coded_unique_ratio",
+      "importance": 0.027888723397139846
+    },
+    {
+      "feature": "ua_dup_count",
+      "importance": 0.027110586918682268
+    },
+    {
+      "feature": "matrix_most_common_freq",
+      "importance": 0.02115850206964648
+    },
+    {
+      "feature": "demo_qstate",
+      "importance": 0.019197852056501413
+    },
+    {
+      "feature": "oe_total_chars",
+      "importance": 0.016348349553786796
+    },
+    {
+      "feature": "ua_is_dup",
+      "importance": 0.01547214016072948
+    },
+    {
+      "feature": "demo_CLASSIFY",
+      "importance": 0.015315676868804572
+    },
+    {
+      "feature": "demo_q9",
+      "importance": 0.015194774491448057
+    },
+    {
+      "feature": "oe_mean_chars",
+      "importance": 0.015096046153139708
+    },
+    {
+      "feature": "qtime_seconds_zscore",
+      "importance": 0.014486202227020758
+    }
+  ]
+}
