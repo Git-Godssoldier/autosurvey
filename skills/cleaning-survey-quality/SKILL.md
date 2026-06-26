@@ -19,11 +19,13 @@ Annotated workbooks (`status = 3` accepted, `status = 5` rejected) are used only
 
 **Do NOT run `run_quality_loop.py` or `survey_pipeline.py` alone.** These are the old scripted pipelines that produce only Keep/Light review with zero discards. They are data-staging tools, not the review pipeline.
 
+**Do NOT use external CLI tools (Codex, etc.) for Stage 2.** Stage 2 is performed by the agent itself spawning subagents using its own subagent infrastructure. No external tool installation is required.
+
 The production flow is the **holistic agent review** with three stages:
 
 ```
 Stage 1: scripts/run_holistic_agent_review.py  → generates review packets + agent instructions
-Stage 2: subagent review                       → one subagent per chunk reads packets, writes judgments
+Stage 2: YOU spawn subagents                   → one subagent per chunk reads packets, writes judgments
 Stage 3: scripts/integrate_agent_judgments.py  → merges judgments into annotated Excel + dashboard
 ```
 
@@ -36,11 +38,19 @@ pip3 install -r skills/cleaning-survey-quality/requirements.txt
 # Stage 1: Generate review packets (parses Datamap, extracts features, ML triage, AI text detection)
 python3 skills/cleaning-survey-quality/scripts/run_holistic_agent_review.py /path/to/survey.xlsx \
   --output-dir /path/to/holistic_output --chunk-size 200
+```
 
-# Stage 2: Spawn subagents to review each chunk
-# Each subagent reads review_chunk_XX.json and writes agent_judgments_chunk_XX.json
-# The instructions file (agent_review_instructions.md) is auto-generated with the evidence-family framework
+After Stage 1 completes, the output directory contains `review_chunk_00.json` through `review_chunk_XX.json` and `agent_review_instructions.md`.
 
+**Stage 2 — YOU spawn subagents.** For each chunk file, spawn a subagent (using your own subagent/tool infrastructure) that:
+1. Reads `agent_review_instructions.md`
+2. Reads `review_chunk_XX.json`
+3. Applies the evidence-family framework to each respondent
+4. Writes `agent_judgments_chunk_XX.json` to the same output directory
+
+Spawn all chunk subagents in parallel. Wait for all to complete before proceeding to Stage 3.
+
+```bash
 # Stage 3: Integrate judgments into annotated Excel + dashboard
 python3 skills/cleaning-survey-quality/scripts/integrate_agent_judgments.py /path/to/survey.xlsx /path/to/holistic_output
 ```
@@ -100,9 +110,17 @@ Each packet contains:
 
 The script also generates `agent_review_instructions.md` with the evidence-family framework rules (see below).
 
-### Stage 2: Subagent Review
+### Stage 2: Subagent Review (YOU spawn the subagents)
 
-Each subagent reads one `review_chunk_XX.json` file (~200 respondents) and applies the evidence-family framework to produce `agent_judgments_chunk_XX.json` with:
+**The agent running this skill performs Stage 2 itself** by spawning subagents using its own subagent infrastructure. No external CLI tool (Codex, etc.) is needed.
+
+For each `review_chunk_XX.json` file, spawn a subagent that:
+1. Reads `agent_review_instructions.md` (the evidence-family framework)
+2. Reads `review_chunk_XX.json` (~200 respondent packets)
+3. Applies the framework to each respondent
+4. Writes `agent_judgments_chunk_XX.json` to the same output directory
+
+Spawn all chunk subagents in parallel. Each subagent produces a JSON array with:
 - `respondent_id`
 - `agent_score` (-1.0 to +1.0)
 - `agent_judgment` (DISCARD / REVIEW / KEEP)

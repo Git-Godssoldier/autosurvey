@@ -25,13 +25,17 @@ This parses the Datamap, extracts features, runs ML triage, detects AI text simi
 - `review_chunk_XX.json` — one review packet per chunk (~200 respondents each)
 - `agent_review_instructions.md` — the evidence-family framework instructions
 
-### 3. Stage 2 — Subagent review
+### 3. Stage 2 — Subagent review (YOU spawn the subagents)
+
+**The agent running this skill performs Stage 2 itself** by spawning subagents using its own subagent/tool infrastructure. Do NOT use external CLI tools (Codex, etc.). No external tool installation is required.
 
 For each `review_chunk_XX.json` file, spawn a subagent that:
 1. Reads the `agent_review_instructions.md` file
 2. Reads the `review_chunk_XX.json` file
 3. Applies the evidence-family framework to each respondent
-4. Writes `agent_judgments_chunk_XX.json` with scores (-1 to +1), judgments (DISCARD/REVIEW/KEEP), and justifications
+4. Writes `agent_judgments_chunk_XX.json` to the same output directory, as a JSON array with `respondent_id`, `agent_score` (-1 to +1), `agent_judgment` (DISCARD/REVIEW/KEEP), and `agent_justification` (2-4 sentences)
+
+**Spawn all chunk subagents in parallel.** Wait for all to complete before proceeding to Stage 3.
 
 ### 4. Stage 3 — Integrate judgments
 
