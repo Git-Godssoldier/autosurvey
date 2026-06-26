@@ -821,7 +821,7 @@ def build_holistic_review_packets(filepath, output_dir, review_all=False, chunk_
         brand_funnel = get_brand_funnel(raw_row, hidx, datamap, headers)
 
         # Quota reconstruction (CLASSIFYQuota, RegionQuota, GenderQuota, ChannelQuota, etc.)
-        quota_reconstruction = get_quota_reconstruction(raw_row, hidx, datamap, headers)
+        quota_reconstruction = get_quota_reconstruction(raw_row, hidx, datamap, headers, df=df, idx=pkt_idx)
 
         # LangAssess
         lang = {}
@@ -1204,12 +1204,12 @@ Read the `quota_reconstruction` field. The client's discard process uses quota m
 ### 9A. Quota Cell Membership
 
 The `quota_cells` array shows which quota buckets this respondent fills:
-- `CLASSIFYQuota/{label}` — pro or consumer classification bucket
-- `RegionQuota/{label}` — geographic region bucket
-- `GenderQuota/{label}` — gender bucket
-- `AgeQuota/{label}` or `CONAgeQuota/{label}` — age bracket bucket
-- `ChannelQuota/{label}` — channel condition bucket (Ariens, HD or OPE dealers, Other)
-- `BRANDS2RATEQuota/{N}_brands` — number of brands rated
+- `CLASSIFYQuota/{{label}}` — pro or consumer classification bucket
+- `RegionQuota/{{label}}` — geographic region bucket
+- `GenderQuota/{{label}}` — gender bucket
+- `AgeQuota/{{label}}` or `CONAgeQuota/{{label}}` — age bracket bucket
+- `ChannelQuota/{{label}}` — channel condition bucket (Ariens, HD or OPE dealers, Other)
+- `BRANDS2RATEQuota/{{N}}_brands` — number of brands rated
 - `TotalQuota/Total` — all respondents
 
 ### 9B. How to use quota reconstruction
