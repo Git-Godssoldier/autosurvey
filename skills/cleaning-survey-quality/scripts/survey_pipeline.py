@@ -416,44 +416,78 @@ def extract_features_and_chain(filepath, signal_map=None):
 
 def ml_triage(df, model_path=MODEL_DIR / "survey_quality_model.pkl"):
     """Run ML model to get triage risk probabilities (0-1)."""
-    if not model_path.exists():
-        print(f"WARNING: Model not found at {model_path}")
-        print("Using rule-based triage only.")
+    # Try joblib first (more portable), then pickle
+    joblib_path = model_path.with_suffix(".joblib")
+
+    model_data = None
+    load_error = None
+
+    for path in [joblib_path, model_path]:
+        if path.exists():
+            try:
+                if path.suffix == ".joblib":
+                    import joblib
+                    model_data = joblib.load(path)
+                else:
+                    with open(path, "rb") as f:
+                        model_data = pickle.load(f)
+                break
+            except Exception as e:
+                load_error = e
+                continue
+
+    if model_data is None:
+        if load_error:
+            print(f"WARNING: ML model failed to load: {load_error}")
+            print("This is likely a scikit-learn version mismatch.")
+            print(f"  Current sklearn: {getattr(__import__('sklearn'), '__version__', 'unknown')}")
+            meta = getattr(model_data, '_metadata', None) if model_data else None
+            if meta:
+                print(f"  Model trained with sklearn: {meta.get('sklearn_version', 'unknown')}")
+        else:
+            print(f"WARNING: Model not found at {model_path} or {joblib_path}")
+        print("Using rule-based triage only (ml_triage_score=0.5 for all).")
+        print("This significantly weakens the pipeline.")
         df["ml_triage_score"] = 0.5
         return df
 
-    with open(model_path, "rb") as f:
-        model_data = pickle.load(f)
+    try:
+        model = model_data["model"]
+        iso = model_data["calibrator"]
+        train_features = model_data["feature_columns"]
+        supplier_rates = model_data.get("supplier_rates", {})
+        global_rate = model_data.get("global_reject_rate", 0.25)
 
-    model = model_data["model"]
-    iso = model_data["calibrator"]
-    train_features = model_data["feature_columns"]
-    supplier_rates = model_data.get("supplier_rates", {})
-    global_rate = model_data.get("global_reject_rate", 0.25)
+        # Use model's supplier rates if available (more accurate)
+        if supplier_rates:
+            df["supplier_reject_rate"] = df["supplier_name"].map(supplier_rates).fillna(global_rate) * 100
+            df["supplier_x_signals"] = df["supplier_reject_rate"] * df["signal_count"] / 100
+            df["supplier_x_t1"] = df["supplier_reject_rate"] * df["t1_count"] / 100
+            df["supplier_x_t2"] = df["supplier_reject_rate"] * df["t2_count"] / 100
 
-    # Use model's supplier rates if available (more accurate)
-    if supplier_rates:
-        df["supplier_reject_rate"] = df["supplier_name"].map(supplier_rates).fillna(global_rate) * 100
-        df["supplier_x_signals"] = df["supplier_reject_rate"] * df["signal_count"] / 100
-        df["supplier_x_t1"] = df["supplier_reject_rate"] * df["t1_count"] / 100
-        df["supplier_x_t2"] = df["supplier_reject_rate"] * df["t2_count"] / 100
+        non_feat = {"respondent_id", "label", "dataset", "supplier_name"}
+        feat_cols = [c for c in df.columns if c not in non_feat]
+        X = df[feat_cols].copy()
+        for col in X.select_dtypes(include=["object"]).columns:
+            X[col] = pd.Categorical(X[col]).codes
+        X = X.fillna(0)
 
-    non_feat = {"respondent_id", "label", "dataset", "supplier_name"}
-    feat_cols = [c for c in df.columns if c not in non_feat]
-    X = df[feat_cols].copy()
-    for col in X.select_dtypes(include=["object"]).columns:
-        X[col] = pd.Categorical(X[col]).codes
-    X = X.fillna(0)
+        for c in train_features:
+            if c not in X.columns: X[c] = 0
+        X = X[train_features]
 
-    for c in train_features:
-        if c not in X.columns: X[c] = 0
-    X = X[train_features]
+        y_proba = model.predict_proba(X)[:, 1]
+        y_cal = iso.transform(y_proba)
 
-    y_proba = model.predict_proba(X)[:, 1]
-    y_cal = iso.transform(y_proba)
-
-    df["ml_triage_score"] = y_cal
-    return df
+        df["ml_triage_score"] = y_cal
+        print(f"  ML triage: {len(df)} respondents scored (model loaded successfully)")
+        return df
+    except Exception as e:
+        print(f"WARNING: ML model loaded but prediction failed: {e}")
+        print("Using rule-based triage only (ml_triage_score=0.5 for all).")
+        print("This significantly weakens the pipeline. Check sklearn version compatibility.")
+        df["ml_triage_score"] = 0.5
+        return df
 
 
 def compute_key_signals(df, answer_chains):

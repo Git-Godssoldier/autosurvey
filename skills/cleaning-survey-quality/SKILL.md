@@ -1,6 +1,6 @@
 ---
 name: cleaning-survey-quality
-description: Cleans and scores Decipher-style survey quality workbooks for market research datasets. Use when reviewing survey completes, fraud, inattentive respondents, open-end AI suspicion, straightlining, inconsistent brand answers, short completes, duplicate IPs, respondent flags, or survey quality files. The primary flow is a two-stage holistic agent review (fraud detection + PM quality assessment) that produces DISCARD/REVIEW/KEEP judgments with evidence-family convergence scoring across 8 independent signal families.
+description: Cleans and scores Decipher-style survey quality workbooks for market research datasets. Use when reviewing survey completes, fraud, inattentive respondents, open-end AI suspicion, straightlining, inconsistent brand answers, short completes, duplicate IPs, respondent flags, or survey quality files. The primary flow is a two-stage holistic agent review (fraud detection + PM quality assessment) that produces DISCARD/REVIEW/KEEP judgments with evidence-family convergence scoring across 9 independent signal families including quota reconstruction.
 ---
 
 # Cleaning Survey Quality
@@ -124,6 +124,7 @@ Each packet contains:
 - `defender_summary` — human-readable consolidation of all platform signals
 - **`survey_structure`** — CLASSIFY, PROAGE, CONAGE, conditions (Ariens/HD/channel), list/source, dcua, FIRMREV
 - **`brand_funnel`** — awareness, rating, consideration, recommendation, NPS, satisfaction, share allocation fields
+- **`quota_reconstruction`** — quota cell membership (CLASSIFYQuota, RegionQuota, GenderQuota, ChannelQuota, BRANDS2RATEQuota, TotalQuota) + population counts per cell
 - **`key_answers`** — all coded single-choice fields with labels (dynamically discovered, not hardcoded)
 
 The script also generates `agent_review_instructions.md` with the evidence-family framework rules (see below).
@@ -153,7 +154,7 @@ Merges all chunk judgments, re-runs feature extraction, and writes:
 
 ## The Evidence-Family Framework (v5)
 
-The agent instructions use an evidence-family convergence model with two stages and eight independent signal families. The master rule:
+The agent instructions use an evidence-family convergence model with two stages and nine independent signal families. The master rule:
 
 **A row is discard-like when the core open end fails its question role, lacks grounded chain evidence, and converges with at least one independent risk family — OR when the respondent fails the PM quality bar (thin engagement, brand funnel incoherence, classification mismatch, off-topic content).**
 
@@ -170,6 +171,7 @@ The agent instructions use an evidence-family convergence model with two stages 
 6. **Survey Structure** — CLASSIFY (pro/consumer), PROAGE/CONAGE, channel conditions, list/source coherence
 7. **Brand Funnel Consistency** — awareness → rating → consideration → NPS chain, brand name quality, share allocation
 8. **Timing & Engagement** — speed, straightlining, matrix patterns
+9. **Quota Reconstruction** — quota cell membership (CLASSIFYQuota, RegionQuota, GenderQuota, ChannelQuota, BRANDS2RATEQuota), over-filled cell detection, quota-aware quality bar
 
 ### Core Open-End Quality (the anchor)
 

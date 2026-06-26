@@ -485,6 +485,136 @@ def get_brand_funnel(row, hidx, datamap, headers):
     return funnel
 
 
+def get_quota_reconstruction(row, hidx, datamap, headers, df=None, idx=None):
+    """Reconstruct quota bucket membership from raw fields.
+
+    The client's discard process uses quota markers (CLASSIFYQuota, GenderQuota,
+    RegionQuota, BRANDS2RATEQuota, ChannelQuota, TotalQuota, etc.) that are NOT
+    in the raw workbook. However, the underlying quota dimensions ARE present as
+    raw fields. We reconstruct the quota bucket membership to give agents visibility
+    into which quota cells this respondent occupies.
+
+    Key quota dimensions (ECHO-specific, generalizable patterns):
+    - CLASSIFY → CLASSIFYQuota (pro vs consumer)
+    - REGION → RegionQuota
+    - Gender (from q3 or gender field) → GenderQuota
+    - Age (from age or qager1) → AgeQuota / CONAgeQuota
+    - Channel conditions → ChannelQuota (Ariens, HD or OPE dealers, Other channel)
+    - Brands rated (q11a* matrix) → BRANDS2RATEQuota
+    - Total → TotalQuota (all respondents)
+    """
+    quota = {
+        "classify_bucket": None,
+        "region_bucket": None,
+        "gender_bucket": None,
+        "age_bucket": None,
+        "channel_bucket": None,
+        "brands_rated_count": 0,
+        "brands_rated": [],
+        "quota_cells": [],
+        "population_in_cells": {},
+    }
+
+    # CLASSIFY bucket
+    classify_idx = hidx.get("CLASSIFY")
+    if classify_idx and classify_idx < len(row):
+        val = norm(row[classify_idx])
+        if val is not None:
+            dm = datamap.get("CLASSIFY", {})
+            labels = dm.get("labels", {})
+            label = labels.get(str(int(val)) if isinstance(val, (int, float)) else str(val), str(val))
+            quota["classify_bucket"] = {"value": val, "label": label}
+            quota["quota_cells"].append(f"CLASSIFYQuota/{label}")
+
+    # REGION bucket
+    region_idx = hidx.get("REGION")
+    if region_idx and region_idx < len(row):
+        val = norm(row[region_idx])
+        if val is not None:
+            dm = datamap.get("REGION", {})
+            labels = dm.get("labels", {})
+            label = labels.get(str(int(val)) if isinstance(val, (int, float)) else str(val), str(val))
+            quota["region_bucket"] = {"value": val, "label": label}
+            quota["quota_cells"].append(f"RegionQuota/{label}")
+
+    # Gender bucket — look for gender field
+    gender_idx = hidx.get("q3") or hidx.get("gender") or hidx.get("Gender")
+    if gender_idx and gender_idx < len(row):
+        val = norm(row[gender_idx])
+        if val is not None:
+            dm = datamap.get("q3", datamap.get("gender", {}))
+            labels = dm.get("labels", {})
+            label = labels.get(str(int(val)) if isinstance(val, (int, float)) else str(val), str(val))
+            quota["gender_bucket"] = {"value": val, "label": label}
+            quota["quota_cells"].append(f"GenderQuota/{label}")
+
+    # Age bucket
+    age_idx = hidx.get("age") or hidx.get("qager1") or hidx.get("CONAGE") or hidx.get("PROAGE")
+    if age_idx and age_idx < len(row):
+        val = norm(row[age_idx])
+        if val is not None:
+            field_name = "age" if hidx.get("age") else ("qager1" if hidx.get("qager1") else ("CONAGE" if hidx.get("CONAGE") else "PROAGE"))
+            dm = datamap.get(field_name, {})
+            labels = dm.get("labels", {})
+            label = labels.get(str(int(val)) if isinstance(val, (int, float)) else str(val), str(val))
+            quota["age_bucket"] = {"value": val, "label": label, "field": field_name}
+            if field_name in ("CONAGE", "PROAGE"):
+                quota["quota_cells"].append(f"CONAgeQuota/{label}" if field_name == "CONAGE" else f"PROAgeQuota/{label}")
+            else:
+                quota["quota_cells"].append(f"AgeQuota/{label}")
+
+    # Channel bucket — from conditions fields
+    channel_parts = []
+    condition_fields = {
+        "conditionsAriens": "Ariens",
+        "conditionsHD_or_OPE_dealers": "HD or OPE dealers",
+        "conditionsOther_channel": "Other channel",
+    }
+    for field, label in condition_fields.items():
+        cidx = hidx.get(field)
+        if cidx and cidx < len(row):
+            val = norm(row[cidx])
+            if val == 1:
+                channel_parts.append(label)
+                quota["quota_cells"].append(f"ChannelQuota/{label}")
+
+    if channel_parts:
+        quota["channel_bucket"] = channel_parts
+
+    # Brands rated — count q11a* matrix fields with nonzero values
+    import re as _re
+    brands_rated = []
+    for i, h in enumerate(headers):
+        if h and _re.match(r"^q11ar\d+c4$", str(h), _re.IGNORECASE):
+            if i < len(row):
+                val = row[i]
+                if val is not None and str(val).strip() and str(val) != "0":
+                    brands_rated.append(str(h))
+    quota["brands_rated_count"] = len(brands_rated)
+    quota["brands_rated"] = brands_rated
+    if brands_rated:
+        quota["quota_cells"].append(f"BRANDS2RATEQuota/{len(brands_rated)}_brands")
+
+    # Total quota (all respondents)
+    quota["quota_cells"].append("TotalQuota/Total")
+
+    # Population counts per cell (if df is available)
+    if df is not None and idx is not None:
+        try:
+            classify_val = quota.get("classify_bucket", {}).get("value")
+            region_val = quota.get("region_bucket", {}).get("value")
+            if classify_val is not None:
+                same_classify = (df["CLASSIFY"] == classify_val).sum() if "CLASSIFY" in df.columns else 0
+                quota["population_in_cells"]["CLASSIFYQuota"] = int(same_classify)
+            if region_val is not None:
+                same_region = (df["REGION"] == region_val).sum() if "REGION" in df.columns else 0
+                quota["population_in_cells"]["RegionQuota"] = int(same_region)
+        except Exception:
+            pass
+
+    return quota
+
+
 def build_holistic_review_packets(filepath, output_dir, review_all=False, chunk_size=200):
     """Build comprehensive review packets for all respondents."""
     filepath = Path(filepath)
@@ -690,6 +820,9 @@ def build_holistic_review_packets(filepath, output_dir, review_all=False, chunk_
         # Brand funnel fields (awareness → rating → consideration → NPS)
         brand_funnel = get_brand_funnel(raw_row, hidx, datamap, headers)
 
+        # Quota reconstruction (CLASSIFYQuota, RegionQuota, GenderQuota, ChannelQuota, etc.)
+        quota_reconstruction = get_quota_reconstruction(raw_row, hidx, datamap, headers)
+
         # LangAssess
         lang = {}
         for i, h in lang_cols:
@@ -745,6 +878,7 @@ def build_holistic_review_packets(filepath, output_dir, review_all=False, chunk_
             "key_answers": key_answers,
             "survey_structure": survey_structure,
             "brand_funnel": brand_funnel,
+            "quota_reconstruction": quota_reconstruction,
             "signal_count": int(df_row.get("signal_count", 0)),
             "t1_count": int(df_row.get("t1_count", 0)),
             "t2_count": int(df_row.get("t2_count", 0)),
@@ -850,7 +984,7 @@ A respondent can pass Stage 1 (not fraudulent) but fail Stage 2 (low quality). B
 
 **A row is discard-like when the core open end fails its question role, lacks grounded chain evidence, AND converges with at least one independent risk family — OR when the respondent fails the PM quality bar (thin engagement, brand funnel incoherence, classification mismatch, off-topic content).**
 
-The eight independent evidence families:
+The nine independent evidence families:
 1. **Core OE Quality** — answer-role test, grounded detail, substantiveness
 2. **Platform Risk** — TERMFLAGS, qc, RD_Search, non-English
 3. **Model Risk** — ML triage score
@@ -859,6 +993,7 @@ The eight independent evidence families:
 6. **Survey Structure** — CLASSIFY, PROAGE, conditions, list, channel coherence
 7. **Brand Funnel Consistency** — awareness → rating → consideration → NPS chain
 8. **Timing & Engagement** — speed, straightlining, matrix patterns
+9. **Quota Reconstruction** — quota cell membership, over-filled cells, quota-aware quality bar
 
 ---
 
@@ -1062,6 +1197,46 @@ Read the `brand_funnel` field. Check whether the brand funnel is internally cons
 
 ---
 
+## Evidence Family 9: Quota Reconstruction (NEW — v5.1)
+
+Read the `quota_reconstruction` field. The client's discard process uses quota markers that are NOT in the raw workbook. We reconstruct quota bucket membership from raw fields to give visibility into which quota cells this respondent occupies.
+
+### 9A. Quota Cell Membership
+
+The `quota_cells` array shows which quota buckets this respondent fills:
+- `CLASSIFYQuota/{label}` — pro or consumer classification bucket
+- `RegionQuota/{label}` — geographic region bucket
+- `GenderQuota/{label}` — gender bucket
+- `AgeQuota/{label}` or `CONAgeQuota/{label}` — age bracket bucket
+- `ChannelQuota/{label}` — channel condition bucket (Ariens, HD or OPE dealers, Other)
+- `BRANDS2RATEQuota/{N}_brands` — number of brands rated
+- `TotalQuota/Total` — all respondents
+
+### 9B. How to use quota reconstruction
+
+**Quota reconstruction is NOT a direct discard signal.** The client uses quota markers to track which buckets are filled, but the discard decision is based on `badopen` (open-end quality) — NOT on quota membership itself. Both kept and discarded respondents have the same quota markers; the difference is the `bad:` prefix on discards.
+
+However, quota reconstruction IS useful for:
+1. **Understanding which quota cells are over-represented** — if a respondent is in a cell with many other discards, the cell may be over-filled and the client is more likely to discard
+2. **Identifying classification-channel-brand coherence** — a respondent in the Ariens channel quota who never mentions Ariens has a channel-brand mismatch
+3. **Pro vs consumer quota context** — CLASSIFY=1 (pro) respondents are in a smaller, more scrutinized quota bucket with higher discard rates (60.4% on ECHO)
+
+### 9C. Quota-aware quality bar
+
+The client's `badopen` standard is applied WITHIN quota cells. This means:
+- A respondent in a over-filled quota cell (many respondents in the same bucket) faces a stricter quality bar
+- A respondent in an under-filled cell may be kept despite marginal quality
+- The `population_in_cells` field shows how many other respondents share this respondent's CLASSIFY and REGION buckets
+
+### How quota reconstruction combines:
+
+- Over-filled quota cell + thin core OE → stronger quality concern (the client is more likely to apply badopen)
+- CLASSIFY=1 (pro) quota + consumer-like answers → classification mismatch (already covered in Family 6)
+- Channel quota mismatch (Ariens channel, no Ariens brand) → brand funnel concern (already covered in Family 7)
+- Quota reconstruction is a MULTIPLIER on other families, not a standalone signal
+
+---
+
 ## The Decision Algorithm
 
 For each respondent:
@@ -1093,11 +1268,14 @@ Does the respondent's classification match their answer pattern? (pro should sho
 ### Step 9: Check brand funnel consistency
 Are brand answers internally consistent? Real brands? Right universe?
 
-### Step 10: Check ai_text_suspicion, ML score, timing, duplicates
+### Step 10: Check quota reconstruction
+What quota cells does this respondent occupy? Is the cell over-filled? Is there a channel-brand mismatch visible in the quota structure?
 
-### Step 11: Count independent evidence families firing
+### Step 11: Check ai_text_suspicion, ML score, timing, duplicates
 
-### Step 12: Decide
+### Step 12: Count independent evidence families firing
+
+### Step 13: Decide
 
 **DISCARD** (score < -0.3) when:
 - Core OE fails its role AND >= 1 risk family fires
@@ -1151,6 +1329,7 @@ Before discarding, ask: what makes this row different from accepted rows with th
 - `key_answers`: All coded single-choice fields with labels (dynamically discovered)
 - `survey_structure`: CLASSIFY, PROAGE, CONAGE, conditions, list, source, dcua, FIRMREV
 - `brand_funnel`: Awareness, rating, consideration, recommendation, NPS, satisfaction fields
+- `quota_reconstruction`: Quota cell membership (CLASSIFYQuota, RegionQuota, GenderQuota, ChannelQuota, BRANDS2RATEQuota, TotalQuota) + population counts per cell
 - `answer_entropy`: Variety in the answer chain
 - `oe_total_chars`: Total characters across all OE fields
 
