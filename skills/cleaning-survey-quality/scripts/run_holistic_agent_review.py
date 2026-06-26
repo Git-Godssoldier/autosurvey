@@ -630,7 +630,7 @@ def build_holistic_review_packets(filepath, output_dir, review_all=False, chunk_
 def build_agent_instructions(n_respondents, n_chunks, matrix_prevalence, dataset_name):
     """Build detailed instructions for the reviewing agent."""
 
-    return f"""# Holistic Agent Review Instructions
+    return f"""# Holistic Agent Review Instructions — Evidence Family Framework (v4)
 
 ## Task
 Read the file `review_chunk_XX.json` (assigned to you). It contains ~200 respondent review packets.
@@ -661,202 +661,272 @@ Write to `agent_judgments_chunk_XX.json` as a JSON array:
 ]
 ```
 
-## What to Evaluate (ALL signals, holistically)
+## CORE FRAMEWORK: Evidence Families, Not Labels
 
-### 1. Open-End Response Quality (MOST IMPORTANT)
-For EACH open-end field, read the question text and the response:
+Signals are not labels. They are evidence. The decision to discard should come from the convergence of independent evidence families, not from any single label.
 
-- **q14** ("What prompted you to decide to buy a water filtration device?"):
-  - First-person personal experience = STRONG KEEP signal (e.g., "my water tasted like chlorine", "my kids have eczema")
-  - Generic but on-topic = neutral (e.g., "cleaner water", "health concerns") — NOT a discard signal
-  - Missing/empty = neutral (NOT a discard signal — client tolerates missing q14)
-  - Off-topic/gibberish = discard signal (e.g., "ispring", "macus", "good night")
-  - Third-person = discard signal (e.g., "people want clean water")
+### The Master Rule
 
-- **outro** ("For quality control purposes, please describe what this survey was about"):
-  - This is a QC QUESTION asking what the survey was about — generic topic restatements are EXPECTED
-  - "water filtration systems", "water filter survey", "about water filtration" = NORMAL, not a fraud signal
-  - "this survey was about water filters" = NORMAL (the question asks this)
-  - Off-topic = discard signal (e.g., "good night", "american whiskey", "customer rewards")
-  - Gibberish = discard signal
-  - Generic praise = mild concern (e.g., "good survey", "nice experience") but NOT a discard alone
+**A row is discard-like when the core open end fails its question role, lacks grounded chain evidence, and converges with at least one independent risk family.**
 
-- **Other OE fields** (q7r11oe, q8ar4oe, q8br4oe, q9r4oe, q26r15oe, q28r12oe, q30r6oe):
-  - "Other (please specify)" fields — if empty, that's normal (not everyone selects "other")
-  - If filled with gibberish or off-topic content = discard signal
-  - If filled with relevant specific content = keep signal
+The five independent risk families are:
+1. **Model risk** — ML triage score >= 0.7
+2. **Platform risk** — TERMFLAGS=1, qc flag, RD_Search elevated, non-English
+3. **Source risk** — high supplier reject rate, elevated RD_Search threat
+4. **Duplicate semantics** — text similarity to other respondents, paraphrase clusters
+5. **Weak outro behavior** — generic praise, off-topic, incoherent, or chain-inconsistent outro
 
-### 2. Matrix/Grid Straightlining
-The packet includes per-grid analysis. There are multiple grids (q3, q4, q5, q7, q10, q11, q18-q29).
-- Matrix straightlining prevalence in this dataset: {matrix_prevalence:.1%}
-- If ALL grids are straightlined = concern (but if prevalence is >80%, this is normal for this survey)
-- If SOME grids are straightlined but others show variation = less concerning
-- Look at the `straightlined_grids` list — which specific grids are uniform?
-- A respondent who straightlines rating scales but varies on behavioral questions is more suspicious
+When the core OE fails its role AND one risk family fires, that is a discard. When the core OE is grounded and specific, it takes multiple risk families to override it.
 
-### 3. Timing
-- `timing.minutes` and `timing.percentile` tell you how fast they completed
-- bottom_10% = very fast (concern, but not sufficient alone for discard)
-- bottom_25% = fast (mild concern)
-- above_median = good (protective factor)
-- Very fast + generic OE + straightlining = converging concerns
+---
 
-### 4. Survey Defender Signals (ALL platform signals — read the defender_summary field)
-Each packet has a `defender_summary` field that consolidates ALL platform/research defender signals into a human-readable string. READ THIS FIRST — it tells you which platform flags fired.
+## Evidence Family 1: Core Open-End Quality (THE ANCHOR)
 
-**Platform signals included in defender_summary:**
-- `defender_signals.qc_flag`: If non-zero, the platform already flagged this respondent
-  - qc=6 (RD /REVIEW rejection), qc=8 (SEARCH threat), qc=9 (SEARCH duplicate) = STRONG discard
-  - qc=11 (Speeder) = moderate concern
-  - qc=2,4,5 (state/region/age mismatch) = strong concern
-  - qc=7 (OE screening) = strong concern (open-end failed quality check)
-- `defender_signals.TERMFLAGS`: Non-zero = **PLATFORM FRAUD FLAG — AUTO-DISCARD, full stop.**
-  The platform's own fraud detector flagged this respondent. Do NOT let first-person q14 content override this. TERMFLAGS=1 means the platform already determined this is fraud. Treat it as an automatic discard regardless of any other signal.
-- `defender_signals.RD_Searchr1`: Research Defender threat score (0-30+)
-  - >=25 = ELEVATED (strong concern)
-  - >=20 = moderate concern
-  - <20 = low (normal for most respondents)
-- `defender_signals.RD_Searchr3`: Country detected — if not "United States", concerning for US survey
-- `defender_signals.outroR1_RD_Reviewr0`: Language detected in outro — if not "English", concerning
-- `defender_signals.outroR1_RD_Reviewr1`: Pasted response detected in outro
-- `defender_signals.outroR1_RD_Reviewr3`: Outro composite score (0-17+) — >=10 = HIGH suspicion
-- `defender_signals.outroR1_RD_Reviewr4`: Outro similarity flag — 0 = flagged by platform
-- `defender_signals.lang_assess.read_level`: Flesch-Kincaid reading level
-  - >=15 with short text = possible AI-generated (too sophisticated for typical respondent)
-  - >=17 = VERY HIGH — strong AI suspicion
-  - <2 with long text = possible incoherence
-- `defender_signals.decLang`: Declared language — if not English, concerning
-- `defender_signals.vlist`: Participant source (supplier list ID)
-- `defender_signals.vdropout`: Last seen question — detects dropouts/partials
+The core open-end field is the most important signal. For each dataset, identify which OE field is the "core" field — the one that asks for personal motivation, experience, or job role. Read the question text to determine this.
 
-### 5. Supplier Risk
-- `supplier.reject_rate`: Historical reject rate for this supplier
-- >30% = high risk (moderate concern)
-- >20% = medium risk (mild concern)
-- <15% = low risk (protective factor)
-- Supplier risk alone is NOT sufficient for discard — it's a multiplier on other signals
+### 1A. Answer-Role Test
 
-### 6. LangAssess Readability
-- `lang_assess.LangAssessReadLevel`: Grade level of OE text
-- Very low (<3) with long text = possible incoherence
-- Very high with short text = possible AI-generated
-- Normal range (5-12) = expected
+Does the answer actually answer the question that was asked?
 
-### 7. Duplicate Detection
-- `oe_duplicate_counts`: For each OE field, how many other respondents gave the same answer
-- High dup count (>10) on unusual text = fraud signal
-- High dup count on generic text ("water filtration systems") = NOT fraud (topical inevitability)
-- High dup count on personal text = very suspicious (shared personal stories = fabricated)
+For a purchase-motivation question ("What prompted you to decide to buy?"):
+- **FAILS the role**: "Water filtration systems" (names the topic, not a motivation), "Health concerns, improving water taste, reducing contaminants" (category language, not a personal reason), "It's essential" (not a motivation at all)
+- **PASSES the role**: "My water started smelling like chlorine after the city changed treatment plants" (specific personal trigger), "My kids have eczema and the dermatologist recommended a shower filter" (specific health-driven motivation)
 
-### 8. ML Triage Score
-- `ml_triage_score`: 0-1 risk probability from ML model
-- >0.7 = high risk (strong signal, trust this)
-- 0.4-0.7 = ambiguous
-- <0.4 = low risk (protective factor)
-- The ML model captures patterns we might miss — give it weight on boundary cases
+For a job-role question ("Tell me about your primary job"):
+- **FAILS the role**: "Construction" (names the industry, not the job), "Hard work" (not a job description)
+- **PASSES the role**: "I'm a licensed plumber working for a family-owned business in Philadelphia, mostly doing residential repipes" (specific trade, location, work context)
 
-### 9. Answer Entropy
-- `answer_entropy`: Measures answer diversity across all questions
-- Very low (<0.5) = repetitive answers across different questions = concern
-- High (>2.5) = diverse answers = protective factor
+**An answer that names the topic but fails the question's role is a FAILED core OE.** This is the single most important test.
 
-### 10. AI-Generated Text Detection (CRITICAL — this is what we're missing)
-The client's human reviewers can spot AI-generated text that reads as "genuine" to our semantic classifier. We now detect this with two approaches:
+### 1B. Grounded First-Person Test
 
-**A. Cross-respondent text similarity (`ai_text_suspicion` field):**
-- `ai_text_suspicion.score`: 0-1, how likely the text is AI-generated based on template matching
-- `ai_text_suspicion.fields_flagged`: Which OE fields have suspicious similarity to other respondents
-- `ai_text_suspicion.details`: Specific similarity metrics
-- **score >= 0.5** = STRONG concern — this respondent's text is suspiciously similar to many others
-- **score >= 0.3** = moderate concern — some similarity detected
-- The key insight: when 50 respondents all write "I decided to buy a water filtration device to improve the taste and quality of my tap water," that's NOT 50 independent humans. That's a template. Real humans write differently from each other.
+First-person pronouns ("I", "my", "we") are NOT protective by themselves. AI-generated text uses first-person too. The test is whether the first-person content is GROUNDED in lived experience.
 
-**B. AI text pattern recognition (evaluate in the OE text itself):**
-Look for these AI-generation markers in the open-end responses:
-- **Formal adverbs at sentence start**: "Notably,", "Without a doubt,", "Practically,", "Honestly,", "Importantly," — real respondents rarely write this way
-- **Markdown formatting**: Bold text (**like this**), bullet points, or numbered lists in OE fields — bots copy formatted text
-- **Perfect grammar with uniform vocabulary**: If the q14 uses words like "contaminants," "chlorine," "safer," "cleaner" in perfect sentences — check if many other respondents use the EXACT same vocabulary
-- **Overly structured responses**: "First, ... Second, ... Finally, ..." or "The primary driver is..." — survey respondents don't write essays
-- **Third-person generalizing**: "People want...", "Consumers base their decisions on..." — describing market behavior, not personal experience
-- **Product-description language**: Text that reads like marketing copy ("multi-stage filtration," "contaminant removal technologies") rather than personal motivation
+**Grounded evidence** connects to:
+- A concrete event ("after the city changed treatment plants", "when my neighbor showed me their new system")
+- A household condition ("my well water has iron staining", "our pipes are old")
+- A prior answer in the chain (owns a kitchen faucet filter → q14 explains why they bought that specific type)
+- A product use detail ("I change the filter every 3 months", "installed it under the sink myself")
+- A sensory issue ("water tasted metallic", "skin felt dry after showering")
+- A health concern ("my daughter's eczema", "doctor recommended reducing chlorine")
+- A news event ("after the Flint crisis", "saw a report about forever chemicals in our city")
+- A place ("in our area", "here in Phoenix where the water is very hard")
+- A buying context ("was remodeling the kitchen", "moved into a new house with old pipes")
 
-**When AI suspicion is HIGH (score >= 0.5 OR multiple AI markers present):**
-- This is a STRONG discard signal, even if the text reads as first-person and on-topic
-- The client discards these respondents — they can spot the uncanny valley
-- Combine with ML score: if ML >= 0.6 AND ai_text_suspicion >= 0.3, lean toward DISCARD
-- Do NOT let "first-person q14" override AI suspicion — AI-generated first-person text is still fraud
+**NOT grounded** (even if first-person):
+- "I was concerned about the water quality" (no concrete anchor)
+- "I wanted cleaner, safer water for my family" (benefit-stack language, no lived context)
+- "I decided to buy a water filtration device to improve the taste and quality of my tap water" (product-description register, no personal event)
 
-## Scoring Decision Framework
+### 1C. Synthetic Detail Detection
 
-### AUTOMATIC DISCARD (score -1.0, no exceptions):
-- **TERMFLAGS=1**: The platform's fraud detector flagged this respondent. DISCARD regardless of any other signal. Do NOT let first-person q14 content, long completion time, or any other "good" signal override this. The platform has more data than we do (panel history, IP analysis, digital fingerprint). If TERMFLAGS=1, it's fraud.
-- **qc=8 or qc=9**: RD /SEARCH threat or duplicate rejection — platform already rejected this respondent
-- **Non-English language in US survey**: outroR1_RD_Reviewr0 != "English" or decLang != English
+Some details SOUND specific but are actually common synthetic detail clusters. These appear across many respondents and are template-like:
 
-### Strong DISCARD signals (score -0.7 to -1.0):
-- Defender flag (qc=6,8,9) + any other concern
-- **AI text suspicion score >= 0.5** — text is template-generated, not human
-- **AI text markers present** (formal adverbs, markdown, perfect uniform grammar) + ML >= 0.6
-- Gibberish or off-topic in q14 + off-topic outro
-- Off-topic outro + straightlining across most grids + very fast
-- Duplicated personal story (same q14 text as many others)
-- TERMFLAGS=1 (already covered above, but reinforcing)
+**Common synthetic detail clusters** (treat as suspicious when they appear without unusual grounding):
+- "my skin" / "my hair" / "my family" — these are the most common fake specifics
+- "chlorine" / "contaminants" / "hard water" — product-category vocabulary, not personal discovery
+- "safer" / "cleaner" / "better-tasting" — benefit-stack language
 
-### Moderate DISCARD signals (score -0.3 to -0.5):
-- **AI text suspicion score 0.3-0.5** + ML >= 0.6 — suspicious similarity but not definitive
-- **AI text markers present** (formal adverbs, product-description language) without other signals
-- Off-topic outro with no personal q14 but some answer variation
-- Generic praise outro + very fast + straightlining
-- Elevated RD_Search threat score (>=20) + generic OE
-- High-risk supplier + multiple converging concerns
-- Third-person generalizing in q14 ("People want...", "Consumers base...")
+**Genuinely specific details** (harder to fabricate):
+- Named conditions: "eczema", "psoriasis", "dermatitis" (not just "skin")
+- Named events: "Flint", "city changed treatment", "neighbor's new system" (not just "concerns")
+- Named places: "Phoenix", "our area in Texas", "the house we just bought" (not just "my home")
+- Unusual sensory details: "smelled like rotten eggs", "left orange stains in the toilet" (not just "bad taste")
+- Specific product interactions: "the PUR filter kept clogging", "I compared Brita vs iSpring" (not just "wanted a filter")
 
-### REVIEW signals (score -0.2 to 0.0):
-- Mixed signals: some concerns but also some genuine content
-- Fast completion but first-person q14
-- Straightlining but substantive OE
-- ML score 0.5-0.7 with no other strong signals
+**The test**: Is this detail UNUSUAL? Could 50 other respondents independently write the same thing? If yes, it's probably synthetic. If the detail is idiosyncratic — a specific brand comparison, a specific city, a specific event — it's more likely genuine.
 
-### KEEP signals (score +0.3 to +1.0):
-- First-person personal q14 with specific details
-- Varied matrix answers across semantically different grids
-- Above-median timing
-- Low-risk supplier
-- ML score < 0.4
-- Natural misspellings (indicate human, not bot)
-- Unique OE content (not duplicated)
+### 1D. Product-Copy Register
 
-## Critical Lessons from Prior Analysis
+Some answers sound like marketing copy rather than respondent memory. Look for:
+- Benefit-stack language: "reducing contaminants", "improving water taste", "health and safety", "multi-stage filtration", "residential filtration products"
+- Feature-list language: "contaminant removal technologies", "mineral buildup prevention", "advanced filtration"
+- Formal sentence structure: "The benefits should be considered first before to buy", "Practically, the convenience of having clean water..."
+- **This is STRONGER when the answer has no lived context** — no personal event, no sensory detail, no chain reference
 
-1. **DO NOT penalize generic topic restatements in the outro field** — the question literally asks "describe what this survey was about." "Water filtration systems" is a normal answer.
+### 1E. Paraphrase-Level Duplicate Detection
 
-2. **DO NOT penalize missing q14** — the client keeps respondents with missing q14. It's not a discard signal.
+The `ai_text_suspicion` field detects exact/near-exact text similarity. But also check for PARAPHRASE clusters — respondents who tell the same story with different words:
+- "concerned about water quality" / "wanted safer drinking water" / "remove contaminants for family" — these are the SAME story frame with different surface text
+- "improve taste and safety" / "cleaner water for my family" / "healthier water for daily use" — same benefit-stack, different word order
+- If the answer could be a paraphrase of 10+ other answers, it's a paraphrase cluster member
 
-3. **DO weight first-person q14 content heavily as a KEEP signal** — any first-person content in q14 ("for my family", "my water tastes bad") is a strong protective factor. **BUT**: if `ai_text_suspicion.score >= 0.5` or AI markers are present (formal adverbs, markdown, perfect uniform grammar), the first-person content may be AI-generated. In that case, it is NOT a protective factor — it's fraud.
+**When q14 itself is in a paraphrase cluster** (not just outro), this is a strong discard signal — the respondent is using a template with minor word variation.
 
-4. **DO trust the ML triage score on boundary cases** — ML > 0.7 correlates with true discards. If ML says high risk and you see ANY other concern, lean toward discard.
+---
 
-5. **DO look at the CONVERGENCE of signals** — no single signal (except TERMFLAGS and qc=8/9) is sufficient for discard. Look for 3+ converging concerns.
+## Evidence Family 2: Platform Risk
 
-6. **DO consider response RELEVANCE, not just quality** — a well-written but off-topic answer is worse than a poorly-written but on-topic one.
+Read the `defender_summary` field FIRST. It consolidates all platform signals.
 
-7. **DO look at per-grid patterns** — straightlining on rating scales (q20-q24) is more common than on behavioral questions (q3-q4). Weight accordingly.
+### Platform signals:
+- **TERMFLAGS=1**: Platform fraud flag. STRONG signal (score -0.7). Override test: upgrade to REVIEW (-0.2) ONLY when the core OE has unusually strong human evidence — a specific named event, named place, named condition, or chain-consistent detail that would be very hard to fabricate. A merely first-person or generic answer does NOT override TERMFLAGS. The client overrides in ~25% of cases, but only for genuinely specific respondents.
+- **qc=8 or qc=9**: RD /SEARCH threat or duplicate rejection — AUTOMATIC DISCARD (-1.0)
+- **qc=6**: RD /REVIEW rejection — strong discard
+- **qc=7**: OE screening failure — strong concern (the platform's own OE quality check failed)
+- **qc=11**: Speeder — moderate concern
+- **qc=2,4,5**: State/region/age mismatch — strong concern
+- **RD_Search threat score**: >=25 = elevated, >=20 = moderate
+- **Non-English language**: Automatic discard for US surveys
+- **LangAssess read_level**: >=17 = very high (AI suspicion), >=15 with short text = AI suspicion, <2 with long text = incoherence
 
-8. **DO treat TERMFLAGS=1 as an automatic discard** — the platform's fraud detector has access to panel history, IP analysis, and digital fingerprinting that we don't have. If it flagged this respondent, trust it. Do NOT override with "but the q14 looks first-person." AI-generated first-person text is still fraud.
+### TERMFLAGS override logic (IMPORTANT):
+TERMFLAGS=1 is strong (-0.7) but NOT automatic. The override test is strict:
+- **Override to REVIEW** only if: the core OE contains a specific named event/place/condition AND the answer is chain-consistent AND there are no other risk families firing. Example: "After the news about forever chemicals in our city water supply" + chain shows awareness of specific filter types + no AI markers.
+- **Do NOT override** if: the core OE is first-person but generic ("I wanted cleaner water for my family"), or if AI markers are present, or if ML >= 0.7, or if the outro is generic praise. A typo does NOT qualify as "unusually strong human evidence."
 
-9. **DO read the `defender_summary` field FIRST** — it consolidates all platform signals into one string. If it says anything other than "No platform defender signals triggered," pay attention. The platform has signals we can't see from the Excel alone.
+---
 
-10. **DO check `ai_text_suspicion` for every respondent** — if the score is >= 0.3, the respondent's text is suspiciously similar to other respondents. This is the "too clean to be real" pattern: when many respondents write the same way, they're using a template, not writing independently. This is the #1 thing we were missing — the client catches AI-generated text that our semantic classifier reads as genuine.
+## Evidence Family 3: Model Risk
 
-11. **DO look for AI text markers in the OE text itself**: formal adverbs ("Notably," "Without a doubt," "Practically"), markdown formatting (**bold**), product-description language ("multi-stage filtration," "contaminant removal technologies"), and overly structured responses. Real survey respondents don't write essays or marketing copy.
+- **ML >= 0.8**: Very high. Almost always right. If the core OE also fails its role, this is a discard. If the core OE is grounded and specific, cap at REVIEW.
+- **ML >= 0.7**: High risk. If the core OE fails its role OR is generic first-person, this is a discard. If the core OE is grounded and specific with no other concerns, cap at REVIEW.
+- **ML 0.5-0.7**: Ambiguous. Use as a tiebreaker — if any other risk family fires, lean toward discard.
+- **ML < 0.4**: Low risk. Protective factor, but does NOT override a failed core OE if other risk families fire.
 
-12. **DO remember that the client has signals we don't have** — panel history, cross-survey fraud detection, IP/digital fingerprint analysis. Some respondents with ML=0.17 and 26-minute completion times are still discarded by the client. That decision is based on data outside this workbook. We can only approximate it with the signals we have (TERMFLAGS, RD_Search, AI text detection). When in doubt, trust the platform signals.
+---
+
+## Evidence Family 4: Source Risk
+
+- **Supplier reject_rate > 30%**: High risk. Multiplier on other signals.
+- **Supplier reject_rate > 20%**: Medium risk.
+- **RD_Search threat >= 20**: Moderate source risk.
+- **RD_Search threat >= 25**: Elevated source risk.
+- Source risk alone is NOT sufficient for discard. It is a multiplier.
+
+---
+
+## Evidence Family 5: Duplicate Semantics
+
+- **`ai_text_suspicion` on core OE field (e.g., q14)**: STRONG signal. The core OE text is similar to other respondents — likely templated.
+- **`ai_text_suspicion` on outro ONLY**: DOWNWEIGHT. Generic topic restatements trigger high similarity because many respondents write the same thing. This is topical inevitability. BUT: outro similarity + weak core OE + any risk family = meaningful concern.
+- **`oe_duplicate_counts`**: High count (>10) on personal/unusual text = very suspicious. High count on generic text = topical inevitability.
+- **Paraphrase clusters**: Check manually — does the core OE tell the same story frame as many others, even with different words?
+
+### Outro-only guardrail:
+Outro similarity alone should NOT discard. But outro similarity PLUS any of these should become meaningful:
+- Weak core OE (fails role test or is generic first-person)
+- Platform risk (TERMFLAGS, RD_Search elevated)
+- Source risk (high supplier reject rate)
+- Model risk (ML >= 0.6)
+- Semantic role mismatch in core OE
+
+---
+
+## Evidence Family 6: Weak Outro Behavior
+
+The outro field asks "describe what this survey was about." Evaluate outro quality:
+- **Generic topic restatement** ("water filtration systems", "water filter survey") = NORMAL, not a signal
+- **Generic praise** ("Very good and wonderful", "Nice survey", "Great experience", "easy and fast") = mild concern. Combined with weak core OE + any risk family = contributes to discard.
+- **Off-topic** ("good night my friend", "american whiskey", "customer rewards") = strong concern
+- **Gibberish** = strong concern
+- **Chain-inconsistent** (q14 gives a serious purchase reason but outro is generic praise or off-topic) = the combination lowers confidence in the core OE
+
+### Open-end chain consistency:
+Each open end should be evaluated against the full response chain. If q14 gives a serious, specific purchase reason but the outro is generic praise or off-topic, that combination should lower confidence. A genuine respondent who writes a detailed motivation should also be able to describe what the survey was about.
+
+---
+
+## Evidence Family 7: Timing & Engagement
+
+- **bottom_10% timing**: Very fast. Concern, but not sufficient alone.
+- **bottom_25% timing**: Fast. Mild concern.
+- **above_median timing**: Protective factor.
+- **Very fast + failed core OE + any risk family** = converging concerns → discard
+- **Straightlining**: If prevalence is >80% (see dataset context), straightlining alone is NOT discriminative. Only matters when combined with other signals.
+
+---
+
+## The Decision Algorithm
+
+For each respondent, work through these steps:
+
+### Step 1: Read defender_summary
+Are any platform signals firing? Note which ones.
+
+### Step 2: Identify the core OE field
+Which open-end field asks for personal motivation/experience/job role? Read its question text.
+
+### Step 3: Apply the Answer-Role Test to the core OE
+Does the answer actually answer the question? Or does it name the topic / use category language / give a non-motivation?
+
+### Step 4: Apply the Grounded First-Person Test
+If first-person, is it grounded in concrete lived experience? Or is it generic first-person with no anchor?
+
+### Step 5: Check for synthetic details
+Are the "specific" details actually common synthetic clusters ("my skin", "my family", "chlorine")? Or are they idiosyncratic (named events, named places, unusual sensory details)?
+
+### Step 6: Check for product-copy register
+Does the answer sound like marketing copy? Benefit-stack language? Feature lists?
+
+### Step 7: Check ai_text_suspicion
+Is the core OE field flagged? (Strong.) Is only outro flagged? (Downweight, but check guardrail.)
+
+### Step 8: Check ML score
+Is ML >= 0.7? >= 0.8?
+
+### Step 9: Check chain consistency
+Does the core OE fit with the rest of the answer chain? Would a genuine respondent with this motivation also give these other answers?
+
+### Step 10: Count independent risk families
+How many of the 5 risk families are firing? (Model, Platform, Source, Duplicate, Weak Outro)
+
+### Step 11: Decide
+
+**DISCARD** (score < -0.3) when:
+- Core OE fails its role AND >= 1 risk family fires
+- Core OE is generic first-person (not grounded) AND >= 1 risk family fires
+- Core OE is a short non-answer (<25 chars, not a real motivation) AND >= 1 risk family fires
+- TERMFLAGS=1 AND core OE is not unusually specifically grounded
+- ML >= 0.8 AND core OE fails role or is generic
+- Core OE has AI markers (formal adverbs, markdown, product-copy) AND ML >= 0.7
+- Core OE is in a paraphrase cluster AND ML >= 0.6
+- Both core OE and outro are off-topic/gibberish
+
+**REVIEW** (score -0.3 to 0) when:
+- Core OE is grounded but one risk family fires
+- TERMFLAGS=1 AND core OE has unusually strong human evidence
+- ML >= 0.7 AND core OE is grounded and specific with no other concerns
+- Outro is generic praise + core OE is generic first-person (no risk family, but quality concern)
+- Mixed signals where neither KEEP nor DISCARD is clearly warranted
+
+**KEEP** (score > 0) when:
+- Core OE passes the answer-role test AND is grounded with idiosyncratic detail AND no risk family fires
+- Core OE is specific and chain-consistent AND ML < 0.5 AND no platform flags
+- The answer contains unusual lived detail that would be very hard to fabricate (specific brand comparison, specific city + water problem, specific health condition + doctor recommendation)
+
+### Typo rule:
+Typos are NOT protective unless the surrounding answer is grounded and coherent. A typo inside generic content is neutral or mildly suspicious. "I was concerned about the filteration" with no other detail = not protective. "The filteration left orange stains in my toilet bowl" with a specific sensory detail = the typo is a minor human marker, but the specificity is what matters.
+
+### Short non-answer rule:
+Short answers (<25 chars) to a motivation question are almost always role failures. "It's essential", "Because I need one", "I needed an upgrade", "Samsung", "iSpring" are NOT motivations. When paired with ANY risk family signal (ML >= 0.6, RD_Search >= 20, fast timing, generic outro, high supplier risk), this becomes a discard.
+
+### Accepted-row similarity guardrail:
+Before discarding, ask: what makes this row different from accepted rows with the same surface flaw? If many client-kept respondents also wrote generic first-person q14 with ML ~0.5, then a generic first-person q14 with ML ~0.5 should NOT be discarded unless there is an additional differentiating signal. The discard should come from the CONVERGENCE of failed core OE + risk family, not from any single signal that is common among accepted rows.
+
+### Hidden-client-signal approximation:
+Rows with missing core OE but client discard likely reflect signals outside the workbook (panel history, cross-survey fraud). Approximate with combinations: missing core open end + source risk + platform risk + RD risk + weak routing + low chain substance. If multiple of these converge, lean toward REVIEW even without a clear OE failure.
+
+---
+
+## Platform Signal Reference
+
+- `defender_signals.qc_flag`: 1=Not select 3, 2=State mismatch, 3=Red Herring, 4=REGION mismatch, 5=AGE mismatch, 6=RD /REVIEW rejection, 7=OE screening, 8=RD /SEARCH threat, 9=RD /SEARCH duplicate, 10=RD /SEARCH country, 11=Speeder, 12=Exceeded terms
+- `defender_signals.TERMFLAGS`: 1 = platform fraud flag (strong, not automatic)
+- `defender_signals.RD_Searchr1`: Threat score (0-30+)
+- `defender_signals.RD_Searchr3`: Country detected
+- `defender_signals.outroR1_RD_Reviewr0`: Language detected
+- `defender_signals.outroR1_RD_Reviewr3`: Outro composite score (>=10 = HIGH)
+- `defender_signals.lang_assess.read_level`: Flesch-Kincaid grade level
+- `ai_text_suspicion.score`: 0-1 cross-respondent similarity
+- `ai_text_suspicion.fields_flagged`: Which OE fields are similar to others
 
 ## Dataset Context
 - Dataset: {dataset_name}
 - Total respondents: {n_respondents}
 - Matrix straightlining prevalence: {matrix_prevalence:.1%} {'(VERY HIGH — straightlining alone is NOT discriminative)' if matrix_prevalence > 0.8 else ''}
 - You are reviewing chunk XX of {n_chunks}
+- NOTE: This dataset may not be about water filtration. Read the question text in each OE field to identify the survey topic and the core OE field. Adapt the answer-role test to the actual question being asked.
 """
 
 
