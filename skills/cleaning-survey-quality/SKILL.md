@@ -37,11 +37,18 @@ After the Datamap is mapped, review each respondent's full response chain field 
 
 The production pipeline uses a multi-agent architecture with four stages. Scripts only stage raw data. Agents do all semantic work.
 
-**Stage 1 — Script: Data staging (no semantic work)**
-Scripts parse the Datamap, map response fields to question text and value labels, and compute population-level statistics (timing distributions, supplier cohorts, duplicate text detection, cross-respondent clustering). Scripts output structured JSON packets containing: the question text for each field, the value label for each coded answer (e.g., q15=4 → "Very concerned"), the raw open-end text, the timing, the supplier, and the duplicate group membership. Scripts do NOT score, do NOT classify open-ends, do NOT judge coherence. They stage raw materials only.
+**Stage 1 — Script: Data staging + ML triage (no semantic work)**
+Scripts parse the Datamap, map response fields to question text and value labels, and compute population-level statistics (timing distributions, supplier cohorts, duplicate text detection, cross-respondent clustering). The ML model (trained on 13,388 annotated respondents across 11 datasets) produces a triage risk probability (0-1) for each respondent. Scripts output structured JSON packets containing: the question text for each field, the value label for each coded answer (e.g., q15=4 → "Very concerned"), the raw open-end text, the timing, the supplier, the duplicate group membership, and the ML triage score. Scripts do NOT make discard decisions. The ML model is a triage tool that flags high-risk respondents for agent review — not a standalone classifier.
 
-**Stage 2 — Agent: Respondent identity construction (natural language, not scripts)**
-A subagent reads each staged packet and writes a natural-language respondent identity profile. This is NOT a proposition template — the agent reads the full answer chain and writes who this respondent claims to be, in plain English, including ALL signals translated to natural language:
+**Stage 2 — Agent: Respondent scoring (-1 to +1)**
+A subagent reads each staged packet and assigns a score on a discard-keep continuum:
+- `-1.0` = clear discard (TIER 1 signal, or multiple strong converging signals)
+- `-0.5` = discard lean (high-risk supplier + signals, or incoherent profile)
+- ` 0.0` = uncertain (some concerns but not converging)
+- `+0.5` = likely keep (minor concerns but coherent chain)
+- `+1.0` = clear keep (no signals, coherent chain, reasonable timing)
+
+The agent reads the full answer chain and writes who this respondent claims to be, in plain English, including ALL signals translated to natural language:
 - "I responded in 4 minutes" (qtime=240)
 - "I have no supplier recorded" (missing SUPNAME)
 - "I am very concerned about water quality" (q15=4 → label lookup)
@@ -52,27 +59,23 @@ A subagent reads each staged packet and writes a natural-language respondent ide
 
 The agent writes this identity profile using its own intelligence, reading the question text and answer meaning together. The agent decides how to phrase each claim based on the question context. No script template generates these profiles. The agent reads the question, reads the answer, and writes what the respondent is claiming about themselves.
 
-**Stage 3 — Agent: Cross-respondent similarity comparison (natural language, not scripts)**
-A subagent reads all respondent identity profiles and compares them to find:
-- Respondents with identical or near-identical identity profiles (synthetic response families)
-- Respondents sharing unusual claims, phrasing, or contradiction patterns
-- Respondents whose identity profile is incoherent (claims that don't form a real person)
-- Clusters of respondents from the same supplier with similar weak profiles
+**Stage 3 — Agent: Reassessment of negative scores**
+All respondents with score < 0 get a second-pass agent reassessment. The reassessment checks for protective factors that might override the negative score:
+- Score < -0.3 with < 2 strong protective factors → DISCARD
+- Score < -0.3 with 2+ strong protective factors → REVIEW (pulled back from discard)
+- Score < -0.1 → REVIEW (moderate concern)
+- Score < 0 → REVIEW (slight concern)
+- Score >= 0 → KEEP (not reassessed)
 
-The agent writes a similarity report identifying clusters, shared patterns, and outlier profiles. This is a semantic act — the agent reads profiles as narratives and judges whether two respondents sound like the same person, a copied response, or a synthetic identity.
+TIER 1 signals always confirm discard regardless of protective factors. Protective factors include: substantive detailed open-end (>150 chars), very high answer diversity (entropy > 3.0), very low-risk supplier (<12% reject rate), and generous completion time (>15 min, above median).
 
-**Stage 4 — Agent: Final determination per row (natural language, not scripts)**
-For each row, a subagent reads:
-1. The respondent identity profile (from Stage 2)
-2. The cross-respondent similarity findings (from Stage 3)
-3. The static analysis signals (from Stage 1: timing percentile, supplier cohort, duplicate membership)
-
-The agent makes a final determination: discard, review, or keep. The agent writes a one-paragraph justification explaining the decision in natural language, citing the specific identity claims, similarity findings, and signals that drove the decision. No scripted threshold determines the outcome. The agent weighs all evidence together and decides whether this specific respondent is authentic.
+**Stage 4 — Agent: Final determination per row**
+For each row, the agent makes a final determination: DISCARD, REVIEW, or KEEP. The agent writes a one-paragraph justification explaining the decision in natural language, citing the specific identity claims, signals, and protective factors that drove the decision. All discard determinants are selected from the reassessed pool (respondents with negative scores that survived the second-pass reassessment).
 
 **What scripts do NOT do:**
 - Scripts do NOT classify open-end text as "meta_praise" or "templated"
 - Scripts do NOT detect contradictions between fields
-- Scripts do NOT score rows or make discard decisions
+- Scripts do NOT make final discard decisions
 - Scripts do NOT generate proposition templates
 - Scripts do NOT apply regex rules to open-end text for semantic classification
 
@@ -83,6 +86,7 @@ The agent makes a final determination: discard, review, or keep. The agent write
 - Detect exact duplicate text across respondents
 - Detect duplicate IP addresses
 - Compute supplier cohort distributions
+- Run the ML triage model to flag high-risk respondents
 - Assemble structured JSON packets for the agents to read
 
 This architecture is mandatory for production runs. Scripted scoring produces false positives because regex cannot read context. The agent can. See `references/progressive-chain-filtering.md` for the full production pipeline specification.
@@ -186,83 +190,60 @@ The ordering is: understand what each field asks, judge whether each answer is c
    - Confirm respondent key columns such as `uuid`, `record`, or `RID`.
    - Discover raw quality signals: qtime/duration, fielding start/date/timestamp fields, IP address, matrix grids, open-ended columns, brand/preference/recommendation candidates, and AI-likelihood columns when present.
    - Detect and ignore graded/review helper columns when building the raw-data discovery profile.
-5. Run the scoring loop:
+5. Run the survey quality pipeline:
    ```bash
-   python3 scripts/run_quality_loop.py \
-     --data-dir /path/to/source-data \
-     --output-dir /path/to/outputs/latest-quality-loop
+   python3 scripts/survey_pipeline.py /path/to/unannotated_export.xlsx \
+     --output-dir /path/to/outputs/quality_output
    ```
-   For one unannotated file:
-   ```bash
-   python3 scripts/run_quality_loop.py \
-     --input-file /path/to/unannotated_export.xlsx \
-     --topic-keywords "construction,contractor,building,gas,c-store" \
-     --output-dir /path/to/outputs/raw-quality-pass
-   ```
-6. Review the generated `quality_report.md`, `row_scores.csv`, and `quality_summary.json`.
-7. Review the generated table artifacts:
-   - `question_chain_map.csv`: ordered source-field map with field roles, prompt text when available, and the fields used for full response-chain review.
-   - `demographic_summary.csv` and `.md`: demographic and aggregate insights from the source data, using Datamap labels where available.
-   - `generated_criteria_catalog.csv`: all generated criteria, tags, source columns, rationale, generated weights, and support.
-   - `respondent_review_table.csv`: one row per respondent with metadata, triggered criteria, explanations, second-pass disposition, agent semantic analysis, linguistic fluency assessment, trust rationale, survivor rationale, discard rationale, and escalation routing.
-   - `response_criteria_evidence_table.csv`: one row per respondent criterion with observed value, source column, generated points, explanation, weight rationale, second-pass disposition, and agent annotation context.
-   - `agent_annotation_table.csv`: focused Opulent annotation surface for semantic analysis, linguistic fluency assessment, trust rationale, and next steps.
-   - `respondent_review_table.md`: PM-facing Markdown sample sorted by severity/score.
-8. Review `discovery_profiles.json` to confirm detected qtime, fielding timestamp, IP, matrix, open-end, brand-consistency, and AI-authenticity candidate analyses.
-9. Route rows using `second_pass_decision` first, then `severity_level`, `escalation_owner`, and `escalation_reason`.
-   - Escalate only rows marked `discard_candidate` after the extra pass.
-   - Keep rows marked `keep_with_recommendation` or `keep_no_issue`; aggregate their survivor rationales and survey-question recommendations.
-10. Run the agent critic review over every possible discard and read the all-row audit before finalizing:
-   - Treat the generated criteria as the case file.
-   - For normal blank runs, do not use `status`, client flags, helper labels, or final-review fields as decision evidence. Apply the learned signal questions from `decipher-blind-authenticity-review.md` directly to the current workbook.
-   - For methodology-development runs only, first conduct a blind semantic review with `status`, client flags, helper labels, and final-review fields hidden. Assign one of five tiers before reading the label.
-   - For methodology-development runs only, reveal `status` after blind review and run a label-aware contrastive pass that explains misses, false positives, protective evidence, and non-authenticity client rejection patterns.
-   - For methodology-development runs only, keep two scores separate after the blind record is frozen. `client_reject_probability` estimates similarity to the client cleaning process. `semantic_risk_score` estimates authenticity concern from full-chain review. Do not use the client-process score as proof of fraud, and do not use the semantic score as a complete model of every client removal.
-   - Read the full response chain and focused semantic chain for each candidate.
-   - Write a respondent-level semantic judgment for every row, not only the first-pass candidates. For rows that are not risky, the judgment can be concise, but it must still name the protective reason, such as valid short answer, coherent chain, plausible timing, or accepted-row precedent.
-   - Read enough of the all-row audit to understand every response family, not just the rows surfaced by the first pass.
-   - Compare each possible discard against the question-set authenticity map. The final call should explain how the respondent's answer fits or violates the expected evidence type for that exact prompt family.
-   - Consider the strongest benign explanation.
-   - Decide whether evidence is verified, not verified, or inconclusive.
-   - Promote rows into the final discard set only when the agent can explain the discard in plain language with citations.
-   - Read the independent full-response audit across all rows before finalizing. Look for missed bad-response patterns, copied chains, direct non-responses, weak repeated placeholders, and false positives that the scorer either missed or over-weighted.
-   - If the final read exposes a bad first-pass assumption, such as a missing field-role map or incomplete topic map, rerun the review with corrected context and write the correction into the internal signal bank.
-   - Challenge the run before final delivery. Try to disprove the discard set, the kept-row rationale, the topic map, the field-role map, and the dashboard narrative. Repair the smallest material weakness and rerun only the checks affected by the repair.
-11. After the agent has investigated review-tagged rows, generate a final visual review package through `reporting-survey-quality`:
-   - `agent_review_judgment_table.csv`: all review-tagged rows with agent decisions.
-   - `agent_discard_set.csv`: only rows the agent judged should be escalated for removal.
-   - `agent_escalation_packet.md`: the final PM-ready escalation path, including discard rows, hard kept cases, difficult calls, internal criteria used, citations, and next actions. This file exists even when there are no discards.
-   - `internal_quality_signal_bank.md`: internal lessons, comments, criteria, false positives, and next-pass signal status. This file is internal and should not be treated as client copy.
-   - `agent_kept_review_synthesis.md` and `.csv`: synthesis of kept review-flagged candidates into survey-question and parameter improvements.
-   - `full_chain_analyst_readout.md` and `full_chain_best_worst_examples.csv`: readable prose analysis of the best and worst full response chains, with explicit reasoning about what the agent saw.
-   - `agent_positive_insights_report.md`: readable prose analysis of strong retained response chains, positive findings, false-positive guardrails, and what good data looks like in this dataset.
-   - `next_pass_signal_inventory.csv`: critical signals that should shape the next first-pass analysis.
-   - `next_pass_first_pass_config.json`: proposed next-pass rules, evidence needs, and escalation guardrails.
-   - `question_contract.md` and `question_relation_graph.csv`: question families, relation types, timing burden, funnel logic, routing, contradiction rules, and guardrails.
-   - `semantic_signal_expansion_notes.md`: agent-authored explanation of how raw checks became weighted evidence or stayed review-only.
-   - `deep_semantic_review_sample.md`: a small set of reviewed rows with deeper semantic reasoning and next-pass learning.
-   - `agent_row_semantic_judgments.csv` or `.jsonl`: one row per source respondent, authored after full-chain reading, with the semantic judgment, strongest discard signal, strongest protective signal, final tier, and next-pass learning.
-   - `agent_findings_essay.md`: cited natural prose analysis of the run, discoveries, decisions, demographic context, and workflow learning.
-   - `agent_final_review_dashboard.html` and `agent_final_visual_findings_report.md`: final dashboard, charts, tables, findings, and artifact index for content review.
-   - Use `build_agent_review_artifacts.py` after the independent full-response audit to create the agent judgment table, discard set, kept-review synthesis, and verified quality brief.
-12. Prove the package before calling the run complete:
-   - Check that the required artifacts exist.
-   - Verify that source rows, `row_scores.csv`, `respondent_review_table.csv`, and `independent_full_response_audit.csv` have the same row count. If they do not, stop and fix the run.
-   - Verify that the independent audit contains a `full_response_chain` field and that the final judgment table was built after that audit.
-   - Verify that the row semantic judgment artifact has one record per source respondent. If a run only contains scored flags, counts, or templated explanations, it has not completed the agent review.
-   - Reconcile counts across respondent review, agent judgment, discard set, kept synthesis, essay, escalation packet, and dashboard.
-   - Verify that every discard row appears in the escalation packet.
-   - If the task is methodology development against annotated data, verify that `blind_authenticity_review_table.csv`, `label_aware_contrast_table.csv`, `authenticity_signal_family_lift.csv`, `protective_human_evidence.md`, and `agentic_fraud_training_report.md` exist. Do not require these artifacts for normal blank Decipher runs.
-   - If the task is full annotated-corpus discovery, also verify that `input_inventory.csv`, `leakage_exclusions.json`, `labeled_row_manifest.csv`, `column_profile_discard_vs_accept.csv`, `univariate_signal_ranking.csv`, `cross_dataset_meta_signals.csv`, `matched_case_pairs`, `pairwise_interactions.csv`, `higher_order_patterns.csv`, `signal_bank.yaml`, `validation_report.md`, `residual_casebook.md`, and `freeze_manifest.json` exist and are populated. Do not score the blinded workbook if leakage-driven signals were found or if transfer validation remains weak without a documented residual plan.
-   - If the task is the full annotated semantic loop, also verify `semantic_loop_provenance.json`, `semantic_leakage_audit.json`, `question_contracts.jsonl`, `question_relation_graph.json`, `blind_full_chain_reviews.jsonl`, `contrastive_pair_reviews.jsonl`, `accepted_guardrail_bank.yaml`, `semantic_signal_candidates.csv`, `semantic_model_comparison.csv`, `leave_one_dataset_out_semantic_results.csv`, `semantic_validation_report.md`, `semantic_false_negatives.csv`, `semantic_false_positives.csv`, `residual_loop_changes.md`, and `semantic_methodology_freeze_manifest.json`. Confirm that all labeled rows have blind reviews and that every rejected row has matched accepted controls before promoting any signal.
-   - If a client annotated workbook exists for benchmark work, verify that `client_annotation_validation.md`, `.csv`, and `_summary.json` exist and that their blocking findings are resolved or named plainly.
-   - Verify that the dashboard renders without unreadable tables or overlapping prose.
-   - Assign a terminal state from `references/dataset-cycle-loop.md`: success, clean no-op, blocked, approval required, or no-progress stop. Do not treat missing artifacts, unreconciled counts, unreadable dashboards, or errors as success.
-   - Preview the main artifacts before responding to the user. Inspect the findings essay, positive insights report, escalation packet, internal signal bank, dashboard, visual findings report, discard set, final judgment table, kept synthesis, next-pass inventory, demographic summary, and deep semantic sample.
-   - The final assistant response must be client-facing and email-ready. It should read as one cohesive review system, using language such as "we discovered," "we reviewed," and "we recommend." Do not describe the close-out as tool execution or as "the agent final pass."
-   - The final assistant response must include a clear narrative of core discoveries, core discard recommendations with respondent keys and row or cell-level citations when available, positive findings and strong-response examples, key statistics from the run, brief descriptions of important artifacts, a verified-artifact statement, and the next-pass signals.
-13. Before starting the next run, read the prior `agent_findings_essay.md`, `agent_escalation_packet.md`, `next_pass_signal_inventory.csv`, and `internal_quality_signal_bank.md`. Decide which signals can be added to the first-pass context, which signals need PM examples, which signals are false-positive guardrails, and which signals should remain agent-only. Keep cycling through new datasets and reruns until the row-count gates, artifact gates, dashboard checks, prose checks, and escalation reconciliation checks pass without defects.
-   - Each cycle should record one to five compact learning records in the signal bank or workflow improvement log when the run changes future behavior. Do not write activity logs. Write only lessons that change the next pass.
+   The pipeline runs five stages automatically:
+   - **Stage 1 — Feature extraction + answer chain construction**: Parses the Datamap, classifies field roles, computes population-level statistics (timing, supplier, duplicates, open-end patterns), and builds a structured answer chain for each respondent.
+   - **Stage 2 — ML triage scoring**: The trained Gradient Boosting model (13,388 annotated respondents, 11 datasets) produces a risk probability (0-1) for each respondent. This is a **triage tool** that flags high-risk respondents for agent review — not a standalone classifier.
+   - **Stage 3 — Agent scoring (-1 to +1)**: Each respondent is assigned a score on a discard-keep continuum:
+     - `-1.0` = clear discard (TIER 1 signal, or multiple strong converging signals)
+     - `-0.5` = discard lean (high-risk supplier + signals, or incoherent profile)
+     - ` 0.0` = uncertain (some concerns but not converging)
+     - `+0.5` = likely keep (minor concerns but coherent chain)
+     - `+1.0` = clear keep (no signals, coherent chain, reasonable timing)
+     
+     The score is based on the convergence of signals observed in the answer chain, not a mechanical inversion of the ML score. The ML triage is ONE input — it flags who to look at carefully. Strong signals (TIER 1/2) drive the score negative on their own. Moderate signals (supplier risk, timing, open-end quality, matrix straightlining, answer entropy, duplicates, readability) need convergence to drive negative. Protective factors (substantive open-ends, high answer diversity, low-risk supplier, generous timing) pull the score back toward keep.
+   - **Stage 4 — Reassessment of negative scores**: All respondents with score < 0 get a second-pass agent reassessment. The reassessment checks for protective factors that might override the negative score:
+     - Score < -0.3 with < 2 strong protective factors → **DISCARD**
+     - Score < -0.3 with 2+ strong protective factors → **REVIEW** (pulled back from discard)
+     - Score < -0.1 → **REVIEW** (moderate concern)
+     - Score < 0 → **REVIEW** (slight concern)
+     - Score >= 0 → **KEEP** (not reassessed)
+     
+     TIER 1 signals always confirm discard regardless of protective factors.
+   - **Stage 5 — Output generation**: Two artifacts are produced (see Output Artifacts below).
+6. Review the generated outputs:
+   - **Annotated Excel** (`{dataset}_annotated.xlsx`): The original Excel file with 7 added columns:
+     - `ML_Triage_Score` — the ML model's risk probability (0-1)
+     - `Agent_Score` — the initial agent score (-1 to +1)
+     - `Final_Score` — the score after reassessment (-1 to +1)
+     - `Final_Judgment` — DISCARD, REVIEW, or KEEP (color-coded: red, yellow, green)
+     - `Key_Signals` — semicolon-separated list of the signals that drove the score
+     - `Agent_Reasons` — semicolon-separated list of agent reasoning for the score
+     - `Reassessment_Notes` — notes from the second-pass reassessment (if applicable)
+   - **Dashboard HTML** (`{dataset}_dashboard.html`): A self-contained HTML file with:
+     - Summary cards (total, discard, review, keep counts and percentages)
+     - Agent score distribution chart (-1 to +1 buckets)
+     - Timing distribution chart
+     - Top population signals list
+     - Supplier analysis table (top 15 suppliers by count, mean score, discards, reviews)
+     - LangAssess readability distribution
+     - ML triage score distribution
+     - Discard set table (top 50 discards with scores, signals, and reasons)
+   - **Summary JSON** (`summary.json`): Aggregate statistics for programmatic use.
+7. For normal blank runs, do not use `status`, client flags, helper labels, or final-review fields as decision evidence. Apply the learned signal questions from `decipher-blind-authenticity-review.md` directly to the current workbook.
+8. For methodology-development runs only, first conduct a blind semantic review with `status`, client flags, helper labels, and final-review fields hidden. Assign one of five tiers before reading the label. Reveal `status` after blind review and run a label-aware contrastive pass that explains misses, false positives, protective evidence, and non-authenticity client rejection patterns.
+9. Challenge the run before final delivery. Try to disprove the discard set, the kept-row rationale, the topic map, the field-role map, and the dashboard narrative. Repair the smallest material weakness and rerun only the checks affected by the repair.
+10. Prove the package before calling the run complete:
+    - Verify that the annotated Excel has the same row count as the source file.
+    - Verify that every row has a `Final_Score` and `Final_Judgment`.
+    - Verify that the dashboard renders without unreadable tables or overlapping prose.
+    - Verify that discard rows in the Excel match the discard table in the dashboard.
+    - Assign a terminal state: success, clean no-op, blocked, approval required, or no-progress stop.
+11. Before starting the next run, review the prior run's discard set and key signals. Decide which signals can be added to the first-pass context, which signals need PM examples, which signals are false-positive guardrails, and which signals should remain agent-only.
 
 ## Generated Criteria And Scoring Policy
 
