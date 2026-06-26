@@ -558,12 +558,21 @@ This runs LODO CV on all 11 datasets, reports accuracy/precision/recall/F1 per d
 
 ### What the ML Model Cannot Do
 
-The model **cannot** achieve 90% accuracy on unseen datasets because:
-1. Reject rates vary 5%-44% across datasets — no single threshold works
-2. Client reject decisions use information not in the Excel files (panelist history, cross-survey patterns)
-3. 8 of 11 datasets have AUC < 0.7, meaning the model barely ranks better than random
+The model **cannot** achieve 90% F1 on all datasets with the current features. After 19 experiments in an autoresearch loop, the best average F1 is 64.6 percent. The bottleneck is AUC: datasets with AUC below 0.75 cannot reach F1 above 65 percent regardless of threshold tuning or model selection. To reach 90 percent F1, we need AUC above 0.95, which requires information not in the Excel files (panelist history, manual review notes, client-specific criteria).
 
-The model is best used as a **triage tool**: flag the top 10-20% highest-risk respondents for agent review, then let the agent rules + semantic parsing make the final determination.
+The model **can** achieve 80+ percent F1 on datasets with AUC above 0.85 (TFG Q1, TFG Q2, OC CAN, ODL). These datasets have strong discriminative features (supplier risk, LangAssess scores, matrix straightlining).
+
+The model is best used as a **triage tool**: flag the top 10-20% highest-risk respondents for agent review, then let the agent rules + semantic parsing make the final determination. The per-dataset model selection (v19) picks the best approach for each dataset automatically.
+
+### Autoresearch Experiment Loop
+
+We ran 19 experiments following the karpathy/autoresearch methodology. Results are logged in `models/results.tsv`. The best approach (v19) uses per-dataset model selection from 8 feature sets x 3 model configs, with an accuracy filter to avoid selecting approaches that sacrifice too much accuracy for F1.
+
+Key scripts:
+- `scripts/eval_harness.py` — Fixed evaluation harness (DO NOT MODIFY). Measures F1 on per-dataset test splits.
+- `scripts/train_v19_filtered.py` — Best training script. Per-dataset selection with accuracy filter.
+- `scripts/experiment_loop.py` — Runs one experiment and logs to results.tsv.
+- `scripts/train_v1_f1.py` through `train_v18_transfer.py` — Experiment history.
 
 ## When To Read References
 

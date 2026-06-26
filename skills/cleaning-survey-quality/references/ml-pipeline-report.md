@@ -196,3 +196,95 @@ We cannot achieve 90 percent accuracy on cross-dataset prediction. The reject ra
 We cannot predict on a completely new dataset without any annotated data from that client. The model will produce risk scores, but the scores will not be calibrated to the right reject rate. The agent rules will catch some obvious problems, but they will miss the client-specific patterns that the model would learn from annotated data.
 
 We cannot trust accuracy alone as a metric. The THD CX dataset showed 93 percent accuracy but the model was just keeping everyone. The F1 score and recall are the real measures of whether the model is finding bad respondents. Any dataset with a reject rate below 10 percent will show high accuracy from keeping everyone, and that is not a real result.
+
+## The autoresearch experiment loop
+
+After the leakage audit, we ran an automated experiment loop following the karpathy/autoresearch methodology. The goal was to reach 90 percent average F1 across all 11 datasets. We built a fixed evaluation harness that measures F1 on per-dataset test splits, and a series of modifiable training scripts that we iterated on.
+
+Each experiment was logged to a results file with the F1 score, status, and description. If an experiment improved F1, we kept it. If not, we discarded it. We ran 19 experiments over the loop.
+
+### Experiment results
+
+| Experiment | Avg F1 | Description |
+|-----------|--------|-------------|
+| v1 baseline | 59.1% | GBM with F1-optimal threshold |
+| v2 no signals | 56.1% | Remove signal map features (hurt) |
+| v3 XGBoost | 54.8% | XGBoost with scale_pos_weight (hurt) |
+| v4 ensemble | 54.6% | GBM+XGB+LGB averaging (hurt) |
+| v5 adaptive | 55.2% | Per-dataset adaptive threshold (hurt) |
+| v6 engineered | 59.1% | Engineered interaction features (same) |
+| v7 strategy | 58.9% | Per-dataset strategy + aggressive rules (same) |
+| v8 TF-IDF | 61.4% | Word TF-IDF on open-end text (improved) |
+| v9 SMOTE | 61.4% | TF-IDF + SMOTE oversampling (same) |
+| v10 stacking | 60.6% | Word+char TF-IDF + stacking (hurt) |
+| v11 agent features | 59.4% | Agent rule scores as features (hurt) |
+| v12 feature selection | 61.0% | Per-dataset mutual info selection (same) |
+| v13 deep | 60.7% | Deep answer-chain features (same) |
+| v14 per-dataset best | 63.3% | Per-dataset model selection from 18 approaches (improved) |
+| v15 raw Excel | 63.4% | Raw per-question answer patterns (improved) |
+| v16 agent text | 63.6% | Agent description TF-IDF (improved) |
+| v17 ultimate | 63.4% | All feature types combined (same) |
+| v18 transfer | 61.4% | Cross-dataset transfer learning (hurt) |
+| v19 filtered | 64.6% | Accuracy-filtered per-dataset selection (best) |
+
+### What improved F1
+
+Three things moved the needle:
+
+**TF-IDF on open-end text (v8, plus 2.3 percent).** The aggregate text statistics (length, word count, generic flag) miss the actual content. TF-IDF captures word patterns that distinguish good from bad respondents. For example, rejected respondents in the Delta dataset use different vocabulary than accepted respondents, and TF-IDF picks this up.
+
+**Per-dataset model selection (v14, plus 2.0 percent).** Different datasets need different feature sets and model configurations. THD CX works best without supplier risk. Masterlock works best with raw Excel per-question features. SBD works best with aggressive thresholds. The per-dataset selection tries 18 approaches on each dataset and picks the best one based on validation F1.
+
+**Raw Excel per-question features (v15, plus 0.1 percent).** Going back to the raw Excel file to extract per-question answer patterns (per-matrix-question straightlining, open-end length variance, answer entropy) added signal that the aggregate features smoothed over. This helped Masterlock go from 44 percent to 62 percent F1.
+
+### What did not improve F1
+
+**XGBoost and LightGBM (v3, v4).** Different gradient boosting implementations did not help. The GBM is already good enough for this data size.
+
+**SMOTE oversampling (v9).** Synthetic minority oversampling did not help. The problem is not class imbalance, it is feature quality.
+
+**Stacking ensemble (v10).** Stacking multiple base models with a logistic regression meta-learner did not help. The base models are too correlated.
+
+**Transfer learning (v18).** Training a base model on all 11 datasets and using its predictions as a feature did not help. The datasets are too different for transfer to work.
+
+### The bottleneck
+
+The bottleneck is AUC, not threshold tuning or model selection. The AUC scores for the weak datasets are 0.65 to 0.75. To reach 90 percent F1, we need AUC above 0.95. No amount of threshold optimization or model selection can fix weak features.
+
+The AUC is determined by the information in the Excel files. The client's reject decisions use information we do not have: panelist history across surveys, cross-survey fraud detection, manual review of open-end text content, and client-specific quality criteria that are not documented in the data.
+
+The path to higher F1 is the self-improving loop: get the client to annotate more batches, retrain with more data, and let the model learn the client-specific patterns that are not in the current features.
+
+### Best per-dataset results
+
+After 19 experiments, the best F1 per dataset (cherry-picked from the best experiment for each):
+
+| Dataset | F1 | AUC | Reject rate | Best approach |
+|---------|-----|-----|------------|---------------|
+| OC CAN | 81.6% | 0.88 | 38% | All features + per-dataset selection |
+| TFG Q1 | 81.5% | 0.89 | 11% | Agent text TF-IDF |
+| TFG Q2 | 76.9% | 0.84 | 36% | Deep features + TF-IDF |
+| ODL | 72.7% | 0.89 | 6% | TF-IDF word features |
+| ADDO | 68.6% | 0.84 | 27% | Raw Excel per-question features |
+| Delta | 65.3% | 0.77 | 26% | Filtered per-dataset selection |
+| Masterlock | 64.0% | 0.81 | 23% | All features + per-dataset selection |
+| SBD | 63.2% | 0.67 | 45% | Per-dataset model selection |
+| ECHO | 63.0% | 0.74 | 35% | Per-dataset model selection |
+| OC BH | 59.5% | 0.82 | 17% | Agent text TF-IDF |
+| THD CX | 42.9% | 0.74 | 6% | TF-IDF word features |
+
+The cherry-picked average is 67.1 percent. The same-experiment average (v19, best single approach) is 64.6 percent. The gap between these shows that per-dataset selection helps but validation F1 does not perfectly predict test F1, especially for small datasets.
+
+### What we would need to reach 90 percent F1
+
+The datasets with AUC above 0.85 already have F1 above 72 percent. The datasets with AUC below 0.75 have F1 below 65 percent. To reach 90 percent F1 on all datasets, we need AUC above 0.95 on all datasets.
+
+This requires information that is not in the current Excel files. Three sources could provide it:
+
+1. **Panelist history across surveys.** If we had data on the same panelists across multiple surveys, we could detect patterns like a panelist who always gives short answers, or a panelist who was rejected in previous surveys. This is the strongest signal we are missing.
+
+2. **Manual review notes.** The human reviewer's notes explaining why they rejected each respondent would let us train a model on the actual reasoning, not just the binary label. This is the self-improving loop: the reviewer's corrections become new training targets.
+
+3. **Client-specific quality criteria.** Some clients have specific rules that are not documented in the data. For example, a client might reject anyone who selects a particular brand in a screener question, or anyone whose demographics do not match the target profile. These rules would need to be encoded as features.
+
+Without these additional data sources, 90 percent F1 is not achievable on all datasets. The current system achieves 64.6 percent average F1, with individual datasets ranging from 43 percent to 82 percent. This is a meaningful improvement over the 59.1 percent baseline, and the per-dataset selection ensures each dataset gets the best available approach.

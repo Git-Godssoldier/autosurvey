@@ -327,6 +327,9 @@ def extract_features_from_excel(filepath, signal_map=None, datamap=None, include
         feat["sd_dup_count"] = sd_ctr.get(all_sd[idx], 0)
         feat["sd_is_dup"] = 1 if feat["sd_dup_count"] > 1 else 0
 
+        # === Raw open-end text (for TF-IDF in train scripts) ===
+        feat["_oe_raw_text"] = all_oe_text[:2000]  # cap for memory
+
         # === Markers (quota info) — EXCLUDED to prevent label leakage ===
         # The markers column contains "bad:" for rejected respondents, which is
         # essentially a copy of the label. Do NOT use markers as features.
@@ -398,8 +401,8 @@ def add_supplier_risk(train_df, test_df=None):
 
 def prepare_features(df):
     """Prepare features for ML — encode categoricals, drop non-feature columns."""
-    non_feature = {"respondent_id", "label", "dataset", "supplier_name"}
-    feat_cols = [c for c in df.columns if c not in non_feature]
+    non_feature = {"respondent_id", "label", "dataset", "supplier_name", "_oe_raw_text"}
+    feat_cols = [c for c in df.columns if c not in non_feature and not c.startswith("_")]
     X = df[feat_cols].copy()
     y = df["label"].copy() if "label" in df.columns else None
     for col in X.select_dtypes(include=["object"]).columns:
