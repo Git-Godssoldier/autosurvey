@@ -231,6 +231,8 @@ See `templates/output-format-spec.md` for the exact format of each artifact.
 
 After the PM reviews the output and the client provides accept/reject decisions, the annotated workbook can be used to improve the pipeline. This is a **separate activity** from the normal blind run. See `commands/evolution-cycle.md` for the full workflow.
 
+**Known gaps to address in evolution**: The v4 holistic review catches fraud well (precision ~0.60) but misses the PM's quality bar (recall ~0.31 on ECHO). The client's `badopen` marker encodes PM quality judgments — substantive engagement, brand consistency, quota coherence — that are invisible to semantic authenticity review alone. See `references/evolution/client-process-reconstruction-gaps.md` for the full gap analysis and 5-phase improvement plan.
+
 ## Package Requirements
 
 ```bash
@@ -267,6 +269,7 @@ cleaning-survey-quality/
 │   │   ├── full-workflow-specification.md
 │   │   └── project-context-template.md
 │   └── evolution/                    (read only when client feedback available)
+│       ├── client-process-reconstruction-gaps.md  (ECHO FN/FP analysis + 5 process gaps)
 │       ├── authenticity-first-calibration.md
 │       ├── tfg-status-derived-detection-methodology.md
 │       ├── internal-signal-learning.md
