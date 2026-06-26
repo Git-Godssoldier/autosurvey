@@ -288,36 +288,201 @@ def get_defender_signals(row, hidx):
 
 
 def get_key_answers(row, hidx, datamap):
-    """Extract key single-choice and demographic answers for context."""
-    key_fields = {
-        "q1": "Industry",
-        "q2": "Home ownership",
-        "q6": "Shopping stage",
-        "q8a": "Kitchen filtration type (have)",
-        "q8b": "Kitchen filtration type (plan)",
-        "q9": "Bathroom filtration type",
-        "q12": "Bath role (children)",
-        "q13": "Purchase role",
-        "q15": "Water quality concern level",
-        "q16": "Knowledge of water filter",
-        "q28": "Purchase location",
-        "q30": "Water source",
-        "qHomeType": "Home type",
-        "qGender": "Gender",
-        "qUSHHI": "Household income",
-        "age": "Age",
-        "REGION": "Region",
-    }
+    """Extract key single-choice and demographic answers for context.
+
+    Dynamically discovers fields from the workbook rather than hardcoding
+    Delta-specific field names. Falls back to known field names only when
+    dynamic discovery fails.
+    """
     answers = {}
-    for field, label in key_fields.items():
+
+    # Dynamically extract ALL single-choice fields with datamap labels
+    # This works for any dataset, not just Delta
+    for h, idx in hidx.items():
+        if idx >= len(row):
+            continue
+        val = norm(row[idx])
+        if val is None or val == "":
+            continue
+        dm = datamap.get(str(h), {})
+        labels = dm.get("labels", {})
+        qtext = dm.get("question_text", "")
+        # If the field has value labels, it's a coded single/multi-select
+        if labels and str(val) in labels:
+            answers[str(h)] = {
+                "question": qtext[:150] if qtext else str(h),
+                "value": str(val),
+                "label": labels[str(val)],
+            }
+
+    return answers
+
+
+def get_survey_structure(row, hidx, datamap):
+    """Extract survey-structure fields that carry discard signal lift.
+
+    These fields are NOT semantic content — they are classification, quota,
+    channel, and supplier-structure fields that the client's cleaning process
+    uses but that semantic review alone cannot see.
+
+    Evidence from ECHO annotated data:
+    - CLASSIFY=1 (pro) rejects at 60.4% vs CLASSIFY=2 (consumer) at 30.5%
+    - conditionsAriens=1 rejects at 59.2%
+    - list 25 rejects at 45.3% vs list 139 at 30.0%
+    - PROAGE=1 rejects at 65.5%
+    - TERMFLAGS=1 rejects at 66.7%
+    """
+    structure = {}
+
+    # Classification fields
+    classify_idx = hidx.get("CLASSIFY")
+    if classify_idx and classify_idx < len(row):
+        val = norm(row[classify_idx])
+        if val is not None:
+            dm = datamap.get("CLASSIFY", {})
+            labels = dm.get("labels", {})
+            structure["classify"] = {
+                "value": val,
+                "label": labels.get(str(val), f"CLASSIFY={val}"),
+            }
+
+    proage_idx = hidx.get("PROAGE")
+    if proage_idx and proage_idx < len(row):
+        val = norm(row[proage_idx])
+        if val is not None:
+            structure["proage"] = val
+
+    conage_idx = hidx.get("CONAGE")
+    if conage_idx and conage_idx < len(row):
+        val = norm(row[conage_idx])
+        if val is not None:
+            structure["conage"] = val
+
+    # Channel/condition fields
+    condition_fields = [
+        "conditionsAriens", "conditionsHD_or_OPE_dealers", "conditionsOther_channel",
+        "conditionsWest", "conditionsMidwest", "conditionsSouth", "conditionsNortheast",
+    ]
+    conditions = {}
+    for field in condition_fields:
         idx = hidx.get(field)
         if idx and idx < len(row):
             val = norm(row[idx])
-            if val is not None and val != "":
-                dm = datamap.get(field, {})
-                value_label = dm.get("labels", {}).get(str(val), str(val))
-                answers[label] = value_label
-    return answers
+            if val is not None:
+                conditions[field] = val
+    if conditions:
+        structure["conditions"] = conditions
+
+    # Supplier/list fields
+    list_idx = hidx.get("list")
+    if list_idx and list_idx < len(row):
+        val = norm(row[list_idx])
+        if val is not None:
+            structure["list"] = val
+
+    source_idx = hidx.get("source")
+    if source_idx and source_idx < len(row):
+        val = row[source_idx]
+        if val is not None and str(val).strip():
+            structure["source"] = str(val).strip()
+
+    vlist_idx = hidx.get("vlist")
+    if vlist_idx and vlist_idx < len(row):
+        val = norm(row[vlist_idx])
+        if val is not None:
+            structure["vlist"] = val
+
+    # Device/user agent category (dcua) — correlates with reject rate
+    dcua_idx = hidx.get("dcua")
+    if dcua_idx and dcua_idx < len(row):
+        val = row[dcua_idx]
+        if val is not None and str(val).strip():
+            structure["dcua"] = str(val).strip()
+
+    # FIRMREV (firm revenue — pro classification)
+    firmrev_idx = hidx.get("FIRMREV")
+    if firmrev_idx and firmrev_idx < len(row):
+        val = norm(row[firmrev_idx])
+        if val is not None:
+            dm = datamap.get("FIRMREV", {})
+            labels = dm.get("labels", {})
+            structure["firmrev"] = {
+                "value": val,
+                "label": labels.get(str(val), str(val)),
+            }
+
+    return structure
+
+
+def get_brand_funnel(row, hidx, datamap, headers):
+    """Extract brand-funnel fields for consistency checking.
+
+    Brand funnel fields carry strong discard signal (BRANDS2RATEQuota appeared
+    1040 times across 553 ECHO discards). We extract:
+    - Brand awareness fields (q1 multi-select)
+    - Brands rated (q11a* matrix)
+    - Brand consideration (q17*)
+    - Brand recommendation (q19*, q20*)
+    - NPS / satisfaction (q29, q30*)
+    - Brand purchase / ownership (q14*, q16*)
+    """
+    funnel = {}
+
+    # Find brand-related fields by scanning headers for known patterns
+    brand_field_patterns = [
+        # Awareness / multi-select brand fields
+        (r"^q1r\d+$", "awareness"),
+        (r"^q3r\d+$", "awareness_detail"),
+        # Brand rating matrices
+        (r"^q11ar\d+c\d+$", "brand_rating"),
+        (r"^q11ar\d+oe$", "brand_other"),
+        # Brand consideration / recommendation
+        (r"^q17r\d+$", "consideration"),
+        (r"^q17r\d+oe$", "consideration_oe"),
+        (r"^q19_2026r\d+$", "recommendation"),
+        (r"^q19_2026othr\d+$", "recommendation_oe"),
+        (r"^q20r\d+oe$", "purchase_location_oe"),
+        # NPS / satisfaction
+        (r"^q29$", "nps_verbatim"),
+        (r"^q30_2026r\d+$", "satisfaction"),
+        (r"^q30_2026r\d+oe$", "satisfaction_oe"),
+        # Brand purchase
+        (r"^q14r\d+oe$", "purchase_oe"),
+        (r"^q16r\d+$", "brand_knowledge"),
+        # Possible brands
+        (r"^POSSIBLEBRANDSr\d+$", "possible_brands"),
+        (r"^q23_2026_Lr\d+$", "brand_share"),
+        (r"^q18r\d+$", "brand_familiarity"),
+    ]
+
+    import re as _re
+    for i, h in enumerate(headers):
+        if not h:
+            continue
+        h_str = str(h)
+        for pattern, funnel_stage in brand_field_patterns:
+            if _re.match(pattern, h_str, _re.IGNORECASE):
+                if i < len(row):
+                    val = row[i]
+                    if val is not None and str(val).strip():
+                        dm = datamap.get(h_str, {})
+                        labels = dm.get("labels", {})
+                        qtext = dm.get("question_text", "")
+                        if isinstance(val, (int, float)):
+                            label = labels.get(str(int(val)), str(val))
+                        else:
+                            label = labels.get(str(val), str(val))
+                        if funnel_stage not in funnel:
+                            funnel[funnel_stage] = []
+                        funnel[funnel_stage].append({
+                            "field": h_str,
+                            "value": str(val),
+                            "label": label,
+                            "question": qtext[:120] if qtext else "",
+                        })
+                break
+
+    return funnel
 
 
 def build_holistic_review_packets(filepath, output_dir, review_all=False, chunk_size=200):
@@ -516,8 +681,14 @@ def build_holistic_review_packets(filepath, output_dir, review_all=False, chunk_
         # AI text suspicion (cross-respondent similarity)
         ai_info = ai_suspicion.get(rid, {"score": 0, "fields_flagged": [], "details": ""})
 
-        # Key demographic/choice answers
+        # Key demographic/choice answers (dynamically discovered)
         key_answers = get_key_answers(raw_row, hidx, datamap)
+
+        # Survey-structure fields (CLASSIFY, PROAGE, conditions, list, etc.)
+        survey_structure = get_survey_structure(raw_row, hidx, datamap)
+
+        # Brand funnel fields (awareness → rating → consideration → NPS)
+        brand_funnel = get_brand_funnel(raw_row, hidx, datamap, headers)
 
         # LangAssess
         lang = {}
@@ -572,6 +743,8 @@ def build_holistic_review_packets(filepath, output_dir, review_all=False, chunk_
             "open_end_responses": oe_fields,
             "oe_duplicate_counts": oe_dups,
             "key_answers": key_answers,
+            "survey_structure": survey_structure,
+            "brand_funnel": brand_funnel,
             "signal_count": int(df_row.get("signal_count", 0)),
             "t1_count": int(df_row.get("t1_count", 0)),
             "t2_count": int(df_row.get("t2_count", 0)),
@@ -630,14 +803,15 @@ def build_holistic_review_packets(filepath, output_dir, review_all=False, chunk_
 def build_agent_instructions(n_respondents, n_chunks, matrix_prevalence, dataset_name):
     """Build detailed instructions for the reviewing agent."""
 
-    return f"""# Holistic Agent Review Instructions — Evidence Family Framework (v4)
+    return f"""# Holistic Agent Review Instructions — v5 (Two-Stage: Fraud + Quality)
 
 ## Task
+
 Read the file `review_chunk_XX.json` (assigned to you). It contains ~200 respondent review packets.
 
 For each respondent, you must read ALL signals holistically and assign:
 - `agent_score`: -1.0 to +1.0
-  - -1.0 = clear discard (fraud, bot, incoherent)
+  - -1.0 = clear discard (fraud, bot, incoherent, or fails PM quality bar)
   - -0.5 = lean discard (multiple converging concerns)
   - 0.0 = uncertain / needs human review
   - +0.5 = lean keep (minor concerns but coherent)
@@ -646,9 +820,10 @@ For each respondent, you must read ALL signals holistically and assign:
   - DISCARD: agent_score < -0.3
   - REVIEW: agent_score -0.3 to 0
   - KEEP: agent_score > 0
-- `agent_justification`: 2-4 sentence explanation citing specific evidence from the answer chain
+- `agent_justification`: 2-4 sentence explanation citing specific evidence
 
 ## Output Format
+
 Write to `agent_judgments_chunk_XX.json` as a JSON array:
 ```json
 [
@@ -656,277 +831,335 @@ Write to `agent_judgments_chunk_XX.json` as a JSON array:
     "respondent_id": "abc123",
     "agent_score": -0.7,
     "agent_judgment": "DISCARD",
-    "agent_justification": "The q14 response ('i need it') is a non-answer. The outro is off-topic ('good night my friend'). Matrix straightlining across 8 of 10 grids. RD_Search threat score is elevated. No first-person content anywhere."
+    "agent_justification": "Core OE ('mowing and blowing') is on-topic but lacks substantive engagement with OPE — no equipment named, no project detail. CLASSIFY=2 (consumer) but brand funnel shows no brand awareness consistency. ML=0.72. Thin answer with converging quality concerns."
   }}
 ]
 ```
 
-## CORE FRAMEWORK: Evidence Families, Not Labels
+## CORE FRAMEWORK: Two-Stage Review (v5)
 
-Signals are not labels. They are evidence. The decision to discard should come from the convergence of independent evidence families, not from any single label.
+The review operates in two stages. Every respondent passes through both.
+
+**Stage 1 — Fraud Detection**: Is this respondent authentic? (bots, AI, platform flags, gibberish, non-English, duplicate chains)
+
+**Stage 2 — PM Quality Assessment**: Does this respondent meet the quality bar for this survey? (substantive engagement, brand funnel consistency, classification coherence, on-topic depth)
+
+A respondent can pass Stage 1 (not fraudulent) but fail Stage 2 (low quality). Both result in DISCARD or REVIEW.
 
 ### The Master Rule
 
-**A row is discard-like when the core open end fails its question role, lacks grounded chain evidence, and converges with at least one independent risk family.**
+**A row is discard-like when the core open end fails its question role, lacks grounded chain evidence, AND converges with at least one independent risk family — OR when the respondent fails the PM quality bar (thin engagement, brand funnel incoherence, classification mismatch, off-topic content).**
 
-The five independent risk families are:
-1. **Model risk** — ML triage score >= 0.7
-2. **Platform risk** — TERMFLAGS=1, qc flag, RD_Search elevated, non-English
-3. **Source risk** — high supplier reject rate, elevated RD_Search threat
-4. **Duplicate semantics** — text similarity to other respondents, paraphrase clusters
-5. **Weak outro behavior** — generic praise, off-topic, incoherent, or chain-inconsistent outro
-
-When the core OE fails its role AND one risk family fires, that is a discard. When the core OE is grounded and specific, it takes multiple risk families to override it.
+The eight independent evidence families:
+1. **Core OE Quality** — answer-role test, grounded detail, substantiveness
+2. **Platform Risk** — TERMFLAGS, qc, RD_Search, non-English
+3. **Model Risk** — ML triage score
+4. **Source Risk** — supplier reject rate, RD_Search threat
+5. **Duplicate Semantics** — text similarity, paraphrase clusters
+6. **Survey Structure** — CLASSIFY, PROAGE, conditions, list, channel coherence
+7. **Brand Funnel Consistency** — awareness → rating → consideration → NPS chain
+8. **Timing & Engagement** — speed, straightlining, matrix patterns
 
 ---
 
 ## Evidence Family 1: Core Open-End Quality (THE ANCHOR)
 
-The core open-end field is the most important signal. For each dataset, identify which OE field is the "core" field — the one that asks for personal motivation, experience, or job role. Read the question text to determine this.
+The core open-end field is the most important signal. Identify which OE field asks for personal motivation, experience, or project description. Read the question text to determine this.
 
 ### 1A. Answer-Role Test
 
 Does the answer actually answer the question that was asked?
 
+For a project-description question ("Describe a recent project involving outdoor power equipment"):
+- **FAILS the role**: "Mowing and blowing/raking leaves" (names generic tasks, no project narrative), "Basic yard maintenance" (category language, no personal project)
+- **PASSES the role**: "Cleaned up fallen branches after a storm using my battery-powered chainsaw and blower" (specific project, equipment named, temporal anchor)
+
 For a purchase-motivation question ("What prompted you to decide to buy?"):
-- **FAILS the role**: "Water filtration systems" (names the topic, not a motivation), "Health concerns, improving water taste, reducing contaminants" (category language, not a personal reason), "It's essential" (not a motivation at all)
-- **PASSES the role**: "My water started smelling like chlorine after the city changed treatment plants" (specific personal trigger), "My kids have eczema and the dermatologist recommended a shower filter" (specific health-driven motivation)
+- **FAILS the role**: "Water filtration systems" (names the topic, not a motivation), "Health concerns" (category language)
+- **PASSES the role**: "My water started smelling like chlorine after the city changed treatment plants" (specific personal trigger)
 
-For a job-role question ("Tell me about your primary job"):
-- **FAILS the role**: "Construction" (names the industry, not the job), "Hard work" (not a job description)
-- **PASSES the role**: "I'm a licensed plumber working for a family-owned business in Philadelphia, mostly doing residential repipes" (specific trade, location, work context)
+### 1B. Substantive Engagement Test (PM Quality Bar)
 
-**An answer that names the topic but fails the question's role is a FAILED core OE.** This is the single most important test.
+This is the key test that separates fraud detection from quality assessment. A respondent can be authentic but still fail the PM quality bar.
 
-### 1B. Grounded First-Person Test
+**The test**: Does the core OE demonstrate substantive engagement with the survey's specific topic?
 
-First-person pronouns ("I", "my", "we") are NOT protective by themselves. AI-generated text uses first-person too. The test is whether the first-person content is GROUNDED in lived experience.
+- **Substantive**: Names specific equipment/products, describes a real project with temporal/locational anchors, shows understanding of the product category
+- **Thin but on-topic**: Names the right category but with no detail ("Mowing and blowing", "Basic yard maintenance") — this PASSES fraud detection but FAILS the PM quality bar for strict clients
+- **Off-topic**: Describes a project in the wrong domain (gardening/fertilizer when the survey is about outdoor power EQUIPMENT) — this is a quality failure
+- **Generic first-person**: "I love cutting grasses" — authentic but not substantive
+
+**IMPORTANT**: The substantive engagement threshold varies by dataset. Some clients tolerate generic first-person (Delta), others require specific detail (ECHO). When in doubt without calibration data, treat thin-but-on-topic as REVIEW, not KEEP. If ANY other family fires (ML >= 0.6, brand funnel inconsistency, survey structure mismatch), upgrade to DISCARD.
+
+### 1C. Grounded First-Person Test
+
+First-person pronouns are NOT protective by themselves. The test is whether the content is GROUNDED in lived experience.
 
 **Grounded evidence** connects to:
-- A concrete event ("after the city changed treatment plants", "when my neighbor showed me their new system")
-- A household condition ("my well water has iron staining", "our pipes are old")
-- A prior answer in the chain (owns a kitchen faucet filter → q14 explains why they bought that specific type)
-- A product use detail ("I change the filter every 3 months", "installed it under the sink myself")
-- A sensory issue ("water tasted metallic", "skin felt dry after showering")
-- A health concern ("my daughter's eczema", "doctor recommended reducing chlorine")
-- A news event ("after the Flint crisis", "saw a report about forever chemicals in our city")
-- A place ("in our area", "here in Phoenix where the water is very hard")
-- A buying context ("was remodeling the kitchen", "moved into a new house with old pipes")
+- A concrete event ("after the storm last week", "when my neighbor showed me their new mower")
+- A household condition ("my yard has a steep hill", "our property is 2 acres")
+- A product use detail ("I change the oil every season", "the pull cord broke")
+- A sensory issue ("the engine kept stalling", "leaves everywhere")
+- A specific place ("here in Colorado where the snow is heavy")
+- A buying context ("was at Home Depot getting mulch", "needed a new trimmer after mine died")
 
 **NOT grounded** (even if first-person):
-- "I was concerned about the water quality" (no concrete anchor)
-- "I wanted cleaner, safer water for my family" (benefit-stack language, no lived context)
-- "I decided to buy a water filtration device to improve the taste and quality of my tap water" (product-description register, no personal event)
+- "I was concerned about the quality" (no concrete anchor)
+- "I wanted a better yard" (benefit-stack language, no lived context)
 
-### 1C. Synthetic Detail Detection
+### 1D. Off-Topic Detection
 
-Some details SOUND specific but are actually common synthetic detail clusters. These appear across many respondents and are template-like:
+Check whether the core OE is actually about the survey's subject matter. Read the question text to determine what the survey is about, then check:
 
-**Common synthetic detail clusters** (treat as suspicious when they appear without unusual grounding):
-- "my skin" / "my hair" / "my family" — these are the most common fake specifics
-- "chlorine" / "contaminants" / "hard water" — product-category vocabulary, not personal discovery
-- "safer" / "cleaner" / "better-tasting" — benefit-stack language
+- Is the described project in the right domain? (OPE survey → chainsaws, mowers, trimmers, blowers — NOT gardening, pest control, indoor projects)
+- Does the equipment mentioned match the survey topic? (OPE survey → power tools — NOT shovels, hand clippers, fertilizer)
+- Is the project plausible for the survey audience? (Consumer OPE → residential yard work — NOT commercial landscaping unless CLASSIFY=pro)
 
-**Genuinely specific details** (harder to fabricate):
-- Named conditions: "eczema", "psoriasis", "dermatitis" (not just "skin")
-- Named events: "Flint", "city changed treatment", "neighbor's new system" (not just "concerns")
-- Named places: "Phoenix", "our area in Texas", "the house we just bought" (not just "my home")
-- Unusual sensory details: "smelled like rotten eggs", "left orange stains in the toilet" (not just "bad taste")
-- Specific product interactions: "the PUR filter kept clogging", "I compared Brita vs iSpring" (not just "wanted a filter")
+**Off-topic core OE is a quality failure**, even if the text is authentic and well-written. Discard or review depending on severity.
 
-**The test**: Is this detail UNUSUAL? Could 50 other respondents independently write the same thing? If yes, it's probably synthetic. If the detail is idiosyncratic — a specific brand comparison, a specific city, a specific event — it's more likely genuine.
+### 1E. Product-Copy Register
 
-### 1D. Product-Copy Register
+Marketing-like language is suspicious:
+- Benefit-stack: "enhancing curb appeal", "ensuring consistent depth", "multi-stage filtration"
+- Feature-list: "contaminant removal technologies", "advanced filtration"
+- **Stronger when the answer has no lived context**
 
-Some answers sound like marketing copy rather than respondent memory. Look for:
-- Benefit-stack language: "reducing contaminants", "improving water taste", "health and safety", "multi-stage filtration", "residential filtration products"
-- Feature-list language: "contaminant removal technologies", "mineral buildup prevention", "advanced filtration"
-- Formal sentence structure: "The benefits should be considered first before to buy", "Practically, the convenience of having clean water..."
-- **This is STRONGER when the answer has no lived context** — no personal event, no sensory detail, no chain reference
+### 1F. Synthetic Detail Detection
 
-### 1E. Paraphrase-Level Duplicate Detection
+Some details sound specific but are common synthetic clusters:
+- "my skin" / "my family" / "my health" — common fake specifics
+- "chlorine" / "contaminants" / "hard water" — product-category vocabulary
 
-The `ai_text_suspicion` field detects exact/near-exact text similarity. But also check for PARAPHRASE clusters — respondents who tell the same story with different words:
-- "concerned about water quality" / "wanted safer drinking water" / "remove contaminants for family" — these are the SAME story frame with different surface text
-- "improve taste and safety" / "cleaner water for my family" / "healthier water for daily use" — same benefit-stack, different word order
-- If the answer could be a paraphrase of 10+ other answers, it's a paraphrase cluster member
-
-**When q14 itself is in a paraphrase cluster** (not just outro), this is a strong discard signal — the respondent is using a template with minor word variation.
+Genuinely specific details are idiosyncratic:
+- Named brands: "Stihl", "Husqvarna", "Echo" (not just "a chainsaw")
+- Named conditions: "eczema", "psoriasis" (not just "skin")
+- Unusual sensory details: "smelled like rotten eggs", "left orange stains"
 
 ---
 
 ## Evidence Family 2: Platform Risk
 
-Read the `defender_summary` field FIRST. It consolidates all platform signals.
+Read the `defender_summary` field FIRST.
 
-### Platform signals:
-- **TERMFLAGS=1**: Platform fraud flag. STRONG signal (score -0.7). Override test: upgrade to REVIEW (-0.2) ONLY when the core OE has unusually strong human evidence — a specific named event, named place, named condition, or chain-consistent detail that would be very hard to fabricate. A merely first-person or generic answer does NOT override TERMFLAGS. The client overrides in ~25% of cases, but only for genuinely specific respondents.
-- **qc=8 or qc=9**: RD /SEARCH threat or duplicate rejection — AUTOMATIC DISCARD (-1.0)
+- **TERMFLAGS=1**: Platform fraud flag. STRONG (-0.7). Override to REVIEW only with unusually strong human evidence (specific named event + chain-consistent + no AI markers).
+- **qc=8 or qc=9**: AUTOMATIC DISCARD (-1.0)
 - **qc=6**: RD /REVIEW rejection — strong discard
-- **qc=7**: OE screening failure — strong concern (the platform's own OE quality check failed)
+- **qc=7**: OE screening failure — strong concern
 - **qc=11**: Speeder — moderate concern
-- **qc=2,4,5**: State/region/age mismatch — strong concern
-- **RD_Search threat score**: >=25 = elevated, >=20 = moderate
-- **Non-English language**: Automatic discard for US surveys
-- **LangAssess read_level**: >=17 = very high (AI suspicion), >=15 with short text = AI suspicion, <2 with long text = incoherence
-
-### TERMFLAGS override logic (IMPORTANT):
-TERMFLAGS=1 is strong (-0.7) but NOT automatic. The override test is strict:
-- **Override to REVIEW** only if: the core OE contains a specific named event/place/condition AND the answer is chain-consistent AND there are no other risk families firing. Example: "After the news about forever chemicals in our city water supply" + chain shows awareness of specific filter types + no AI markers.
-- **Do NOT override** if: the core OE is first-person but generic ("I wanted cleaner water for my family"), or if AI markers are present, or if ML >= 0.7, or if the outro is generic praise. A typo does NOT qualify as "unusually strong human evidence."
+- **RD_Search threat >= 25**: Elevated. >= 20: Moderate.
+- **Non-English**: Automatic discard for US surveys
+- **LangAssess read_level >= 17**: Very high (AI suspicion). >= 15 with short text: AI suspicion.
 
 ---
 
 ## Evidence Family 3: Model Risk
 
-- **ML >= 0.8**: Very high. Almost always right. If the core OE also fails its role, this is a discard. If the core OE is grounded and specific, cap at REVIEW.
-- **ML >= 0.7**: High risk. If the core OE fails its role OR is generic first-person, this is a discard. If the core OE is grounded and specific with no other concerns, cap at REVIEW.
-- **ML 0.5-0.7**: Ambiguous. Use as a tiebreaker — if any other risk family fires, lean toward discard.
-- **ML < 0.4**: Low risk. Protective factor, but does NOT override a failed core OE if other risk families fire.
+- **ML >= 0.8**: Very high. If core OE also fails, discard. If core OE is grounded, cap at REVIEW.
+- **ML >= 0.7**: High. If core OE is thin/generic, discard. If grounded, cap at REVIEW.
+- **ML 0.5-0.7**: Ambiguous. Tiebreaker — if any other family fires, lean discard.
+- **ML < 0.4**: Low risk. Protective, but does NOT override a failed core OE.
 
 ---
 
 ## Evidence Family 4: Source Risk
 
-- **Supplier reject_rate > 30%**: High risk. Multiplier on other signals.
+- **Supplier reject_rate > 30%**: High risk. Multiplier.
 - **Supplier reject_rate > 20%**: Medium risk.
-- **RD_Search threat >= 20**: Moderate source risk.
-- **RD_Search threat >= 25**: Elevated source risk.
+- **RD_Search threat >= 20**: Moderate.
 - Source risk alone is NOT sufficient for discard. It is a multiplier.
 
 ---
 
 ## Evidence Family 5: Duplicate Semantics
 
-- **`ai_text_suspicion` on core OE field (e.g., q14)**: STRONG signal. The core OE text is similar to other respondents — likely templated.
-- **`ai_text_suspicion` on outro ONLY**: DOWNWEIGHT. Generic topic restatements trigger high similarity because many respondents write the same thing. This is topical inevitability. BUT: outro similarity + weak core OE + any risk family = meaningful concern.
-- **`oe_duplicate_counts`**: High count (>10) on personal/unusual text = very suspicious. High count on generic text = topical inevitability.
-- **Paraphrase clusters**: Check manually — does the core OE tell the same story frame as many others, even with different words?
-
-### Outro-only guardrail:
-Outro similarity alone should NOT discard. But outro similarity PLUS any of these should become meaningful:
-- Weak core OE (fails role test or is generic first-person)
-- Platform risk (TERMFLAGS, RD_Search elevated)
-- Source risk (high supplier reject rate)
-- Model risk (ML >= 0.6)
-- Semantic role mismatch in core OE
+- **`ai_text_suspicion` on core OE field**: STRONG. Text is similar to others — likely templated.
+- **`ai_text_suspicion` on outro ONLY**: DOWNWEIGHT. Topical inevitability. But + weak core OE + any risk family = meaningful.
+- **`oe_duplicate_counts`**: High count (>10) on personal text = suspicious. On generic text = topical inevitability.
+- **Paraphrase clusters**: Does the core OE tell the same story frame as many others?
 
 ---
 
-## Evidence Family 6: Weak Outro Behavior
+## Evidence Family 6: Survey Structure (NEW — v5)
 
-The outro field asks "describe what this survey was about." Evaluate outro quality:
-- **Generic topic restatement** ("water filtration systems", "water filter survey") = NORMAL, not a signal
-- **Generic praise** ("Very good and wonderful", "Nice survey", "Great experience", "easy and fast") = mild concern. Combined with weak core OE + any risk family = contributes to discard.
-- **Off-topic** ("good night my friend", "american whiskey", "customer rewards") = strong concern
-- **Gibberish** = strong concern
-- **Chain-inconsistent** (q14 gives a serious purchase reason but outro is generic praise or off-topic) = the combination lowers confidence in the core OE
+Read the `survey_structure` field. These fields carry 2x+ discrimination power but are NOT semantic content — they are classification, quota, and channel fields.
 
-### Open-end chain consistency:
-Each open end should be evaluated against the full response chain. If q14 gives a serious, specific purchase reason but the outro is generic praise or off-topic, that combination should lower confidence. A genuine respondent who writes a detailed motivation should also be able to describe what the survey was about.
+### 6A. Classification (CLASSIFY)
+
+- **CLASSIFY=1 (professional)**: Pro respondents are held to a HIGHER standard. They should show professional purchasing patterns (dealer channels, commercial equipment, volume). A pro who answers like a consumer is a quality failure.
+- **CLASSIFY=2 (consumer)**: Consumer respondents are held to the standard of a homeowner who uses OPE. They should show residential yard work with retail-purchased equipment.
+- **Mismatch**: A CLASSIFY=1 (pro) respondent who describes a tiny residential yard with one mower is classification-incoherent. A CLASSIFY=2 (consumer) who describes commercial landscaping is also suspicious.
+
+### 6B. Pro Age (PROAGE) / Consumer Age (CONAGE)
+
+- PROAGE present means the respondent is in the pro branch. Their answers should reflect professional experience.
+- CONAGE present means consumer branch. Their answers should reflect consumer experience.
+- A respondent with PROAGE but no professional evidence in their OE is a quality concern.
+
+### 6C. Channel Conditions
+
+- `conditionsAriens=1`: Respondent is in the Ariens dealer channel. Their brand answers should include Ariens products.
+- `conditionsHD_or_OPE_dealers=1`: Home Depot / OPE dealer channel. Brand answers should match.
+- `conditionsOther_channel=1`: Other channel.
+- **Channel-brand mismatch**: A respondent in the Ariens channel who never mentions Ariens in any brand field is a quality concern.
+
+### 6D. Supplier/List
+
+- `list` / `vlist` / `source`: Different suppliers have different reject rates. This is context, not proof.
+- But if a supplier has a known high reject rate AND the respondent shows other concerns, the combination is stronger.
+
+### How survey structure combines:
+
+- CLASSIFY mismatch + thin core OE → strong quality concern (lean DISCARD)
+- Channel-brand mismatch + brand funnel incoherence → strong quality concern
+- PROAGE present + no professional evidence → quality concern (REVIEW)
+- Survey structure alone is NOT sufficient for discard. It is a multiplier on core OE quality.
 
 ---
 
-## Evidence Family 7: Timing & Engagement
+## Evidence Family 7: Brand Funnel Consistency (NEW — v5)
 
-- **bottom_10% timing**: Very fast. Concern, but not sufficient alone.
+Read the `brand_funnel` field. Check whether the brand funnel is internally consistent.
+
+### 7A. Awareness → Consideration → Recommendation Chain
+
+- Does the respondent claim awareness of brands they later cannot rate or consider?
+- Does the respondent recommend brands they did not claim awareness of?
+- Does the respondent rate brands they did not claim awareness of?
+
+### 7B. Brand Name Quality in OE Fields
+
+- Are brand names in open-end fields real brands? (Stihl, Husqvarna, Echo, Honda, Ryobi, Toro, Craftsman = real OPE brands)
+- Are brand names garbled or fake? ("Harmmer", "china", "Mercedes" for OPE = wrong brand universe)
+- Are brand names consistent across fields? (q17r1 says "Honda" but q17r2 says "Costoc" = inconsistency)
+
+### 7C. Share Allocation
+
+- If the respondent allocated share across brands, is the allocation plausible?
+- Equal share to all brands = potential straightlining in the brand battery
+- All share to one brand = possible extreme opinion (not necessarily fraud)
+
+### 7D. NPS / Satisfaction Verbatim
+
+- The NPS verbatim (q29) should be about a specific brand, not generic praise
+- "Effective work and power" = generic, not brand-specific
+- "They're pretty proud of their name and put it in VERY LARGE letters on their products" = brand-specific, grounded
+
+### How brand funnel combines:
+
+- Brand funnel incoherence + thin core OE → strong quality concern (lean DISCARD)
+- Wrong brand universe (non-OPE brands in OPE survey) → quality failure
+- Brand funnel alone is NOT sufficient for discard. It combines with core OE quality.
+
+---
+
+## Evidence Family 8: Timing & Engagement
+
+- **bottom_10% timing**: Very fast. Concern, not sufficient alone.
 - **bottom_25% timing**: Fast. Mild concern.
-- **above_median timing**: Protective factor.
-- **Very fast + failed core OE + any risk family** = converging concerns → discard
-- **Straightlining**: If prevalence is >80% (see dataset context), straightlining alone is NOT discriminative. Only matters when combined with other signals.
+- **above_median timing**: Protective.
+- **Very fast + failed core OE + any risk family** = converging → discard
+- **Straightlining**: If prevalence >80% (see dataset context), straightlining alone is NOT discriminative.
 
 ---
 
 ## The Decision Algorithm
 
-For each respondent, work through these steps:
+For each respondent:
 
 ### Step 1: Read defender_summary
-Are any platform signals firing? Note which ones.
+Platform signals firing?
 
-### Step 2: Identify the core OE field
-Which open-end field asks for personal motivation/experience/job role? Read its question text.
+### Step 2: Read survey_structure
+What is the respondent's classification? (pro/consumer, channel, age bracket)
 
-### Step 3: Apply the Answer-Role Test to the core OE
-Does the answer actually answer the question? Or does it name the topic / use category language / give a non-motivation?
+### Step 3: Identify the core OE field
+Which OE field asks for personal motivation/experience/project description?
 
-### Step 4: Apply the Grounded First-Person Test
-If first-person, is it grounded in concrete lived experience? Or is it generic first-person with no anchor?
+### Step 4: Apply the Answer-Role Test
+Does the answer actually answer the question?
 
-### Step 5: Check for synthetic details
-Are the "specific" details actually common synthetic clusters ("my skin", "my family", "chlorine")? Or are they idiosyncratic (named events, named places, unusual sensory details)?
+### Step 5: Apply the Substantive Engagement Test
+Does the answer demonstrate substantive engagement with the survey topic? Or is it thin/generic/off-topic?
 
-### Step 6: Check for product-copy register
-Does the answer sound like marketing copy? Benefit-stack language? Feature lists?
+### Step 6: Apply the Grounded First-Person Test
+Is the first-person content grounded in lived experience?
 
-### Step 7: Check ai_text_suspicion
-Is the core OE field flagged? (Strong.) Is only outro flagged? (Downweight, but check guardrail.)
+### Step 7: Check off-topic
+Is the described project in the right domain for this survey?
 
-### Step 8: Check ML score
-Is ML >= 0.7? >= 0.8?
+### Step 8: Check survey structure coherence
+Does the respondent's classification match their answer pattern? (pro should show pro behavior, consumer should show consumer behavior)
 
-### Step 9: Check chain consistency
-Does the core OE fit with the rest of the answer chain? Would a genuine respondent with this motivation also give these other answers?
+### Step 9: Check brand funnel consistency
+Are brand answers internally consistent? Real brands? Right universe?
 
-### Step 10: Count independent risk families
-How many of the 5 risk families are firing? (Model, Platform, Source, Duplicate, Weak Outro)
+### Step 10: Check ai_text_suspicion, ML score, timing, duplicates
 
-### Step 11: Decide
+### Step 11: Count independent evidence families firing
+
+### Step 12: Decide
 
 **DISCARD** (score < -0.3) when:
 - Core OE fails its role AND >= 1 risk family fires
-- Core OE is generic first-person (not grounded) AND >= 1 risk family fires
-- Core OE is a short non-answer (<25 chars, not a real motivation) AND >= 1 risk family fires
+- Core OE is thin/generic (on-topic but no substantive engagement) AND >= 2 families fire (including survey structure or brand funnel)
+- Core OE is off-topic for the survey domain AND any risk family fires
 - TERMFLAGS=1 AND core OE is not unusually specifically grounded
 - ML >= 0.8 AND core OE fails role or is generic
-- Core OE has AI markers (formal adverbs, markdown, product-copy) AND ML >= 0.7
-- Core OE is in a paraphrase cluster AND ML >= 0.6
+- Brand funnel shows wrong brand universe (non-OPE brands in OPE survey) AND core OE is thin
+- CLASSIFY mismatch (pro answering as consumer or vice versa) AND core OE is thin
+- Core OE is a short non-answer AND >= 1 risk family fires
 - Both core OE and outro are off-topic/gibberish
 
 **REVIEW** (score -0.3 to 0) when:
+- Core OE is thin but on-topic with no other concerns (PM quality concern, not fraud)
 - Core OE is grounded but one risk family fires
 - TERMFLAGS=1 AND core OE has unusually strong human evidence
-- ML >= 0.7 AND core OE is grounded and specific with no other concerns
-- Outro is generic praise + core OE is generic first-person (no risk family, but quality concern)
+- ML >= 0.7 AND core OE is grounded and specific
+- Brand funnel has minor inconsistencies but core OE is strong
+- Survey structure has a mismatch but core OE is substantive
 - Mixed signals where neither KEEP nor DISCARD is clearly warranted
 
 **KEEP** (score > 0) when:
-- Core OE passes the answer-role test AND is grounded with idiosyncratic detail AND no risk family fires
-- Core OE is specific and chain-consistent AND ML < 0.5 AND no platform flags
-- The answer contains unusual lived detail that would be very hard to fabricate (specific brand comparison, specific city + water problem, specific health condition + doctor recommendation)
+- Core OE passes answer-role test AND shows substantive engagement AND no risk family fires
+- Core OE is specific, grounded, and chain-consistent AND ML < 0.5 AND no platform flags
+- Brand funnel is consistent AND survey structure matches answer pattern
 
-### Typo rule:
-Typos are NOT protective unless the surrounding answer is grounded and coherent. A typo inside generic content is neutral or mildly suspicious. "I was concerned about the filteration" with no other detail = not protective. "The filteration left orange stains in my toilet bowl" with a specific sensory detail = the typo is a minor human marker, but the specificity is what matters.
+### Thin-but-on-topic rule (IMPORTANT):
+An answer like "Mowing and blowing/raking leaves" is authentic and on-topic for an OPE survey, but it does NOT demonstrate substantive engagement. It names generic tasks without equipment, project narrative, or personal detail. For strict clients, this is a quality failure. Without calibration data, score this as REVIEW (-0.1 to -0.2), not KEEP. If ANY other family fires (ML >= 0.6, brand funnel inconsistency, survey structure mismatch), upgrade to DISCARD.
 
 ### Short non-answer rule:
-Short answers (<25 chars) to a motivation question are almost always role failures. "It's essential", "Because I need one", "I needed an upgrade", "Samsung", "iSpring" are NOT motivations. When paired with ANY risk family signal (ML >= 0.6, RD_Search >= 20, fast timing, generic outro, high supplier risk), this becomes a discard.
+Short answers (<25 chars) to a motivation/project question are almost always role failures. "It's essential", "Snow Blower", "Home Depot" are NOT project descriptions. When paired with ANY risk family signal, this becomes a discard.
 
 ### Accepted-row similarity guardrail:
-Before discarding, ask: what makes this row different from accepted rows with the same surface flaw? If many client-kept respondents also wrote generic first-person q14 with ML ~0.5, then a generic first-person q14 with ML ~0.5 should NOT be discarded unless there is an additional differentiating signal. The discard should come from the CONVERGENCE of failed core OE + risk family, not from any single signal that is common among accepted rows.
-
-### Hidden-client-signal approximation:
-Rows with missing core OE but client discard likely reflect signals outside the workbook (panel history, cross-survey fraud). Approximate with combinations: missing core open end + source risk + platform risk + RD risk + weak routing + low chain substance. If multiple of these converge, lean toward REVIEW even without a clear OE failure.
+Before discarding, ask: what makes this row different from accepted rows with the same surface flaw? The discard should come from CONVERGENCE of multiple families, not from any single signal common among accepted rows.
 
 ---
 
-## Platform Signal Reference
+## Packet Field Reference
 
-- `defender_signals.qc_flag`: 1=Not select 3, 2=State mismatch, 3=Red Herring, 4=REGION mismatch, 5=AGE mismatch, 6=RD /REVIEW rejection, 7=OE screening, 8=RD /SEARCH threat, 9=RD /SEARCH duplicate, 10=RD /SEARCH country, 11=Speeder, 12=Exceeded terms
-- `defender_signals.TERMFLAGS`: 1 = platform fraud flag (strong, not automatic)
-- `defender_signals.RD_Searchr1`: Threat score (0-30+)
-- `defender_signals.RD_Searchr3`: Country detected
-- `defender_signals.outroR1_RD_Reviewr0`: Language detected
-- `defender_signals.outroR1_RD_Reviewr3`: Outro composite score (>=10 = HIGH)
-- `defender_signals.lang_assess.read_level`: Flesch-Kincaid grade level
-- `ai_text_suspicion.score`: 0-1 cross-respondent similarity
-- `ai_text_suspicion.fields_flagged`: Which OE fields are similar to others
+- `respondent_id`: Unique identifier
+- `ml_triage_score`: 0-1 risk probability from pre-trained model
+- `timing`: minutes + percentile (bottom_10, bottom_25, above_median, above_p75)
+- `supplier`: name + reject_rate
+- `defender_summary`: Consolidated platform signals (read this first)
+- `defender_signals`: Raw platform signal values
+- `ai_text_suspicion`: Cross-respondent text similarity (score, fields_flagged)
+- `lang_assess`: Readability metrics (read_level, num_words, etc.)
+- `matrix_analysis`: Per-grid straightlining analysis
+- `open_end_responses`: All OE fields with question text + response + char_count
+- `oe_duplicate_counts`: How many respondents share the same OE text per field
+- `key_answers`: All coded single-choice fields with labels (dynamically discovered)
+- `survey_structure`: CLASSIFY, PROAGE, CONAGE, conditions, list, source, dcua, FIRMREV
+- `brand_funnel`: Awareness, rating, consideration, recommendation, NPS, satisfaction fields
+- `answer_entropy`: Variety in the answer chain
+- `oe_total_chars`: Total characters across all OE fields
 
 ## Dataset Context
 - Dataset: {dataset_name}
 - Total respondents: {n_respondents}
 - Matrix straightlining prevalence: {matrix_prevalence:.1%} {'(VERY HIGH — straightlining alone is NOT discriminative)' if matrix_prevalence > 0.8 else ''}
 - You are reviewing chunk XX of {n_chunks}
-- NOTE: This dataset may not be about water filtration. Read the question text in each OE field to identify the survey topic and the core OE field. Adapt the answer-role test to the actual question being asked.
+- NOTE: Read the question text in each OE field to identify the survey topic, core OE field, and expected evidence type. Adapt all tests to the actual survey subject.
 """
 
 

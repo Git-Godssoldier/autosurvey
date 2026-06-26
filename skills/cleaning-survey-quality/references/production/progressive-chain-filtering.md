@@ -212,7 +212,42 @@ Funnel breaks are hard invalidity when they show the respondent does not underst
 
 This layer is the primary authenticity surface. Most rejection drivers should be findable here. The Delta t=5 analysis showed that 55.7% of rejected rows had a valid outro but were rejected for reasons found in the full chain: funnel inconsistency, brand awareness anomalies, supplier concentration, or technical evidence.
 
-If a row has no chain-validity concern at this layer, its rejection driver is observational or cross-population, not semantic. Move to Layer 3.
+If a row has no chain-validity concern at this layer, its rejection driver is observational, cross-population, or PM-quality (Layer 2b), not semantic. Move to Layer 2b or Layer 3.
+
+## Layer 2b: Survey-structure and brand-funnel coherence (v5)
+
+After per-field chain validity, check whether the respondent's classification, channel, and brand funnel form a coherent system. This layer addresses PM-quality discards that pass authenticity review but fail the client's quality bar.
+
+### Survey-structure coherence
+
+- **CLASSIFY branch**: CLASSIFY=1 (professional) respondents should show professional purchasing patterns (dealer channels, commercial equipment, volume purchases). A pro who answers like a consumer is a quality failure. ECHO data: pro-branch rejects at 60.4% vs 30.5% for consumer.
+- **PROAGE/CONAGE**: Pro-branch respondents should show professional experience depth. Consumer-branch should show consumer experience. Mismatch is a quality concern.
+- **Channel conditions**: `conditionsAriens=1` → brand answers should include Ariens. `conditionsHD_or_OPE_dealers=1` → Home Depot / OPE dealer channel. Channel-brand mismatch is a quality concern. ECHO data: Ariens channel rejects at 59.2%.
+- **list/source**: Different suppliers have different reject rates. Context, not proof.
+
+### Brand funnel as a connected system
+
+Brand funnel fields are the strongest raw predictors of client discards (signal score 2345.5 on ECHO, far exceeding semantic content fields). Check the funnel as a connected graph:
+
+- **Awareness → Rating → Consideration → Recommendation → NPS chain**: Does the respondent claim awareness of brands they later cannot rate? Do they recommend brands they did not claim awareness of?
+- **Brand name quality in OE fields**: Real OPE brands (Stihl, Husqvarna, Echo, Honda, Ryobi, Toro, Craftsman) vs garbled/wrong-universe brands ("Harmmer", "china", "Mercedes" for OPE).
+- **Share allocation plausibility**: Equal share to all brands = potential straightlining. Many zero allocations = disengaged (47.2% reject rate on ECHO). Fragmented share (8+ brands with nonzero share) = 52.0% reject rate.
+- **Rating consistency**: Do ratings align with stated preference and recommendation? A respondent who rates a brand 10/10 but never mentions it in open-ends has a funnel break.
+- **NPS verbatim quality**: Should be brand-specific, not generic praise. "Effective work and power" = generic. "They put their name in VERY LARGE letters" = brand-specific.
+
+### Substantive engagement threshold
+
+The core open-end must demonstrate substantive engagement with the survey's specific topic:
+- "Mowing and blowing" is on-topic for an OPE survey but thin — it names generic tasks without equipment, project narrative, or personal detail.
+- For strict clients, thin-but-on-topic is a quality failure even though the respondent is authentic.
+- The threshold varies by dataset. Without calibration data, treat thin-but-on-topic as REVIEW, not KEEP.
+
+### How Layer 2b combines with other layers
+
+- Hard chain invalidity (Layer 2) + survey-structure mismatch (Layer 2b) → strong discard candidate
+- Valid chain (Layer 2) + survey-structure mismatch (Layer 2b) → review candidate (authentic but quality-failing)
+- Valid chain (Layer 2) + brand funnel incoherence (Layer 2b) → review candidate, escalate with any observational signal
+- Valid chain (Layer 2) + thin substantive engagement (Layer 2b) → REVIEW (not KEEP) without calibration data
 
 ## Layer 3: Observational signals
 

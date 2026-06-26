@@ -1,11 +1,21 @@
 ---
 name: cleaning-survey-quality
-description: Cleans and scores Decipher-style survey quality workbooks for market research datasets. Use when reviewing survey completes, fraud, inattentive respondents, open-end AI suspicion, straightlining, inconsistent brand answers, short completes, duplicate IPs, respondent flags, or survey quality files. The primary flow is a multi-agent holistic review that produces DISCARD/REVIEW/KEEP judgments with evidence-family convergence scoring.
+description: Cleans and scores Decipher-style survey quality workbooks for market research datasets. Use when reviewing survey completes, fraud, inattentive respondents, open-end AI suspicion, straightlining, inconsistent brand answers, short completes, duplicate IPs, respondent flags, or survey quality files. The primary flow is a two-stage holistic agent review (fraud detection + PM quality assessment) that produces DISCARD/REVIEW/KEEP judgments with evidence-family convergence scoring across 8 independent signal families.
 ---
 
 # Cleaning Survey Quality
 
 Run a reproducible survey quality pass on unannotated Decipher-style survey exports. The output is a per-respondent DISCARD/REVIEW/KEEP judgment with a -1 to +1 score and a natural-language justification citing specific evidence.
+
+## Two-Stage Review (v5)
+
+Every respondent passes through two stages:
+
+**Stage 1 — Fraud Detection**: Is this respondent authentic? (bots, AI, platform flags, gibberish, non-English, duplicate chains, TERMFLAGS)
+
+**Stage 2 — PM Quality Assessment**: Does this respondent meet the quality bar for this survey? (substantive engagement, brand funnel consistency, classification coherence, on-topic depth, survey-structure fit)
+
+A respondent can pass Stage 1 (not fraudulent) but fail Stage 2 (low quality). Both result in DISCARD or REVIEW. This separation is critical because client discard processes are primarily quality-driven, not fraud-driven. On ECHO, fraud signals (TERMFLAGS, AI text) cover only 2.2% of discards; the remaining 98% are `badopen` — PM quality judgments.
 
 ## The Normal Input Is an Unannotated Workbook
 
@@ -35,7 +45,8 @@ Stage 3: scripts/integrate_agent_judgments.py  → merges judgments into annotat
 # Install dependencies
 pip3 install -r skills/cleaning-survey-quality/requirements.txt
 
-# Stage 1: Generate review packets (parses Datamap, extracts features, ML triage, AI text detection)
+# Stage 1: Generate review packets (parses Datamap, extracts features, ML triage, AI text detection,
+#           survey-structure fields, brand funnel fields)
 python3 skills/cleaning-survey-quality/scripts/run_holistic_agent_review.py /path/to/survey.xlsx \
   --output-dir /path/to/holistic_output --chunk-size 200
 ```
@@ -81,6 +92,10 @@ Read only the references needed for the current task:
 | Discovery behavior changes | `references/production/autonomous-discovery.md` |
 | Complete procedural workflow specification | `references/production/full-workflow-specification.md` |
 | Adapting to a specific client or survey program | `references/production/project-context-template.md` |
+| Client-process reconstruction gaps (ECHO FN/FP analysis) | `references/evolution/client-process-reconstruction-gaps.md` |
+| ECHO residual signal mining (field-family lift, derived signals) | `references/evolution/echo-signal-mining/skill_improvement_recommendations.md` |
+| Cross-dataset signal synthesis (10 workbooks, 12,384 respondents) | `references/evolution/cross-dataset-signal-synthesis.md` |
+| Multi-workbook signal mining artifacts (raw field, derived, markers) | `references/evolution/multiworkbook-signal-mining/multiworkbook_skill_recommendations.md` |
 | Five-tier routing and label-aware contrast (evolution) | `references/evolution/authenticity-first-calibration.md` |
 | Status-derived detection rules (evolution) | `references/evolution/tfg-status-derived-detection-methodology.md` |
 | Internal comments and PM notes learning (evolution) | `references/evolution/internal-signal-learning.md` |
@@ -107,6 +122,9 @@ Each packet contains:
 - Duplicate text counts per OE field
 - Answer entropy
 - `defender_summary` — human-readable consolidation of all platform signals
+- **`survey_structure`** — CLASSIFY, PROAGE, CONAGE, conditions (Ariens/HD/channel), list/source, dcua, FIRMREV
+- **`brand_funnel`** — awareness, rating, consideration, recommendation, NPS, satisfaction, share allocation fields
+- **`key_answers`** — all coded single-choice fields with labels (dynamically discovered, not hardcoded)
 
 The script also generates `agent_review_instructions.md` with the evidence-family framework rules (see below).
 
@@ -133,28 +151,54 @@ Merges all chunk judgments, re-runs feature extraction, and writes:
 - **Dashboard HTML** with summary cards, score distribution, supplier analysis, and discard table
 - **Summary JSON** with aggregate statistics
 
-## The Evidence-Family Framework (v4)
+## The Evidence-Family Framework (v5)
 
-The agent instructions use an evidence-family convergence model, not discrete signal labels. The master rule:
+The agent instructions use an evidence-family convergence model with two stages and eight independent signal families. The master rule:
 
-**A row is discard-like when the core open end fails its question role, lacks grounded chain evidence, and converges with at least one independent risk family.**
+**A row is discard-like when the core open end fails its question role, lacks grounded chain evidence, and converges with at least one independent risk family — OR when the respondent fails the PM quality bar (thin engagement, brand funnel incoherence, classification mismatch, off-topic content).**
 
-The five independent risk families:
-1. **Model risk** — ML triage score >= 0.7
-2. **Platform risk** — TERMFLAGS=1, qc flag, RD_Search elevated, non-English
+### Stage 1: Fraud Detection Families
+
+1. **Platform risk** — TERMFLAGS=1, qc flag, RD_Search elevated, non-English
+2. **Model risk** — ML triage score >= 0.7
 3. **Source risk** — high supplier reject rate, elevated RD_Search threat
 4. **Duplicate semantics** — text similarity to other respondents, paraphrase clusters
-5. **Weak outro behavior** — generic praise, off-topic, incoherent, or chain-inconsistent outro
+
+### Stage 2: PM Quality Assessment Families
+
+5. **Core OE Quality** — answer-role test, substantive engagement, grounded detail, off-topic detection
+6. **Survey Structure** — CLASSIFY (pro/consumer), PROAGE/CONAGE, channel conditions, list/source coherence
+7. **Brand Funnel Consistency** — awareness → rating → consideration → NPS chain, brand name quality, share allocation
+8. **Timing & Engagement** — speed, straightlining, matrix patterns
 
 ### Core Open-End Quality (the anchor)
 
-The core OE field is the one asking for personal motivation, experience, or job role. Read the question text to identify it. Apply these tests:
+The core OE field is the one asking for personal motivation, experience, or project description. Read the question text to identify it. Apply these tests:
 
 - **Answer-Role Test**: Does the answer actually answer the question? "Water filtration systems" names the topic but fails a motivation question. "My water started smelling like chlorine after the city changed treatment" passes.
-- **Grounded First-Person Test**: First-person pronouns are NOT protective by themselves. AI uses first-person too. The test is whether the content is grounded in lived experience (concrete events, household conditions, sensory issues, health concerns, named places, chain references).
-- **Synthetic Detail Detection**: Some details sound specific but are common fake clusters ("my skin", "my family", "chlorine"). Genuinely specific details are idiosyncratic (named conditions, named events, unusual sensory details, specific brand comparisons).
+- **Substantive Engagement Test** (PM quality bar): Does the answer demonstrate substantive engagement with the survey's specific topic? "Mowing and blowing" is on-topic but thin — it names generic tasks without equipment, project narrative, or personal detail. For strict clients, this is a quality failure. Without calibration data, treat thin-but-on-topic as REVIEW, not KEEP.
+- **Grounded First-Person Test**: First-person pronouns are NOT protective by themselves. The test is whether the content is grounded in lived experience (concrete events, household conditions, sensory issues, health concerns, named places, chain references).
+- **Off-Topic Detection**: Is the described project in the right domain? (OPE survey → chainsaws, mowers, trimmers — NOT gardening, pest control, indoor projects). Off-topic core OE is a quality failure even if authentic.
 - **Product-Copy Register**: Marketing-like language ("multi-stage filtration", "contaminant removal technologies") is suspicious, especially without lived context.
-- **Paraphrase-Level Duplicate Detection**: Check if the answer tells the same story frame as many others, even with different surface text.
+- **Synthetic Detail Detection**: Some details sound specific but are common fake clusters ("my skin", "my family", "chlorine"). Genuinely specific details are idiosyncratic (named brands, named conditions, unusual sensory details).
+
+### Survey Structure (Stage 2 signal family)
+
+Survey-structure fields carry 2x+ discrimination power but are NOT semantic content. They are classification, quota, and channel fields:
+
+- **CLASSIFY=1 (pro)**: Pro respondents are held to a higher standard. A pro who answers like a consumer is a quality failure. Reject rate: 60.4% vs 30.5% for consumer.
+- **PROAGE/CONAGE**: Pro-branch respondents should show professional experience. Consumer-branch should show consumer experience.
+- **Channel conditions**: `conditionsAriens=1` → brand answers should include Ariens. `conditionsHD_or_OPE_dealers=1` → Home Depot / OPE dealer channel. Channel-brand mismatch is a quality concern. Reject rate: 59.2% for Ariens channel.
+- **list/source**: Different suppliers have different reject rates (list 25: 45.3% vs list 139: 30.0%). Context, not proof.
+
+### Brand Funnel Consistency (Stage 2 signal family)
+
+Brand funnel fields are the strongest raw predictors of client discards (total signal score 2345.5 on ECHO, far exceeding any other family):
+
+- **Awareness → Consideration → Recommendation chain**: Does the respondent claim awareness of brands they later cannot rate? Do they recommend brands they did not claim awareness of?
+- **Brand name quality in OE fields**: Real OPE brands (Stihl, Husqvarna, Echo, Honda, Ryobi, Toro, Craftsman) vs garbled/wrong-universe brands ("Harmmer", "china", "Mercedes" for OPE).
+- **Share allocation**: Equal share to all brands = potential straightlining. Many zero allocations = disengaged (47.2% reject rate). Fragmented share (8+ brands) = 52.0% reject rate.
+- **NPS verbatim**: Should be brand-specific, not generic praise. "Effective work and power" = generic. "They put their name in VERY LARGE letters" = brand-specific.
 
 ### Platform Signal Override Logic
 
@@ -168,7 +212,7 @@ AI text suspicion on the outro field ONLY is downweighted. Generic topic restate
 
 ### Short Non-Answer Rule
 
-Short answers (<25 chars) to a motivation question are almost always role failures. "It's essential", "Because I need one" are NOT motivations. When paired with ANY risk family signal, this becomes a discard.
+Short answers (<25 chars) to a motivation/project question are almost always role failures. "It's essential", "Snow Blower", "Home Depot" are NOT project descriptions. When paired with ANY risk family signal, this becomes a discard.
 
 ### Typo Laundering Guard
 
@@ -196,6 +240,8 @@ See `references/production/progressive-chain-filtering.md` for the full specific
 - Compute supplier cohort distributions
 - Run the ML triage model (pre-trained, runs on unannotated data)
 - Detect cross-respondent AI text similarity
+- Extract survey-structure fields (CLASSIFY, PROAGE, conditions, list, FIRMREV)
+- Extract brand funnel fields (awareness, rating, consideration, NPS, share)
 - Assemble structured JSON packets for the agents
 
 **Scripts do NOT:**
@@ -231,7 +277,43 @@ See `templates/output-format-spec.md` for the exact format of each artifact.
 
 After the PM reviews the output and the client provides accept/reject decisions, the annotated workbook can be used to improve the pipeline. This is a **separate activity** from the normal blind run. See `commands/evolution-cycle.md` for the full workflow.
 
-**Known gaps to address in evolution**: The v4 holistic review catches fraud well (precision ~0.60) but misses the PM's quality bar (recall ~0.31 on ECHO). The client's `badopen` marker encodes PM quality judgments — substantive engagement, brand consistency, quota coherence — that are invisible to semantic authenticity review alone. See `references/evolution/client-process-reconstruction-gaps.md` for the full gap analysis and 5-phase improvement plan.
+### Known Performance Gaps (v4 → v5)
+
+The v4 holistic review caught fraud well (precision ~0.60) but missed the PM's quality bar (recall ~0.31 on ECHO). The v5 framework addresses this by adding survey-structure and brand-funnel evidence families. Key findings from ECHO residual signal mining and cross-dataset synthesis (10 workbooks, 12,384 respondents):
+
+**ECHO-specific findings:**
+- **Brand funnel** is the strongest field family (signal score 2345.5), far exceeding semantic content fields
+- **Equipment ownership/use** is second (896.3) — q11 other-specify fields carry strong signal
+- **CLASSIFY=1 (pro)** rejects at 60.4% vs 30.5% for consumer — pro-branch respondents are held to a higher standard
+- **conditionsAriens=1** rejects at 59.2% — channel-condition fields carry 2x+ lift
+- **Brand share fragmentation** (8+ brands with nonzero share) rejects at 52.0%
+- **Fast completion** (<5 min) rejects at 100% (15/15)
+- **TERMFLAGS=1** rejects at 66.7% but covers only 15/553 discards (2.7%)
+- Standard fraud signals (duplicate OE, matrix straightline) have lift 1.00 — zero discrimination on ECHO
+- `very_short_required_open_end` is **protective** (lift 0.58) — short answers are LESS likely to be discarded
+
+**Cross-dataset findings (all 10 workbooks):**
+- **Open-end text is the weakest family** (signal score 16.1 across all datasets) — confirms v4's OE-centric approach was misaligned
+- **`badopen` is a universal discard marker** — 100% discard share across ALL 10 datasets, 3092 total mentions
+- **`bad:qualified` is similarly universal** — 100% discard share, 3068 mentions
+- **Demographic profile** is the strongest cross-dataset family (5703.8) — strongest in TFG-Contractor-Index
+- **Brand funnel/ad** is second cross-dataset (4058.5) — strongest in ECHO
+- **Quota markers are dataset-specific** — ECHO has BRANDS2RATEQuota/ChannelQuota, Masterlock has ProductBalancingQuota, TFG-CI has TradeQuota
+- **Fast completion (<5 min) generalizes** — strong lift in SBD (+49.4%), ADDO (+29.8%), ECHO (+64.7%)
+- **Missing supplier** is a strong signal in TFG-CI-Q2 (75.5% discard rate, +39.5% lift)
+- **Discard rates vary widely** — 6.2% (THD-CX) to 44.5% (SBD); per-dataset calibration is essential
+
+### Evolution Process
+
+1. **Obtain annotated data** — Get the client-annotated workbook with status=3/5 labels
+2. **Run residual signal mining** — Extract field-family lift, derived signals, error gap examples (see `references/evolution/echo-signal-mining/` for ECHO example)
+3. **Build field-specific open-end contracts** — Per-field valid/invalid examples and accepted-row guardrails for qc5, q11 other-specifies, q17 brands, q19 other, q29 ad recall, q30-q32 switching/loyalty
+4. **Build brand-funnel relation graphs** — Awareness/top/possible/rated/brand-share/ad/NPS as a connected system
+5. **Build quota/classification contracts** — CLASSIFY, CONAGE, PROAGE, REGION, condition flags, list/source, brand-to-rate fields
+6. **Create residual review packets** for every FN/FP — Include raw branch/condition/brand-funnel values, marker family, our rationale, and candidate missed signal. Promote only rules that survive accepted-row counterexamples.
+7. **Split authenticity risk from client discard reconstruction** — Rows can be human-looking but client-discardable because of quota, classification, or bad-open standards.
+
+See `references/evolution/client-process-reconstruction-gaps.md` for the full gap analysis and `references/evolution/echo-signal-mining/` for the ECHO signal mining artifacts.
 
 ## Package Requirements
 
@@ -270,6 +352,22 @@ cleaning-survey-quality/
 │   │   └── project-context-template.md
 │   └── evolution/                    (read only when client feedback available)
 │       ├── client-process-reconstruction-gaps.md  (ECHO FN/FP analysis + 5 process gaps)
+│       ├── cross-dataset-signal-synthesis.md      (10-workbook cross-dataset synthesis)
+│       ├── echo-signal-mining/                    (ECHO residual signal mining artifacts)
+│       │   ├── skill_improvement_recommendations.md
+│       │   ├── raw_field_signal_inventory.csv
+│       │   ├── derived_signal_candidates.csv
+│       │   ├── field_family_signal_summary.csv
+│       │   ├── marker_family_summary.csv
+│       │   └── error_gap_examples.csv
+│       ├── multiworkbook-signal-mining/             (10-workbook signal mining artifacts)
+│       │   ├── multiworkbook_skill_recommendations.md
+│       │   ├── dataset_inventory.csv
+│       │   ├── cross_dataset_family_summary.csv
+│       │   ├── cross_dataset_raw_field_signals.csv
+│       │   ├── cross_dataset_derived_signals.csv
+│       │   ├── cross_dataset_marker_summary.csv
+│       │   └── open_end_signal_examples.csv
 │       ├── authenticity-first-calibration.md
 │       ├── tfg-status-derived-detection-methodology.md
 │       ├── internal-signal-learning.md

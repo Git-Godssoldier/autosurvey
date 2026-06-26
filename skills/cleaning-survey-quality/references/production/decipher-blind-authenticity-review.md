@@ -2,6 +2,8 @@
 
 Use this reference for normal Autosurvey runs on blank Decipher survey exports. A blank run means the respondent file has no client cleaning outcome label. It may still contain Decipher system fields, routing fields, quotas, timestamps, and helper fields. Do not treat any field as a client accept or reject label unless the user has explicitly provided an annotated training workbook.
 
+The review operates in two stages: **fraud detection** (is the respondent authentic?) and **PM quality assessment** (does the respondent meet the quality bar for this survey?). Both stages use the learned signal questions below. A respondent can pass fraud detection but fail quality assessment — both result in DISCARD or REVIEW.
+
 Annotated TFG workbooks are a development lab. They are used to discover signals, test false positives, and improve these instructions. They are not runtime inputs. A normal Autosurvey run should apply the learned signal questions below to the new dataset without using `status = 3`, `status = 5`, client flags, or hidden review outcomes.
 
 ## Runtime boundary
@@ -59,27 +61,33 @@ Ask these questions on every blank dataset. Adapt them to the Datamap and the re
    Is the answer coherent but off-domain? Examples include IT or office-management claims inside contractor studies, personal shopping examples inside professional purchase studies, or general construction prose that never ties to the respondent's own trade.
 
 8. **Brand or product funnel plausibility**
-   Do awareness, familiarity, use, consideration, preference, recommendation, purchase, satisfaction, and open-ended rationale form a plausible chain? Treat impossible or unexplained jumps as review evidence.
+   Do awareness, familiarity, use, consideration, preference, recommendation, purchase, satisfaction, and open-ended rationale form a plausible chain? Treat impossible or unexplained jumps as review evidence. Check brand name quality in OE fields — real brands vs garbled/wrong-universe brands. Check share allocation plausibility — equal share to all brands or many zero allocations are quality concerns. Brand funnel fields are the strongest raw predictors of client discards (signal score 2345.5 on ECHO, far exceeding semantic content fields).
 
 9. **Content-aware straightlining**
    Are repeated answers occurring across similar items or across questions that should differ? Straightlining across substantively similar questions may be a real opinion. Straightlining across opposed, unrelated, reverse-coded, or high-burden items is stronger evidence, especially when timing and open ends are weak.
 
-10. **Cross-respondent synthetic clustering**
+10. **Survey-structure coherence** (NEW — v5)
+    Does the respondent's classification match their answer pattern? CLASSIFY=1 (professional) respondents should show professional purchasing patterns (dealer channels, commercial equipment, volume). A pro who answers like a consumer is a quality failure. Check channel conditions (conditionsAriens, conditionsHD_or_OPE_dealers) — a respondent in the Ariens channel who never mentions Ariens is a quality concern. Check PROAGE/CONAGE — pro-branch respondents should show professional experience. These survey-structure fields carry 2x+ discrimination power (CLASSIFY=1 rejects at 60.4% vs 30.5% for consumer on ECHO).
+
+11. **Substantive engagement** (NEW — v5)
+    Does the core open-end demonstrate substantive engagement with the survey's specific topic? An answer like "Mowing and blowing" is on-topic for an OPE survey but thin — it names generic tasks without equipment, project narrative, or personal detail. For strict clients, this is a quality failure even though the respondent is authentic. The substantive engagement threshold varies by dataset — some clients tolerate generic first-person (Delta), others require specific detail (ECHO). When in doubt without calibration data, treat thin-but-on-topic as REVIEW, not KEEP.
+
+12. **Cross-respondent synthetic clustering**
    Do multiple supposedly independent respondents share rare phrases, open-end templates, response vectors, timing vectors, matrix patterns, or burst timing? Similar technical context alone is not enough. Similar response chains make the signal stronger.
 
-11. **Duplicate technical context**
+13. **Duplicate technical context**
    Shared IP, device, supplier, session, or fielding burst is context, not proof. It becomes stronger when the same group also shares weak open ends, rare phrasing, identical matrices, impossible routing, or timing patterns.
 
-12. **Full-chain nonresponse and route integrity**
+14. **Full-chain nonresponse and route integrity**
    Resolve skip logic before treating blanks as bad. Look for missing prerequisites, downstream answers after a "never" response, unexplained section omission, default-value chains, populated fields that should have been skipped, and export defects.
 
-13. **Survey-meta substitution**
+15. **Survey-meta substitution**
    Did the respondent answer the survey process instead of the prompt? Feedback about the survey, idea, or questionnaire should be classified separately from substantive answers.
 
-14. **AI-assistance concern**
+16. **AI-assistance concern**
    Polished prose, formal wording, low typo rate, or em dashes are weak cues only. They matter when paired with genericity, wrong universe, implausible answer-time coupling, copied templates, or chain contradiction.
 
-15. **Human protective evidence**
+17. **Human protective evidence**
    Give credit for grounded details, ordinary self-corrections, rough but coherent wording, non-native English, valid short answers, legitimate extreme opinions, plausible "don't know" behavior, and consistent role or brand chains.
 
 ## Weighting standard
