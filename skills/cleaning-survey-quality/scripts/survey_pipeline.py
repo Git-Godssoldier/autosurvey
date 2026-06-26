@@ -59,25 +59,46 @@ def norm(v):
 
 
 def parse_datamap(wb):
-    """Parse the Datamap sheet to get question text and value labels."""
+    """Parse the Datamap sheet to get question text and value labels.
+
+    Datamap format:
+        [fieldName]: Question text   | (col B empty) | (col C empty)
+        Values: 1-12                  |               |
+        (empty)                       | 1             | Label for value 1
+        (empty)                       | 2             | Label for value 2
+    """
     dm = {}
     if "Datamap" not in wb.sheetnames:
         return dm
     ws = wb["Datamap"]
+    current_field = None
     for row in ws.iter_rows(values_only=True):
         a, b, c = (row + (None, None, None))[:3]
         a_s = clean(a)
+        b_s = clean(b)
+        c_s = clean(c)
+
         if a_s.startswith("[") and "]" in a_s:
-            field_name = a_s.split("]", 1)[0][1:]
-            qtext = clean(b)
-            labels = {}
-            dm[field_name] = {"question_text": qtext, "labels": labels}
-        elif dm:
-            for k, v in dm.items():
-                if v["question_text"] and not v.get("_done"):
-                    if a_s and b is not None:
-                        v["labels"][str(norm(a))] = clean(b)
-                    break
+            # New field definition: [fieldName]: Question text
+            bracket_end = a_s.index("]")
+            field_name = a_s[1:bracket_end]
+            # Question text is everything after "]: " in column A
+            qtext = a_s[bracket_end + 1:].lstrip(": ").strip()
+            # If qtext is empty, try column B
+            if not qtext:
+                qtext = b_s
+            dm[field_name] = {"question_text": qtext, "labels": {}}
+            current_field = field_name
+        elif current_field:
+            # Value label rows — can have empty column A
+            # Format 1: (empty) | value | label
+            # Format 2: value | label | (empty)
+            # Format 3: value | label | label2
+            if not a_s.startswith("Values:") and not a_s.startswith("Open") and not a_s.startswith("RD_"):
+                if b_s and c_s:
+                    dm[current_field]["labels"][str(norm(b))] = c_s
+                elif a_s and b_s and not c_s:
+                    dm[current_field]["labels"][str(norm(a_s))] = b_s
     return dm
 
 
