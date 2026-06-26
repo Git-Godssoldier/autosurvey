@@ -501,7 +501,107 @@ def compute_key_signals(df, answer_chains):
     return signals_list
 
 
-def agent_score_respondent(chain, ml_triage_score):
+def classify_open_end_semantic(oe_text):
+    """Classify open-end text semantically based on agent review findings.
+    
+    Returns (classification, is_personal, is_discard_signal).
+    
+    Classifications from agent review of 303 missed discards:
+    - 'first_person_personal': Uses first-person language with personal experience (KEEP signal)
+    - 'third_person_meta': Describes what the survey was about in third person (DISCARD signal)
+    - 'generic_topic_restatement': Restates survey topic without personal insight (DISCARD signal)
+    - 'off_topic_incoherent': Off-topic, incoherent, or non-answer (DISCARD signal)
+    - 'templated_truncated': Truncated mid-sentence or templated phrase (DISCARD signal)
+    - 'generic_praise': Generic praise like "thank you" or "good survey" (DISCARD signal)
+    - 'gibberish': Keyboard mashing or nonsense (DISCARD signal)
+    - 'substantive': On-topic with some substance (neutral)
+    """
+    if not oe_text or len(oe_text.strip()) < 3:
+        return "empty", False, True
+
+    oe = oe_text.lower().strip()
+
+    # Gibberish detection: high consonant ratio or keyboard mashing
+    if len(oe) > 10:
+        consonants = sum(1 for c in oe if c in "bcdfghjklmnpqrstvwxyz")
+        vowels = sum(1 for c in oe if c in "aeiou")
+        if vowels > 0 and consonants / vowels > 5:
+            return "gibberish", False, True
+        # Check for repeated keyboard patterns
+        if any(p in oe for p in ["bvnhgj", "vcgtr", "asdf", "qwer"]):
+            return "gibberish", False, True
+
+    # Generic praise
+    if any(p in oe for p in ["thank you", "good survey", "nice survey", "great survey", "everything is good", "all good", "this is so good"]):
+        if len(oe) < 40:
+            return "generic_praise", False, True
+
+    # Third-person meta-description (biggest missed pattern)
+    third_person_markers = [
+        "this survey was about", "this survey is about", "the survey was about",
+        "the survey is about", "it was about", "it is about",
+        "questions were asked", "customers were asked", "respondents were asked",
+        "the purpose of this study", "researching the habits",
+        "asked about their", "focused on", "mainly about",
+        "it looked into", "assessing the importance",
+    ]
+    if any(m in oe for m in third_person_markers):
+        return "third_person_meta", False, True
+
+    # Off-topic or incoherent
+    off_topic_markers = [
+        "good night", "hope you", "the government is", "conspiracy",
+        "this isn't just", "fraud masquerading",
+    ]
+    if any(m in oe for m in off_topic_markers):
+        return "off_topic_incoherent", False, True
+
+    # Very short non-answers
+    if len(oe) < 15 and any(w in oe for w in ["i need it", "just need", "none", "n/a", "na", "no"]):
+        return "off_topic_incoherent", False, True
+
+    # Templated/truncated (ends mid-word or mid-sentence)
+    if len(oe) > 30 and not oe.endswith(('.', '!', '?')) and oe[-1] not in '.!?':
+        # Check if it looks truncated (ends with partial word)
+        last_word = oe.split()[-1] if oe.split() else ""
+        if len(last_word) <= 2 and not last_word.endswith(('ed', 'er', 'ly', 'ng')):
+            return "templated_truncated", False, True
+        # Check for common templated starts
+        templated_starts = [
+            "i decided to buy", "i wanted cleaner", "i wanted better",
+            "i purchased", "i bought",
+        ]
+        if any(oe.startswith(t) for t in templated_starts) and len(oe) < 100:
+            return "templated_truncated", False, True
+
+    # First-person personal experience (KEEP signal)
+    first_person_markers = ["i ", "my ", "me ", "we ", "our ", "i'm", "i've", "i'd"]
+    personal_experience_markers = [
+        "wife", "husband", "family", "kids", "children", "home", "house",
+        "taste", "smell", "skin", "hair", "shower", "bath", "kitchen",
+        "calcium", "hard water", "chlorine", "lead", "contaminants",
+        "cost", "expensive", "cheap", "afford", "budget",
+        "health", "safe", "safer", "concerned", "worried",
+    ]
+    has_first_person = any(m in oe for m in first_person_markers)
+    has_personal = any(m in oe for m in personal_experience_markers)
+    if has_first_person and has_personal:
+        return "first_person_personal", True, False
+
+    # Generic topic restatement (mentions water/filtration but no personal angle)
+    if any(w in oe for w in ["water quality", "water filtration", "water filter", "hard water", "clean water", "water system"]):
+        if not has_first_person:
+            return "generic_topic_restatement", False, True
+
+    # Substantive (on-topic, some content)
+    if len(oe) > 30:
+        return "substantive", False, False
+
+    # Default: short but not clearly bad
+    return "short_neutral", False, False
+
+
+def agent_score_respondent(chain, ml_triage_score, matrix_prevalence=None):
     """Agent scoring function: assigns -1 to +1 score based on answer chain signals.
     
     The ML triage score is ONE input — it flags who to look at carefully.
@@ -514,10 +614,20 @@ def agent_score_respondent(chain, ml_triage_score):
      0.0 = uncertain (some concerns but not converging)
     +0.5 = likely keep (minor concerns but coherent chain)
     +1.0 = clear keep (no signals, coherent chain, reasonable timing)
+    
+    Args:
+        chain: answer chain dict with signals and text
+        ml_triage_score: ML model risk probability (0-1)
+        matrix_prevalence: fraction of respondents with matrix_straightline=1.
+            If >0.8, matrix straightlining is not discriminative and is downweighted.
     """
     score = 0.0
     reasons = []
     concerns = 0  # Track converging concerns
+
+    # Matrix prevalence gating: if >80% of respondents have straightlining,
+    # it's not discriminative (from agent review of false positives)
+    matrix_gated = matrix_prevalence is not None and matrix_prevalence > 0.8
 
     # === STRONG SIGNALS (each can drive score negative on its own) ===
 
@@ -533,18 +643,45 @@ def agent_score_respondent(chain, ml_triage_score):
         concerns += 2
         reasons.append(f"TIER 2 signal present ({chain['t2_count']} signals)")
 
+    # === SEMANTIC OPEN-END CLASSIFICATION (from agent review) ===
+    # This is the biggest improvement: detecting third-person meta-descriptions,
+    # generic topic restatements, and off-topic answers that rules miss.
+    oe_text = chain.get("oe_text", "")
+    oe_class, is_personal, is_discard_signal = classify_open_end_semantic(oe_text)
+
+    if is_discard_signal:
+        if oe_class in ("gibberish", "off_topic_incoherent"):
+            score -= 0.3
+            concerns += 2
+            reasons.append(f"Open-end: {oe_class} ({oe_text[:50]}...)")
+        elif oe_class in ("third_person_meta", "generic_topic_restatement"):
+            score -= 0.25  # Increased — this is the biggest missed pattern per agent review
+            concerns += 2  # Also counts as 2 concerns for convergence
+            reasons.append(f"Open-end: {oe_class} — describes survey topic, not personal experience")
+        elif oe_class == "templated_truncated":
+            score -= 0.15
+            concerns += 1
+            reasons.append(f"Open-end: templated/truncated phrase")
+        elif oe_class == "generic_praise":
+            score -= 0.2
+            concerns += 1
+            reasons.append(f"Open-end: generic praise with no content")
+        elif oe_class == "empty":
+            score -= 0.15
+            concerns += 1
+            reasons.append("Open-end: empty or missing")
+
     # === MODERATE SIGNALS (need convergence to drive negative) ===
 
-    # Supplier risk
+    # Supplier risk (but don't apply to individuals with no personal signals)
     sr = chain.get("supplier_reject_rate", 0)
     if sr > 30:
-        score -= 0.15
+        score -= 0.1  # Reduced from 0.15 — agent review showed over-weighting
         concerns += 1
         reasons.append(f"High-risk supplier ({sr:.0f}% reject rate)")
     elif sr > 20:
-        score -= 0.08
+        score -= 0.05  # Reduced from 0.08
         concerns += 1
-        reasons.append(f"Medium-risk supplier ({sr:.0f}% reject rate)")
 
     # Timing
     pct = chain.get("qtime_percentile", "")
@@ -556,47 +693,64 @@ def agent_score_respondent(chain, ml_triage_score):
         score -= 0.06
         concerns += 1
 
-    # Open-end quality
+    # Open-end length (but only if not already flagged by semantic classification)
     oe_chars = chain.get("oe_total_chars", 0)
-    if oe_chars < 10:
-        score -= 0.12
-        concerns += 1
-        reasons.append("Very short open-end")
-    elif oe_chars < 30:
-        score -= 0.06
-        concerns += 1
+    if oe_class not in ("empty",) and not is_discard_signal:
+        if oe_chars < 10:
+            score -= 0.1
+            concerns += 1
+            reasons.append("Very short open-end")
+        elif oe_chars < 30:
+            score -= 0.05
 
-    # Matrix straightlining
+    # Matrix straightlining (gated by prevalence)
     if chain.get("matrix_straightline", 0) == 1:
-        score -= 0.12
-        concerns += 1
-        reasons.append("Matrix straightlining")
+        if matrix_gated:
+            # Not discriminative alone, but still counts as a concern for convergence
+            concerns += 1
+        else:
+            score -= 0.12
+            concerns += 1
+            reasons.append("Matrix straightlining")
     elif chain.get("matrix_near_straightline", 0) == 1:
-        score -= 0.04
+        if not matrix_gated:
+            score -= 0.04
 
     # Answer entropy
     ent = chain.get("answer_entropy", 0)
     if ent < 0.5:
-        score -= 0.12
+        score -= 0.1
         concerns += 1
         reasons.append(f"Very low answer entropy ({ent:.2f})")
     elif ent < 1.0:
-        score -= 0.06
+        score -= 0.05
 
-    # Duplicates
-    if chain.get("oe_dup_count", 0) > 10:
-        score -= 0.08
-        concerns += 1
-        reasons.append(f"Open-end shared with {chain['oe_dup_count']} others")
+    # Duplicates (but check if generic/topical)
+    oe_dup = chain.get("oe_dup_count", 0)
+    if oe_dup > 10:
+        # From agent review: "water filtration systems" is topical inevitability
+        # Only weight as concern if the text is unusual, not generic
+        oe_lower = oe_text.lower().strip()
+        generic_phrases = ["water filtration", "water filter", "water quality", "water system",
+                          "filtration system", "home appliances", "kitchen faucet"]
+        is_generic = any(p in oe_lower for p in generic_phrases)
+        if is_generic and oe_dup < 50:
+            # Generic text shared by many — not a strong fraud signal
+            score -= 0.02
+        else:
+            score -= 0.08
+            concerns += 1
+            reasons.append(f"Open-end shared with {oe_dup} others")
+
     if chain.get("ip_dup_count", 0) > 10:
         score -= 0.08
         concerns += 1
         reasons.append(f"IP shared with {chain['ip_dup_count']} others")
 
-    # LangAssess readability
+    # LangAssess readability (but don't compound with short open-end)
     rl = chain.get("lang_readlevel", 0)
-    if rl > 0 and rl < 3:
-        score -= 0.08
+    if rl > 0 and rl < 3 and oe_chars > 25:
+        score -= 0.06
         concerns += 1
         reasons.append(f"Very low readability ({rl:.1f})")
 
@@ -607,7 +761,7 @@ def agent_score_respondent(chain, ml_triage_score):
         concerns += 1
         reasons.append(f"High signal count ({sc})")
 
-    # ML triage as a moderate signal (it captures patterns the rules miss)
+    # ML triage as a moderate signal
     if ml_triage_score > 0.7:
         score -= 0.1
         concerns += 1
@@ -615,21 +769,37 @@ def agent_score_respondent(chain, ml_triage_score):
     elif ml_triage_score > 0.5:
         score -= 0.05
 
-    # === PROTECTIVE SIGNALS (add back toward keep) ===
+    # === PROTECTIVE SIGNALS (from agent review of false positives) ===
 
     if chain.get("t1_count", 0) == 0 and chain.get("t2_count", 0) == 0:
-        if oe_chars > 100:
-            score += 0.1
+        # First-person personal open-end is strong protective factor
+        if is_personal:
+            score += 0.15
+            reasons.append("First-person personal open-end experience (protective)")
+
+        # Substantive open-end
+        if oe_chars > 100 and not is_discard_signal:
+            score += 0.08
             reasons.append("Substantive open-end response")
+
+        # High answer diversity
         if ent > 2.5:
             score += 0.05
+
+        # Low-risk supplier
         if sr < 15 and sr > 0:
             score += 0.05
+
+        # Generous timing
         if pct == "above_median":
             score += 0.05
 
-    # Convergence bonus: if 3+ concerns, the score gets pushed more negative
-    # (converging evidence is stronger than any single signal)
+        # Natural human errors (misspellings indicate human, not bot)
+        if oe_text and any(m in oe_text.lower() for m in ["filtation", "wager", "abouy", "choldrildren", "becuase", "recieve"]):
+            score += 0.05
+            reasons.append("Natural misspellings indicate human respondent (protective)")
+
+    # Convergence bonus
     if concerns >= 4:
         score -= 0.1
         reasons.append(f"Multiple converging concerns ({concerns})")
@@ -728,11 +898,17 @@ def run_pipeline(filepath, output_dir=None):
 
     # Step 3: Agent scoring (-1 to +1)
     print(f"\n[3/5] Agent scoring (-1 to +1)...")
+
+    # Compute matrix prevalence for gating
+    matrix_prevalence = (df["matrix_straightline"] == 1).mean() if "matrix_straightline" in df.columns else None
+    if matrix_prevalence is not None:
+        print(f"  Matrix straightlining prevalence: {matrix_prevalence:.1%} {'(GATED - not discriminative)' if matrix_prevalence > 0.8 else ''}")
+
     agent_scores = []
     agent_reasons = []
     for idx, row in df.iterrows():
         chain = answer_chains[idx] if idx < len(answer_chains) else {}
-        score, reasons = agent_score_respondent(chain, row["ml_triage_score"])
+        score, reasons = agent_score_respondent(chain, row["ml_triage_score"], matrix_prevalence=matrix_prevalence)
         agent_scores.append(score)
         agent_reasons.append(reasons)
     df["agent_score"] = agent_scores
