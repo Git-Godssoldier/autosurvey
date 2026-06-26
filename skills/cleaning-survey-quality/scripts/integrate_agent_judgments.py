@@ -53,6 +53,21 @@ def integrate_agent_judgments(filepath, output_dir):
     # Build lookup
     judgment_lookup = {j["respondent_id"]: j for j in agent_judgments}
 
+    # Load review packets for defender_summary + ai_text_suspicion
+    defender_lookup = {}
+    ai_suspicion_lookup = {}
+    for chunk_file in sorted(output_dir.glob("review_chunk_*.json")):
+        with open(chunk_file) as f:
+            packets = json.load(f)
+        for p in packets:
+            rid = p["respondent_id"]
+            defender_lookup[rid] = p.get("defender_summary", "")
+            ai_info = p.get("ai_text_suspicion", {})
+            if ai_info and ai_info.get("score", 0) > 0:
+                ai_suspicion_lookup[rid] = f"score={ai_info['score']:.2f} fields={ai_info.get('fields_flagged', [])} | {ai_info.get('details', '')}"
+            else:
+                ai_suspicion_lookup[rid] = "none"
+
     # Re-run feature extraction
     print(f"\n[1/4] Extracting features...")
     df, datamap, roles, answer_chains = extract_features_and_chain(filepath)
@@ -130,7 +145,7 @@ def integrate_agent_judgments(filepath, output_dir):
     print(f"\n[4/4] Generating outputs with agent justifications...")
 
     excel_path = output_dir / f"{filepath.stem}_annotated.xlsx"
-    write_annotated_excel_with_agent(filepath, df, excel_path)
+    write_annotated_excel_with_agent(filepath, df, excel_path, defender_lookup, ai_suspicion_lookup)
     print(f"  Annotated Excel: {excel_path}")
 
     dashboard_path = output_dir / f"{filepath.stem}_dashboard.html"
@@ -162,7 +177,7 @@ def integrate_agent_judgments(filepath, output_dir):
     return df
 
 
-def write_annotated_excel_with_agent(original_path, df, excel_path):
+def write_annotated_excel_with_agent(original_path, df, excel_path, defender_lookup=None, ai_suspicion_lookup=None):
     """Write annotated Excel with agent justifications."""
     import openpyxl
     from openpyxl.styles import PatternFill, Font
@@ -199,6 +214,8 @@ def write_annotated_excel_with_agent(original_path, df, excel_path):
         "Agent_Justification",
         "Key_Signals",
         "Reassessment_Notes",
+        "Defender_Summary",
+        "AI_Text_Suspicion",
     ]
     for i, h in enumerate(annotation_headers):
         col = n_cols + 1 + i
@@ -237,13 +254,22 @@ def write_annotated_excel_with_agent(original_path, df, excel_path):
         signals = signals_lookup[rid]
         ws.cell(row=row_num, column=n_cols + 6, value="; ".join(signals) if isinstance(signals, list) else str(signals))
         ws.cell(row=row_num, column=n_cols + 7, value=notes_lookup.get(rid, ""))
+        ws.cell(row=row_num, column=n_cols + 8, value=(defender_lookup or {}).get(rid, ""))
+        ws.cell(row=row_num, column=n_cols + 9, value=(ai_suspicion_lookup or {}).get(rid, "none"))
 
         row_num += 1
 
     # Auto-fit column widths
     for i in range(len(annotation_headers)):
         col = n_cols + 1 + i
-        width = 40 if i == 4 else 25  # Justification column wider
+        if i == 4:  # Justification
+            width = 50
+        elif i == 7:  # Defender_Summary
+            width = 50
+        elif i == 8:  # AI_Text_Suspicion
+            width = 40
+        else:
+            width = 25
         ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = width
 
     wb.save(excel_path)

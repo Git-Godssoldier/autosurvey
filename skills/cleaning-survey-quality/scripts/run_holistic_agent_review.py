@@ -100,10 +100,14 @@ def get_all_oe_fields(row, oe_cols, datamap):
 
 
 def get_defender_signals(row, hidx):
-    """Extract survey defender / quality control signals."""
-    signals = {}
+    """Extract ALL survey defender / quality control / platform signals.
     
-    # qc — quality control flag (1-12)
+    Returns dict with raw signals + a human-readable summary string.
+    """
+    signals = {}
+    summary_parts = []
+
+    # === 1. QC FLAG (quality control — platform's own QC check) ===
     qc_idx = hidx.get("qc")
     if qc_idx and qc_idx < len(row):
         qc_val = norm(row[qc_idx])
@@ -117,40 +121,169 @@ def get_defender_signals(row, hidx):
             }
             signals["qc_flag"] = qc_val
             signals["qc_label"] = qc_labels.get(qc_val, f"Unknown QC flag {qc_val}")
-    
-    # TERMFLAGS
+            summary_parts.append(f"QC FLAG: {qc_labels.get(qc_val, qc_val)}")
+
+    # === 2. TERMFLAGS (platform termination flag — FRAUD DETECTED) ===
     tf_idx = hidx.get("TERMFLAGS")
     if tf_idx and tf_idx < len(row):
         tf = norm(row[tf_idx])
-        if tf and tf != 0:
+        if tf is not None:
             signals["termflags"] = tf
-    
-    # RD_Search signals (survey defender)
-    for field in ["RD_Searchr0", "RD_Searchr1", "RD_Searchr2", "RD_Searchr3",
-                   "RD_Searchr4", "RD_Searchr5", "RD_Searchr6", "RD_Searchr7"]:
+            if tf != 0:
+                summary_parts.append(f"TERMFLAGS={tf} (PLATFORM FRAUD FLAG — auto-discard)")
+
+    # === 3. RD_Search (research defender — bot/fraud/threat detection) ===
+    rd_search_labels = {
+        "RD_Searchr0": "search_threat_potential",
+        "RD_Searchr1": "search_threat_score",
+        "RD_Searchr2": "search_respondent_risk",
+        "RD_Searchr3": "search_country",
+        "RD_Searchr4": "search_flag",
+        "RD_Searchr5": "search_duplicate_potential",
+        "RD_Searchr6": "search_duplicate_score",
+        "RD_Searchr7": "search_duplicate_flag",
+    }
+    rd_values = {}
+    for field, label in rd_search_labels.items():
         idx = hidx.get(field)
         if idx and idx < len(row):
             val = row[idx]
-            if val is not None and val != "" and val != 0:
-                signals[field] = norm(val)
-    
-    # RD_GetToken
+            if val is not None and val != "":
+                rd_values[label] = norm(val) if not isinstance(val, str) else val
+                signals[field] = rd_values[label]
+    # Summarize RD_Search
+    threat_score = rd_values.get("search_threat_score")
+    if threat_score is not None:
+        try:
+            ts = int(threat_score)
+            if ts >= 25:
+                summary_parts.append(f"RD_Search threat score={ts} (ELEVATED)")
+            elif ts >= 20:
+                summary_parts.append(f"RD_Search threat score={ts} (moderate)")
+        except (ValueError, TypeError):
+            pass
+    country = rd_values.get("search_country")
+    if country and country != "United States":
+        summary_parts.append(f"RD_Search country={country} (NON-US)")
+    dup_pot = rd_values.get("search_duplicate_potential")
+    if dup_pot and str(dup_pot).lower() not in ("low", "0", "none"):
+        summary_parts.append(f"RD_Search duplicate={dup_pot}")
+
+    # === 4. RD_GetToken (token verification / bot detection) ===
     for field in ["RD_GetTokenr0", "RD_GetTokenr1"]:
         idx = hidx.get(field)
         if idx and idx < len(row):
             val = row[idx]
             if val is not None and val != "":
                 signals[field] = str(val)[:50]
-    
-    # outroR1_RD_Review (review flags on outro)
-    for field in ["outroR1_RD_Reviewr0", "outroR1_RD_Reviewr1", "outroR1_RD_Reviewr2",
-                   "outroR1_RD_Reviewr3", "outroR1_RD_Reviewr4"]:
+
+    # === 5. outroR1_RD_Review (outro text review — language/paste/profanity/similarity) ===
+    outro_review_labels = {
+        "outroR1_RD_Reviewr0": "outro_language_detected",
+        "outroR1_RD_Reviewr1": "outro_pasted_response",
+        "outroR1_RD_Reviewr2": "outro_profanity_check",
+        "outroR1_RD_Reviewr3": "outro_composite_score",
+        "outroR1_RD_Reviewr4": "outro_similarity_flag",
+    }
+    outro_review = {}
+    for field, label in outro_review_labels.items():
         idx = hidx.get(field)
         if idx and idx < len(row):
-            val = norm(row[idx])
-            if val is not None and val != "" and val != 0:
-                signals[field] = val
-    
+            val = row[idx]
+            if val is not None and val != "":
+                outro_review[label] = norm(val) if not isinstance(val, str) else val
+                signals[field] = outro_review[label]
+    # Summarize outro review
+    lang = outro_review.get("outro_language_detected")
+    if lang and lang != "English":
+        summary_parts.append(f"Outro language={lang} (NON-ENGLISH)")
+    pasted = outro_review.get("outro_pasted_response")
+    if pasted and str(pasted) != "0":
+        summary_parts.append(f"Outro PASTED response detected")
+    profanity = outro_review.get("outro_profanity_check")
+    if profanity and str(profanity) != "0":
+        summary_parts.append(f"Outro profanity detected")
+    composite = outro_review.get("outro_composite_score")
+    if composite:
+        try:
+            cs = int(composite)
+            if cs >= 10:
+                summary_parts.append(f"Outro composite score={cs} (HIGH — suspicious)")
+            elif cs >= 5:
+                summary_parts.append(f"Outro composite score={cs} (moderate)")
+        except (ValueError, TypeError):
+            pass
+    sim_flag = outro_review.get("outro_similarity_flag")
+    if sim_flag and str(sim_flag) == "0":
+        summary_parts.append("Outro similarity flag=0 (flagged by platform)")
+
+    # === 6. LangAssess (readability — AI text detection proxy) ===
+    lang_fields = {
+        "LangAssessReadLevel": "read_level",
+        "LangAssessReadEase": "read_ease",
+        "LangAssessNumSen": "num_sentences",
+        "LangAssessNumWords": "num_words",
+        "LangAssessNumSyl": "num_syllables",
+    }
+    lang_vals = {}
+    for field, label in lang_fields.items():
+        idx = hidx.get(field)
+        if idx and idx < len(row):
+            val = row[idx]
+            if val is not None:
+                try:
+                    lang_vals[label] = float(val)
+                except (ValueError, TypeError):
+                    lang_vals[label] = val
+    signals["lang_assess"] = lang_vals
+    # Summarize LangAssess — high read level with short text = possible AI
+    rl = lang_vals.get("read_level")
+    nw = lang_vals.get("num_words")
+    if rl is not None and nw is not None:
+        try:
+            rl_f = float(rl)
+            nw_f = float(nw)
+            if rl_f >= 15 and nw_f <= 15:
+                summary_parts.append(f"ReadLevel={rl_f:.1f} with only {int(nw_f)} words (VERY HIGH readability for short text — possible AI-generated)")
+            elif rl_f >= 17:
+                summary_parts.append(f"ReadLevel={rl_f:.1f} (VERY HIGH — possible AI-generated)")
+            elif rl_f < 2 and nw_f > 5:
+                summary_parts.append(f"ReadLevel={rl_f:.1f} (VERY LOW — possible incoherence)")
+        except (ValueError, TypeError):
+            pass
+
+    # === 7. vlist (participant source — some sources are higher risk) ===
+    vlist_idx = hidx.get("vlist")
+    if vlist_idx and vlist_idx < len(row):
+        vlist_val = norm(row[vlist_idx])
+        if vlist_val is not None:
+            signals["vlist"] = vlist_val
+
+    # === 8. decLang (declared language) ===
+    decLang_idx = hidx.get("decLang")
+    if decLang_idx and decLang_idx < len(row):
+        dl = row[decLang_idx]
+        if dl is not None and str(dl).strip():
+            signals["decLang"] = str(dl).strip()
+            if str(dl).strip().lower() not in ("english", "en", "us"):
+                summary_parts.append(f"Declared language={dl} (NON-ENGLISH)")
+
+    # === 9. vdropout (last seen question — detects dropouts/partials) ===
+    vdropout_idx = hidx.get("vdropout")
+    if vdropout_idx and vdropout_idx < len(row):
+        vd = row[vdropout_idx]
+        if vd is not None and str(vd).strip():
+            signals["vdropout"] = str(vd).strip()
+
+    # === 10. IP / UserAgent duplicates (detected elsewhere, but noted here) ===
+    # These are computed in the cross-respondent section
+
+    # Build the summary string
+    if not summary_parts:
+        signals["defender_summary"] = "No platform defender signals triggered."
+    else:
+        signals["defender_summary"] = " | ".join(summary_parts)
+
     return signals
 
 
@@ -270,6 +403,92 @@ def build_holistic_review_packets(filepath, output_dir, review_all=False, chunk_
                     oe_field_texts[str(h)].append(val.strip().lower())
     oe_field_ctr = {h: Counter(texts) for h, texts in oe_field_texts.items()}
 
+    # === Cross-respondent text similarity detection ("too clean to be real" pattern) ===
+    # Detect AI-generated text by finding clusters of respondents whose OE answers
+    # share suspiciously similar phrasing, vocabulary, and sentence structure.
+    # Real humans write differently from each other; AI-generated respondents use
+    # templates with minor variations.
+    print(f"\n  Computing cross-respondent text similarity (AI template detection)...")
+    from difflib import SequenceMatcher
+
+    # For each OE field, compute pairwise similarity for all respondents
+    # Then flag respondents whose text is >60% similar to 5+ others
+    oe_similarity = {}  # rid -> {field: {"max_similarity": float, "n_similar": int, "similar_to": [rids]}}
+    for i, h in oe_cols:
+        field = str(h)
+        texts = []  # (rid, text)
+        for idx_row, row in enumerate(rows_raw):
+            if i < len(row):
+                val = clean(row[i])
+                if val and len(val.strip()) > 20:  # Only compare substantive text
+                    rid = df.iloc[idx_row]["respondent_id"] if idx_row < len(df) else str(idx_row)
+                    texts.append((rid, val.strip().lower()))
+
+        if len(texts) < 10:
+            continue
+
+        # Compute pairwise similarity (sample if too many to avoid O(n^2) blowup)
+        # For >500 texts, use a sampling approach: compare each text to a random sample
+        import random
+        random.seed(42)
+        sample_size = min(len(texts), 300)
+
+        for rid_a, text_a in texts:
+            if rid_a not in oe_similarity:
+                oe_similarity[rid_a] = {}
+            if field not in oe_similarity[rid_a]:
+                oe_similarity[rid_a][field] = {"max_similarity": 0, "n_similar": 0, "similar_to": []}
+
+            # Compare to a sample of other texts
+            others = [t for t in texts if t[0] != rid_a]
+            if len(others) > sample_size:
+                others = random.sample(others, sample_size)
+
+            n_similar = 0
+            max_sim = 0
+            similar_to = []
+            for rid_b, text_b in others:
+                sim = SequenceMatcher(None, text_a, text_b, autojunk=False).ratio()
+                if sim > max_sim:
+                    max_sim = sim
+                if sim > 0.6:
+                    n_similar += 1
+                    if len(similar_to) < 5:
+                        similar_to.append(rid_b)
+
+            oe_similarity[rid_a][field]["max_similarity"] = round(max_sim, 3)
+            oe_similarity[rid_a][field]["n_similar"] = n_similar
+            oe_similarity[rid_a][field]["similar_to"] = similar_to
+
+    # Compute AI-text suspicion score per respondent
+    # High similarity to many others = likely from a template = AI-generated
+    ai_suspicion = {}  # rid -> {"score": 0-1, "fields_flagged": [...], "details": str}
+    for rid, fields in oe_similarity.items():
+        flagged = []
+        max_n_similar = 0
+        max_sim = 0
+        for field, info in fields.items():
+            if info["n_similar"] >= 5 or info["max_similarity"] > 0.8:
+                flagged.append(field)
+                max_n_similar = max(max_n_similar, info["n_similar"])
+                max_sim = max(max_sim, info["max_similarity"])
+
+        if flagged:
+            # Score: more fields flagged + higher similarity = higher suspicion
+            score = min(1.0, (len(flagged) * 0.3) + (max_n_similar * 0.05) + (max_sim * 0.2))
+            detail_parts = []
+            for field in flagged:
+                info = fields[field]
+                detail_parts.append(f"{field}: {info['n_similar']} similar (max={info['max_similarity']})")
+            ai_suspicion[rid] = {
+                "score": round(score, 3),
+                "fields_flagged": flagged,
+                "details": " | ".join(detail_parts),
+            }
+
+    n_ai_flagged = len(ai_suspicion)
+    print(f"    AI text suspicion: {n_ai_flagged} respondents flagged ({n_ai_flagged/len(df)*100:.1f}%)")
+
     # Build review packets
     print(f"\n  Building review packets for {len(df)} respondents...")
 
@@ -291,8 +510,11 @@ def build_holistic_review_packets(filepath, output_dir, review_all=False, chunk_
         # All OE fields with question text
         oe_fields = get_all_oe_fields(raw_row, oe_cols, datamap)
 
-        # Defender signals
+        # Defender signals (includes defender_summary string)
         defender = get_defender_signals(raw_row, hidx)
+
+        # AI text suspicion (cross-respondent similarity)
+        ai_info = ai_suspicion.get(rid, {"score": 0, "fields_flagged": [], "details": ""})
 
         # Key demographic/choice answers
         key_answers = get_key_answers(raw_row, hidx, datamap)
@@ -337,6 +559,8 @@ def build_holistic_review_packets(filepath, output_dir, review_all=False, chunk_
                 "reject_rate": round(sup_rate, 1),
             },
             "defender_signals": defender,
+            "defender_summary": defender.get("defender_summary", "No platform defender signals triggered."),
+            "ai_text_suspicion": ai_info,
             "lang_assess": lang,
             "matrix_analysis": {
                 "total_grids": n_grids_total,
@@ -477,14 +701,33 @@ The packet includes per-grid analysis. There are multiple grids (q3, q4, q5, q7,
 - above_median = good (protective factor)
 - Very fast + generic OE + straightlining = converging concerns
 
-### 4. Survey Defender Signals
+### 4. Survey Defender Signals (ALL platform signals — read the defender_summary field)
+Each packet has a `defender_summary` field that consolidates ALL platform/research defender signals into a human-readable string. READ THIS FIRST — it tells you which platform flags fired.
+
+**Platform signals included in defender_summary:**
 - `defender_signals.qc_flag`: If non-zero, the platform already flagged this respondent
   - qc=6 (RD /REVIEW rejection), qc=8 (SEARCH threat), qc=9 (SEARCH duplicate) = STRONG discard
   - qc=11 (Speeder) = moderate concern
   - qc=2,4,5 (state/region/age mismatch) = strong concern
-- `defender_signals.RD_Searchr1`: Threat potential score — elevated values are concerning
-- `defender_signals.RD_Searchr3`: Country — if not expected country, concerning
-- `defender_signals.TERMFLAGS`: Non-zero = platform flagged for termination
+  - qc=7 (OE screening) = strong concern (open-end failed quality check)
+- `defender_signals.TERMFLAGS`: Non-zero = **PLATFORM FRAUD FLAG — AUTO-DISCARD, full stop.**
+  The platform's own fraud detector flagged this respondent. Do NOT let first-person q14 content override this. TERMFLAGS=1 means the platform already determined this is fraud. Treat it as an automatic discard regardless of any other signal.
+- `defender_signals.RD_Searchr1`: Research Defender threat score (0-30+)
+  - >=25 = ELEVATED (strong concern)
+  - >=20 = moderate concern
+  - <20 = low (normal for most respondents)
+- `defender_signals.RD_Searchr3`: Country detected — if not "United States", concerning for US survey
+- `defender_signals.outroR1_RD_Reviewr0`: Language detected in outro — if not "English", concerning
+- `defender_signals.outroR1_RD_Reviewr1`: Pasted response detected in outro
+- `defender_signals.outroR1_RD_Reviewr3`: Outro composite score (0-17+) — >=10 = HIGH suspicion
+- `defender_signals.outroR1_RD_Reviewr4`: Outro similarity flag — 0 = flagged by platform
+- `defender_signals.lang_assess.read_level`: Flesch-Kincaid reading level
+  - >=15 with short text = possible AI-generated (too sophisticated for typical respondent)
+  - >=17 = VERY HIGH — strong AI suspicion
+  - <2 with long text = possible incoherence
+- `defender_signals.decLang`: Declared language — if not English, concerning
+- `defender_signals.vlist`: Participant source (supplier list ID)
+- `defender_signals.vdropout`: Last seen question — detects dropouts/partials
 
 ### 5. Supplier Risk
 - `supplier.reject_rate`: Historical reject rate for this supplier
@@ -517,20 +760,56 @@ The packet includes per-grid analysis. There are multiple grids (q3, q4, q5, q7,
 - Very low (<0.5) = repetitive answers across different questions = concern
 - High (>2.5) = diverse answers = protective factor
 
+### 10. AI-Generated Text Detection (CRITICAL — this is what we're missing)
+The client's human reviewers can spot AI-generated text that reads as "genuine" to our semantic classifier. We now detect this with two approaches:
+
+**A. Cross-respondent text similarity (`ai_text_suspicion` field):**
+- `ai_text_suspicion.score`: 0-1, how likely the text is AI-generated based on template matching
+- `ai_text_suspicion.fields_flagged`: Which OE fields have suspicious similarity to other respondents
+- `ai_text_suspicion.details`: Specific similarity metrics
+- **score >= 0.5** = STRONG concern — this respondent's text is suspiciously similar to many others
+- **score >= 0.3** = moderate concern — some similarity detected
+- The key insight: when 50 respondents all write "I decided to buy a water filtration device to improve the taste and quality of my tap water," that's NOT 50 independent humans. That's a template. Real humans write differently from each other.
+
+**B. AI text pattern recognition (evaluate in the OE text itself):**
+Look for these AI-generation markers in the open-end responses:
+- **Formal adverbs at sentence start**: "Notably,", "Without a doubt,", "Practically,", "Honestly,", "Importantly," — real respondents rarely write this way
+- **Markdown formatting**: Bold text (**like this**), bullet points, or numbered lists in OE fields — bots copy formatted text
+- **Perfect grammar with uniform vocabulary**: If the q14 uses words like "contaminants," "chlorine," "safer," "cleaner" in perfect sentences — check if many other respondents use the EXACT same vocabulary
+- **Overly structured responses**: "First, ... Second, ... Finally, ..." or "The primary driver is..." — survey respondents don't write essays
+- **Third-person generalizing**: "People want...", "Consumers base their decisions on..." — describing market behavior, not personal experience
+- **Product-description language**: Text that reads like marketing copy ("multi-stage filtration," "contaminant removal technologies") rather than personal motivation
+
+**When AI suspicion is HIGH (score >= 0.5 OR multiple AI markers present):**
+- This is a STRONG discard signal, even if the text reads as first-person and on-topic
+- The client discards these respondents — they can spot the uncanny valley
+- Combine with ML score: if ML >= 0.6 AND ai_text_suspicion >= 0.3, lean toward DISCARD
+- Do NOT let "first-person q14" override AI suspicion — AI-generated first-person text is still fraud
+
 ## Scoring Decision Framework
+
+### AUTOMATIC DISCARD (score -1.0, no exceptions):
+- **TERMFLAGS=1**: The platform's fraud detector flagged this respondent. DISCARD regardless of any other signal. Do NOT let first-person q14 content, long completion time, or any other "good" signal override this. The platform has more data than we do (panel history, IP analysis, digital fingerprint). If TERMFLAGS=1, it's fraud.
+- **qc=8 or qc=9**: RD /SEARCH threat or duplicate rejection — platform already rejected this respondent
+- **Non-English language in US survey**: outroR1_RD_Reviewr0 != "English" or decLang != English
 
 ### Strong DISCARD signals (score -0.7 to -1.0):
 - Defender flag (qc=6,8,9) + any other concern
+- **AI text suspicion score >= 0.5** — text is template-generated, not human
+- **AI text markers present** (formal adverbs, markdown, perfect uniform grammar) + ML >= 0.6
 - Gibberish or off-topic in q14 + off-topic outro
 - Off-topic outro + straightlining across most grids + very fast
 - Duplicated personal story (same q14 text as many others)
-- TIER 1 signal (TERMFLAGS, AI-generated text marker)
+- TERMFLAGS=1 (already covered above, but reinforcing)
 
 ### Moderate DISCARD signals (score -0.3 to -0.5):
+- **AI text suspicion score 0.3-0.5** + ML >= 0.6 — suspicious similarity but not definitive
+- **AI text markers present** (formal adverbs, product-description language) without other signals
 - Off-topic outro with no personal q14 but some answer variation
 - Generic praise outro + very fast + straightlining
-- Elevated RD_Search threat score + generic OE
+- Elevated RD_Search threat score (>=20) + generic OE
 - High-risk supplier + multiple converging concerns
+- Third-person generalizing in q14 ("People want...", "Consumers base...")
 
 ### REVIEW signals (score -0.2 to 0.0):
 - Mixed signals: some concerns but also some genuine content
@@ -553,15 +832,25 @@ The packet includes per-grid analysis. There are multiple grids (q3, q4, q5, q7,
 
 2. **DO NOT penalize missing q14** — the client keeps respondents with missing q14. It's not a discard signal.
 
-3. **DO weight first-person q14 content heavily as a KEEP signal** — any first-person content in q14 ("for my family", "my water tastes bad") is a strong protective factor.
+3. **DO weight first-person q14 content heavily as a KEEP signal** — any first-person content in q14 ("for my family", "my water tastes bad") is a strong protective factor. **BUT**: if `ai_text_suspicion.score >= 0.5` or AI markers are present (formal adverbs, markdown, perfect uniform grammar), the first-person content may be AI-generated. In that case, it is NOT a protective factor — it's fraud.
 
 4. **DO trust the ML triage score on boundary cases** — ML > 0.7 correlates with true discards. If ML says high risk and you see ANY other concern, lean toward discard.
 
-5. **DO look at the CONVERGENCE of signals** — no single signal (except defender flags) is sufficient for discard. Look for 3+ converging concerns.
+5. **DO look at the CONVERGENCE of signals** — no single signal (except TERMFLAGS and qc=8/9) is sufficient for discard. Look for 3+ converging concerns.
 
 6. **DO consider response RELEVANCE, not just quality** — a well-written but off-topic answer is worse than a poorly-written but on-topic one.
 
 7. **DO look at per-grid patterns** — straightlining on rating scales (q20-q24) is more common than on behavioral questions (q3-q4). Weight accordingly.
+
+8. **DO treat TERMFLAGS=1 as an automatic discard** — the platform's fraud detector has access to panel history, IP analysis, and digital fingerprinting that we don't have. If it flagged this respondent, trust it. Do NOT override with "but the q14 looks first-person." AI-generated first-person text is still fraud.
+
+9. **DO read the `defender_summary` field FIRST** — it consolidates all platform signals into one string. If it says anything other than "No platform defender signals triggered," pay attention. The platform has signals we can't see from the Excel alone.
+
+10. **DO check `ai_text_suspicion` for every respondent** — if the score is >= 0.3, the respondent's text is suspiciously similar to other respondents. This is the "too clean to be real" pattern: when many respondents write the same way, they're using a template, not writing independently. This is the #1 thing we were missing — the client catches AI-generated text that our semantic classifier reads as genuine.
+
+11. **DO look for AI text markers in the OE text itself**: formal adverbs ("Notably," "Without a doubt," "Practically"), markdown formatting (**bold**), product-description language ("multi-stage filtration," "contaminant removal technologies"), and overly structured responses. Real survey respondents don't write essays or marketing copy.
+
+12. **DO remember that the client has signals we don't have** — panel history, cross-survey fraud detection, IP/digital fingerprint analysis. Some respondents with ML=0.17 and 26-minute completion times are still discarded by the client. That decision is based on data outside this workbook. We can only approximate it with the signals we have (TERMFLAGS, RD_Search, AI text detection). When in doubt, trust the platform signals.
 
 ## Dataset Context
 - Dataset: {dataset_name}
