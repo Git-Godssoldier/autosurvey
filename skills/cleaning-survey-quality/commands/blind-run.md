@@ -1,0 +1,59 @@
+# Command: blind-run
+
+Run the holistic agent review pipeline on an unannotated Decipher survey export.
+
+## When to use
+
+This is the normal production flow. The input is a raw `.xlsx` file with respondent data and a Datamap sheet. No annotations, no `status` labels, no client flags.
+
+## Steps
+
+### 1. Install dependencies (first run only)
+
+```bash
+pip3 install -r skills/cleaning-survey-quality/requirements.txt
+```
+
+### 2. Stage 1 — Generate review packets
+
+```bash
+python3 skills/cleaning-survey-quality/scripts/run_holistic_agent_review.py /path/to/survey.xlsx \
+  --output-dir /path/to/holistic_output --chunk-size 200
+```
+
+This parses the Datamap, extracts features, runs ML triage, detects AI text similarity, and generates:
+- `review_chunk_XX.json` — one review packet per chunk (~200 respondents each)
+- `agent_review_instructions.md` — the evidence-family framework instructions
+
+### 3. Stage 2 — Subagent review
+
+For each `review_chunk_XX.json` file, spawn a subagent that:
+1. Reads the `agent_review_instructions.md` file
+2. Reads the `review_chunk_XX.json` file
+3. Applies the evidence-family framework to each respondent
+4. Writes `agent_judgments_chunk_XX.json` with scores (-1 to +1), judgments (DISCARD/REVIEW/KEEP), and justifications
+
+### 4. Stage 3 — Integrate judgments
+
+```bash
+python3 skills/cleaning-survey-quality/scripts/integrate_agent_judgments.py /path/to/survey.xlsx /path/to/holistic_output
+```
+
+This merges all chunk judgments and writes:
+- `{dataset}_annotated.xlsx` — Original Excel + 9 annotation columns
+- `{dataset}_dashboard.html` — Self-contained HTML dashboard
+- `summary.json` — Aggregate statistics
+
+### 5. Verify output
+
+- Check that the annotated Excel has the same row count as the source file
+- Check that every row has a `Final_Score` and `Final_Judgment`
+- Check that the dashboard renders correctly
+- Check that discard rows in the Excel match the discard table in the dashboard
+
+## References to read before running
+
+- `references/production/progressive-chain-filtering.md` — Full four-layer progressive filtering specification
+- `references/production/decipher-blind-authenticity-review.md` — Blind authenticity review rules
+- `references/production/agent-authored-row-review.md` — Prevents the pipeline from becoming a rigid checklist
+- `references/production/discard-exemplar-library.md` — Calibrated exemplars of true positives, false positives, true negatives, and false negatives

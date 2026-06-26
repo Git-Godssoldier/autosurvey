@@ -13,7 +13,7 @@ In most runs, the only input is a raw Decipher export (`.xlsx`) with respondent 
 
 The ML triage model is **pre-trained and bundled** (`models/survey_quality_model.pkl`). It was trained on historical annotated data, but it runs on unannotated data at runtime. You do not need annotations to run the pipeline.
 
-Annotated workbooks (`status = 3` accepted, `status = 5` rejected) are used only for **evolution** — improving the model and rules after client feedback is received. See the Evolution section below.
+Annotated workbooks (`status = 3` accepted, `status = 5` rejected) are used only for **evolution** — improving the model and rules after client feedback is received. See `commands/evolution-cycle.md`.
 
 ## Critical: Use the Holistic Agent Review Pipeline
 
@@ -22,9 +22,9 @@ Annotated workbooks (`status = 3` accepted, `status = 5` rejected) are used only
 The production flow is the **holistic agent review** with three stages:
 
 ```
-Stage 1: run_holistic_agent_review.py  → generates review packets + agent instructions
-Stage 2: subagent review               → one subagent per chunk reads packets, writes judgments
-Stage 3: integrate_agent_judgments.py  → merges judgments into annotated Excel + dashboard
+Stage 1: scripts/run_holistic_agent_review.py  → generates review packets + agent instructions
+Stage 2: subagent review                       → one subagent per chunk reads packets, writes judgments
+Stage 3: scripts/integrate_agent_judgments.py  → merges judgments into annotated Excel + dashboard
 ```
 
 ## Quick Start
@@ -45,9 +45,43 @@ python3 skills/cleaning-survey-quality/scripts/run_holistic_agent_review.py /pat
 python3 skills/cleaning-survey-quality/scripts/integrate_agent_judgments.py /path/to/survey.xlsx /path/to/holistic_output
 ```
 
+For the full step-by-step workflow, see `commands/blind-run.md`.
+
+## Reference routing
+
+Read only the references needed for the current task:
+
+| Need | Read |
+|---|---|
+| Running a blind production run | `commands/blind-run.md` |
+| Improving the pipeline from client feedback | `commands/evolution-cycle.md` |
+| Output format specs (Excel, dashboard, JSON) | `templates/output-format-spec.md` |
+| Full four-layer progressive filtering specification | `references/production/progressive-chain-filtering.md` |
+| Blind authenticity review rules | `references/production/decipher-blind-authenticity-review.md` |
+| Signal weighting, semantic similarity, convergence logic | `references/production/semantic-signal-expansion.md` |
+| Preventing rigid checklist behavior | `references/production/agent-authored-row-review.md` |
+| Escalation routing for full dataset runs | `references/production/agentic-escalation-path.md` |
+| Client, PM, survey, and quality term definitions | `references/production/client-terminology-glossary.md` |
+| Verified generalizable ML signals | `references/production/generalizable-signals.md` |
+| Per-dataset ML signal priorities | `references/production/per-dataset-ml-signals.md` |
+| Calibrated discard exemplars (TP, FP, TN, FN) | `references/production/discard-exemplar-library.md` |
+| TIER 1/2/3 signal system and combination lift tables | `references/production/combinatorial-discard-signal-profile.md` |
+| Open-end evaluation and validation metrics | `references/production/evaluation-methodology.md` |
+| Severity bands and escalation owners | `references/production/escalation-policy.md` |
+| Discovery behavior changes | `references/production/autonomous-discovery.md` |
+| Complete procedural workflow specification | `references/production/full-workflow-specification.md` |
+| Adapting to a specific client or survey program | `references/production/project-context-template.md` |
+| Five-tier routing and label-aware contrast (evolution) | `references/evolution/authenticity-first-calibration.md` |
+| Status-derived detection rules (evolution) | `references/evolution/tfg-status-derived-detection-methodology.md` |
+| Internal comments and PM notes learning (evolution) | `references/evolution/internal-signal-learning.md` |
+| Improvement cycle specification (evolution) | `references/evolution/dataset-cycle-loop.md` |
+| ML building process and per-dataset results (evolution) | `references/evolution/ml-pipeline-report.md` |
+| Agent architecture and reporting/evolution loop (evolution) | `references/evolution/research-grounding.md` |
+| Historical rubric seed context (evolution) | `references/evolution/rubric-seed.md` |
+
 ## What Each Stage Does
 
-### Stage 1: Data Staging + Review Packet Generation (`run_holistic_agent_review.py`)
+### Stage 1: Data Staging + Review Packet Generation (`scripts/run_holistic_agent_review.py`)
 
 Scripts parse the Datamap, map response fields to question text and value labels, compute population-level statistics, and build structured JSON review packets. Scripts do NOT make discard decisions.
 
@@ -74,11 +108,11 @@ Each subagent reads one `review_chunk_XX.json` file (~200 respondents) and appli
 - `agent_judgment` (DISCARD / REVIEW / KEEP)
 - `agent_justification` (2-4 sentences citing specific evidence)
 
-### Stage 3: Integration (`integrate_agent_judgments.py`)
+### Stage 3: Integration (`scripts/integrate_agent_judgments.py`)
 
 Merges all chunk judgments, re-runs feature extraction, and writes:
-- **Annotated Excel** with 9 added columns: ML_Triage_Score, Agent_Score, Final_Score, Final_Judgment (color-coded), Agent_Justification, Key_Signals, Reassessment_Notes, Defender_Summary, AI_Text_Suspicion
-- **Dashboard HTML** with summary cards, score distribution, supplier analysis, and discard table with agent justifications
+- **Annotated Excel** with 9 added columns (see `templates/output-format-spec.md`)
+- **Dashboard HTML** with summary cards, score distribution, supplier analysis, and discard table
 - **Summary JSON** with aggregate statistics
 
 ## The Evidence-Family Framework (v4)
@@ -131,7 +165,7 @@ The review follows a strict ordering. Each layer filters the population progress
 3. **Observational signals** — Timing, supplier/source cohort, technical (IP, device), platform helpers (TERMFLAGS, RD_Search). These refine the chain layer, they do not replace it.
 4. **Cross-population signals** — Duplicate open text, response vector clustering, timing clusters, matrix pattern clustering, shared rare phrases. These are the strongest convergence evidence.
 
-See `references/progressive-chain-filtering.md` for the full specification.
+See `references/production/progressive-chain-filtering.md` for the full specification.
 
 ## What Scripts Do vs What Agents Do
 
@@ -159,7 +193,7 @@ A Gradient Boosting classifier is bundled as `models/survey_quality_model.pkl`. 
 
 The ML score is a **triage input** to the evidence-family framework — not a standalone classifier. It flags high-risk respondents for closer agent review. Key signals (by importance): LangAssessReadLevel, supplier_x_signals, supplier_reject_rate, answer_entropy, matrix straightlining, oe_total_chars.
 
-See `references/per-dataset-ml-signals.md` for per-dataset signal priorities and `references/generalizable-signals.md` for verified generalizable signals.
+See `references/production/per-dataset-ml-signals.md` for per-dataset signal priorities and `references/production/generalizable-signals.md` for verified generalizable signals.
 
 ## Output Artifacts
 
@@ -173,18 +207,11 @@ After Stage 3, the output directory contains:
 6. **`agent_judgments_chunk_XX.json`** — Per-chunk judgments
 7. **`agent_review_instructions.md`** — The evidence-family framework instructions
 
+See `templates/output-format-spec.md` for the exact format of each artifact.
+
 ## Evolution (When Client Feedback Is Available)
 
-After the PM reviews the output and the client provides accept/reject decisions, the annotated workbook can be used to improve the pipeline. This is a **separate activity** from the normal blind run.
-
-Evolution activities:
-- Compare agent judgments against client decisions (precision, recall, F1)
-- Identify missed discards (false negatives) and wrong discards (false positives)
-- Update the evidence-family framework rules based on miss analysis
-- Retrain the ML model with the new annotated data
-- Update reference files with new learnings
-
-Use `references/authenticity-first-calibration.md` for the five-tier routing model and label-aware contrast. Use `references/tfg-status-derived-detection-methodology.md` for status-derived detection rules. Use `references/dataset-cycle-loop.md` for the improvement cycle specification.
+After the PM reviews the output and the client provides accept/reject decisions, the annotated workbook can be used to improve the pipeline. This is a **separate activity** from the normal blind run. See `commands/evolution-cycle.md` for the full workflow.
 
 ## Package Requirements
 
@@ -194,32 +221,55 @@ pip3 install -r skills/cleaning-survey-quality/requirements.txt
 
 Required: `openpyxl>=3.1.0`, `scikit-learn>=1.3.0`, `pandas>=2.0.0`, `numpy>=1.24.0`, `scipy>=1.10.0`, `xgboost>=2.0.0`, `lightgbm>=4.0.0`
 
-## References
+## Directory Structure
 
-### Production references (read for blind runs)
-
-- `references/progressive-chain-filtering.md` — Full four-layer progressive filtering specification. Read before running the full-chain review.
-- `references/decipher-blind-authenticity-review.md` — Read before every blind run on a blank Decipher export.
-- `references/semantic-signal-expansion.md` — Read before changing signal weighting, semantic similarity, or convergence logic.
-- `references/agent-authored-row-review.md` — Read before any respondent-level scoring or final review. Prevents the pipeline from becoming a rigid checklist.
-- `references/agentic-escalation-path.md` — Read before running a full dataset from raw export to final discard choices.
-- `references/client-terminology-glossary.md` — Read to define client, PM, survey, and quality terms before writing final artifacts.
-- `references/generalizable-signals.md` — Read before using ML features in production. Lists 7 verified generalizable signals and signals that need caution.
-- `references/per-dataset-ml-signals.md` — Read before analyzing a new dataset. Contains the strongest predictive signals for each historical dataset. Use the most similar dataset's top signals as priority checks.
-- `references/discard-exemplar-library.md` — Read before making discard decisions on individual respondents. Contains calibrated exemplars of true positives, false positives, true negatives, and false negatives from historical runs.
-- `references/combinatorial-discard-signal-profile.md` — Read before applying client quality signals or signal tiering. Contains the empirically validated TIER 1/2/3 signal system.
-- `references/evaluation-methodology.md` — Read before changing open-end evaluation or validation metrics.
-- `references/escalation-policy.md` — Read before changing severity bands or owners.
-- `references/autonomous-discovery.md` — Read before changing discovery behavior.
-- `references/full-workflow-specification.md` — Read for the complete procedural specification: pre-run framing, workbook exploration, quality hypothesis building, per-field chain validity, generated criteria policy, evidence rules, agent annotation layer, escalation policy, kept review synthesis, raw-data discovery, autonomous candidate analysis, and delivery verification.
-- `references/project-context-template.md` — Read when adapting the workflow to a specific client or survey program.
-
-### Evolution references (read only when client feedback / annotated data is available)
-
-- `references/authenticity-first-calibration.md` — Five-tier routing model and label-aware contrast. Read when using TFG status labels or client annotations.
-- `references/tfg-status-derived-detection-methodology.md` — Status-derived detection rules from annotated training workbooks. Read when improving the method using annotated data.
-- `references/internal-signal-learning.md` — Read when internal comments, PM notes, or prior criteria are available for evolution.
-- `references/dataset-cycle-loop.md` — Read when the run is part of an improvement cycle or multi-dataset pass.
-- `references/ml-pipeline-report.md` — Full report on the ML building process, three-part pipeline, and per-dataset evaluation results. Read when retraining or improving the model.
-- `references/research-grounding.md` — Read when changing the agent architecture or reporting/evolution loop.
-- `references/rubric-seed.md` — Historical seed context only, not a source of fixed weights.
+```
+cleaning-survey-quality/
+├── SKILL.md                          (this file — routing table + core invariants)
+├── requirements.txt
+├── commands/                         (named workflows)
+│   ├── blind-run.md                  (normal production run)
+│   └── evolution-cycle.md            (improve from client feedback)
+├── references/
+│   ├── production/                   (read for blind runs)
+│   │   ├── progressive-chain-filtering.md
+│   │   ├── decipher-blind-authenticity-review.md
+│   │   ├── semantic-signal-expansion.md
+│   │   ├── agent-authored-row-review.md
+│   │   ├── agentic-escalation-path.md
+│   │   ├── client-terminology-glossary.md
+│   │   ├── generalizable-signals.md
+│   │   ├── per-dataset-ml-signals.md
+│   │   ├── per_dataset_ml_signals.json
+│   │   ├── discard-exemplar-library.md
+│   │   ├── combinatorial-discard-signal-profile.md
+│   │   ├── evaluation-methodology.md
+│   │   ├── escalation-policy.md
+│   │   ├── autonomous-discovery.md
+│   │   ├── full-workflow-specification.md
+│   │   └── project-context-template.md
+│   └── evolution/                    (read only when client feedback available)
+│       ├── authenticity-first-calibration.md
+│       ├── tfg-status-derived-detection-methodology.md
+│       ├── internal-signal-learning.md
+│       ├── dataset-cycle-loop.md
+│       ├── ml-pipeline-report.md
+│       ├── research-grounding.md
+│       └── rubric-seed.md
+├── templates/
+│   └── output-format-spec.md         (output artifact format specifications)
+├── scripts/                          (production scripts — only 3 files)
+│   ├── run_holistic_agent_review.py  (Stage 1: generate review packets)
+│   ├── integrate_agent_judgments.py  (Stage 3: merge judgments into Excel + dashboard)
+│   ├── survey_pipeline.py            (shared utilities: Datamap parsing, features, ML triage)
+│   └── training/                     (experimentation scripts, not for production)
+│       ├── survey_quality_ml.py      (ML model training/retraining)
+│       ├── train_v*.py               (30 experiment scripts)
+│       ├── eval_harness.py
+│       ├── experiment_loop.py
+│       ├── agent_v2_features.py
+│       └── ...
+└── models/
+    ├── survey_quality_model.pkl      (pre-trained ML model)
+    └── results/                      (training results and evaluation data)
+```
