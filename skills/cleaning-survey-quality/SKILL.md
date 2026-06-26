@@ -5,13 +5,21 @@ description: Cleans and scores Decipher-style survey quality workbooks for marke
 
 # Cleaning Survey Quality
 
-Run a reproducible survey quality pass on unannotated Decipher-style survey exports before PM review. The output is a per-respondent DISCARD/REVIEW/KEEP judgment with a -1 to +1 score and a natural-language justification citing specific evidence.
+Run a reproducible survey quality pass on unannotated Decipher-style survey exports. The output is a per-respondent DISCARD/REVIEW/KEEP judgment with a -1 to +1 score and a natural-language justification citing specific evidence.
+
+## The Normal Input Is an Unannotated Workbook
+
+In most runs, the only input is a raw Decipher export (`.xlsx`) with respondent data and a Datamap sheet. There are no `status` labels, no client annotations, no accepted/rejected examples, and no helper columns. The pipeline must work without any of these.
+
+The ML triage model is **pre-trained and bundled** (`models/survey_quality_model.pkl`). It was trained on historical annotated data, but it runs on unannotated data at runtime. You do not need annotations to run the pipeline.
+
+Annotated workbooks (`status = 3` accepted, `status = 5` rejected) are used only for **evolution** — improving the model and rules after client feedback is received. See the Evolution section below.
 
 ## Critical: Use the Holistic Agent Review Pipeline
 
 **Do NOT run `run_quality_loop.py` or `survey_pipeline.py` alone.** These are the old scripted pipelines that produce only Keep/Light review with zero discards. They are data-staging tools, not the review pipeline.
 
-The production flow is the **holistic agent review** with three scripts:
+The production flow is the **holistic agent review** with three stages:
 
 ```
 Stage 1: run_holistic_agent_review.py  → generates review packets + agent instructions
@@ -49,7 +57,7 @@ Each packet contains:
 - Per-grid straightlining analysis
 - Timing (minutes + percentile)
 - Supplier reject rate
-- ML triage score (0-1 risk probability from Gradient Boosting model trained on 13,388 respondents)
+- ML triage score (0-1 risk probability from pre-trained Gradient Boosting model)
 - Survey defender signals (TERMFLAGS, qc, RD_Search, LangAssess, vlist, decLang, vdropout)
 - Cross-respondent AI text similarity detection (`ai_text_suspicion` score)
 - Duplicate text counts per OE field
@@ -98,7 +106,7 @@ The core OE field is the one asking for personal motivation, experience, or job 
 
 ### Platform Signal Override Logic
 
-- **TERMFLAGS=1**: Strong discard (-0.7), NOT automatic. Override to REVIEW only when the core OE has unusually strong human evidence (specific named event/place/condition + chain-consistent + no AI markers). The client overrides in ~25% of cases.
+- **TERMFLAGS=1**: Strong discard (-0.7), NOT automatic. Override to REVIEW only when the core OE has unusually strong human evidence (specific named event/place/condition + chain-consistent + no AI markers).
 - **qc=8 or qc=9**: Automatic discard (-1.0)
 - **Non-English in US survey**: Automatic discard
 
@@ -134,7 +142,7 @@ See `references/progressive-chain-filtering.md` for the full specification.
 - Detect exact duplicate text across respondents
 - Detect duplicate IP addresses
 - Compute supplier cohort distributions
-- Run the ML triage model
+- Run the ML triage model (pre-trained, runs on unannotated data)
 - Detect cross-respondent AI text similarity
 - Assemble structured JSON packets for the agents
 
@@ -145,11 +153,13 @@ See `references/progressive-chain-filtering.md` for the full specification.
 - Generate proposition templates
 - Apply regex rules to open-end text for semantic classification
 
-## Blind Runs vs Methodology Development
+## ML Triage Model
 
-**Blind runs** (production): Run on blank Decipher exports. Do NOT use `status`, client flags, helper labels, or final-review fields as decision evidence. The pipeline must work without any annotations.
+A Gradient Boosting classifier is bundled as `models/survey_quality_model.pkl`. It was trained on 13,388 historical annotated respondents across 11 datasets. At runtime, it runs on **unannotated** data and produces a risk probability (0-1) for each respondent. No annotations are needed at runtime.
 
-**Methodology development**: Annotated TFG workbooks (`status = 3` = accepted, `status = 5` = rejected) are used to develop and calibrate the method. Use `references/authenticity-first-calibration.md` for the five-tier routing model and label-aware contrast.
+The ML score is a **triage input** to the evidence-family framework — not a standalone classifier. It flags high-risk respondents for closer agent review. Key signals (by importance): LangAssessReadLevel, supplier_x_signals, supplier_reject_rate, answer_entropy, matrix straightlining, oe_total_chars.
+
+See `references/per-dataset-ml-signals.md` for per-dataset signal priorities and `references/generalizable-signals.md` for verified generalizable signals.
 
 ## Output Artifacts
 
@@ -163,13 +173,18 @@ After Stage 3, the output directory contains:
 6. **`agent_judgments_chunk_XX.json`** — Per-chunk judgments
 7. **`agent_review_instructions.md`** — The evidence-family framework instructions
 
-## ML Model
+## Evolution (When Client Feedback Is Available)
 
-A Gradient Boosting classifier trained on 13,388 annotated respondents across 11 datasets provides a risk probability (0-1). It is a **triage tool** that flags high-risk respondents for agent review — not a standalone classifier.
+After the PM reviews the output and the client provides accept/reject decisions, the annotated workbook can be used to improve the pipeline. This is a **separate activity** from the normal blind run.
 
-The model achieves AUC 0.48-0.88 across datasets. It cannot set per-dataset discard thresholds without calibration. Use it as one input to the evidence-family framework, not as the final decision.
+Evolution activities:
+- Compare agent judgments against client decisions (precision, recall, F1)
+- Identify missed discards (false negatives) and wrong discards (false positives)
+- Update the evidence-family framework rules based on miss analysis
+- Retrain the ML model with the new annotated data
+- Update reference files with new learnings
 
-Key signals (by importance): LangAssessReadLevel, supplier_x_signals, supplier_reject_rate, answer_entropy, matrix straightlining, oe_total_chars. See `references/per-dataset-ml-signals.md` for per-dataset signal priorities and `references/generalizable-signals.md` for verified generalizable signals.
+Use `references/authenticity-first-calibration.md` for the five-tier routing model and label-aware contrast. Use `references/tfg-status-derived-detection-methodology.md` for status-derived detection rules. Use `references/dataset-cycle-loop.md` for the improvement cycle specification.
 
 ## Package Requirements
 
@@ -179,26 +194,32 @@ pip3 install -r skills/cleaning-survey-quality/requirements.txt
 
 Required: `openpyxl>=3.1.0`, `scikit-learn>=1.3.0`, `pandas>=2.0.0`, `numpy>=1.24.0`, `scipy>=1.10.0`, `xgboost>=2.0.0`, `lightgbm>=4.0.0`
 
-## When To Read References
+## References
+
+### Production references (read for blind runs)
 
 - `references/progressive-chain-filtering.md` — Full four-layer progressive filtering specification. Read before running the full-chain review.
 - `references/decipher-blind-authenticity-review.md` — Read before every blind run on a blank Decipher export.
-- `references/authenticity-first-calibration.md` — Read when using TFG status labels, client annotations, or calibration against accepted/rejected rows.
 - `references/semantic-signal-expansion.md` — Read before changing signal weighting, semantic similarity, or convergence logic.
-- `references/combinatorial-discard-signal-profile.md` — Read before applying client quality signals or signal tiering. Contains the empirically validated TIER 1/2/3 signal system from 13,388 annotated respondents.
-- `references/discard-exemplar-library.md` — Read before making discard decisions on individual respondents. Contains calibrated exemplars of true positives, false positives, true negatives, and false negatives.
-- `references/per-dataset-ml-signals.md` — Read before analyzing a new dataset. Contains the strongest predictive signals for each of the 11 annotated datasets.
-- `references/generalizable-signals.md` — Read before using ML features in production. Lists 7 verified generalizable signals and signals that need caution.
 - `references/agent-authored-row-review.md` — Read before any respondent-level scoring or final review. Prevents the pipeline from becoming a rigid checklist.
 - `references/agentic-escalation-path.md` — Read before running a full dataset from raw export to final discard choices.
 - `references/client-terminology-glossary.md` — Read to define client, PM, survey, and quality terms before writing final artifacts.
-- `references/internal-signal-learning.md` — Read when internal comments, PM notes, or prior criteria are available.
+- `references/generalizable-signals.md` — Read before using ML features in production. Lists 7 verified generalizable signals and signals that need caution.
+- `references/per-dataset-ml-signals.md` — Read before analyzing a new dataset. Contains the strongest predictive signals for each historical dataset. Use the most similar dataset's top signals as priority checks.
+- `references/discard-exemplar-library.md` — Read before making discard decisions on individual respondents. Contains calibrated exemplars of true positives, false positives, true negatives, and false negatives from historical runs.
+- `references/combinatorial-discard-signal-profile.md` — Read before applying client quality signals or signal tiering. Contains the empirically validated TIER 1/2/3 signal system.
 - `references/evaluation-methodology.md` — Read before changing open-end evaluation or validation metrics.
 - `references/escalation-policy.md` — Read before changing severity bands or owners.
-- `references/ml-pipeline-report.md` — Full report on the ML building process, three-part pipeline, and per-dataset evaluation results.
-- `references/research-grounding.md` — Read when changing the agent architecture or reporting/evolution loop.
-- `references/dataset-cycle-loop.md` — Read when the run is part of an improvement cycle or multi-dataset pass.
 - `references/autonomous-discovery.md` — Read before changing discovery behavior.
-- `references/rubric-seed.md` — Historical seed context only, not a source of fixed weights.
 - `references/full-workflow-specification.md` — Read for the complete procedural specification: pre-run framing, workbook exploration, quality hypothesis building, per-field chain validity, generated criteria policy, evidence rules, agent annotation layer, escalation policy, kept review synthesis, raw-data discovery, autonomous candidate analysis, and delivery verification.
 - `references/project-context-template.md` — Read when adapting the workflow to a specific client or survey program.
+
+### Evolution references (read only when client feedback / annotated data is available)
+
+- `references/authenticity-first-calibration.md` — Five-tier routing model and label-aware contrast. Read when using TFG status labels or client annotations.
+- `references/tfg-status-derived-detection-methodology.md` — Status-derived detection rules from annotated training workbooks. Read when improving the method using annotated data.
+- `references/internal-signal-learning.md` — Read when internal comments, PM notes, or prior criteria are available for evolution.
+- `references/dataset-cycle-loop.md` — Read when the run is part of an improvement cycle or multi-dataset pass.
+- `references/ml-pipeline-report.md` — Full report on the ML building process, three-part pipeline, and per-dataset evaluation results. Read when retraining or improving the model.
+- `references/research-grounding.md` — Read when changing the agent architecture or reporting/evolution loop.
+- `references/rubric-seed.md` — Historical seed context only, not a source of fixed weights.

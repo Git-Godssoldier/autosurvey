@@ -1,6 +1,6 @@
 # Full Workflow Specification
 
-This file contains the detailed workflow steps that were previously in SKILL.md. Read this when you need the complete procedural specification for a full run.
+This file contains the detailed workflow steps for a full run. The normal input is an unannotated Decipher export. Steps marked **[EVOLUTION]** are only relevant when client-annotated data (with `status` labels) is available for improving the pipeline.
 
 ## Pre-Run Framing
 
@@ -10,17 +10,17 @@ Before writing or running scoring scripts:
 2. Read `references/client-terminology-glossary.md` and use it to define client, PM, survey, and quality terms before writing final artifacts.
 3. Read `references/decipher-blind-authenticity-review.md` for every normal Autosurvey run on a blank Decipher export.
 4. Read `references/agent-authored-row-review.md` before any respondent-level scoring, validation, or final review.
-5. Read `references/authenticity-first-calibration.md` when TFG status labels, client annotations, or calibration against accepted/rejected rows are in scope.
+5. **[EVOLUTION]** Read `references/authenticity-first-calibration.md` when TFG status labels, client annotations, or calibration against accepted/rejected rows are in scope.
 6. Read `references/semantic-signal-expansion.md` before evaluating straightlining, speed, open ends, duplicate technical signals, semantic similarity, topic fit, bot suspicion, LLM suspicion, or fabricated-response detection.
-7. Read `references/tfg-status-derived-detection-methodology.md` when TFG status-labeled training workbooks, status-derived rules, bot suspicion, LLM suspicion, or fabricated-response detection are part of the task.
-8. Read `references/dataset-cycle-loop.md` when the run is part of an improvement cycle, a rerun, a multi-dataset pass, or a workflow-hardening request.
+7. **[EVOLUTION]** Read `references/tfg-status-derived-detection-methodology.md` when TFG status-labeled training workbooks, status-derived rules, bot suspicion, LLM suspicion, or fabricated-response detection are part of the task.
+8. **[EVOLUTION]** Read `references/dataset-cycle-loop.md` when the run is part of an improvement cycle, a rerun, a multi-dataset pass, or a workflow-hardening request.
 9. State the definition of done for this dataset in plain words.
 10. Identify the source files, expected final artifacts, and what would block final delivery.
-11. If the run includes internal comments, PM notes, client annotations, or prior criteria, read `references/internal-signal-learning.md`.
+11. **[EVOLUTION]** If the run includes internal comments, PM notes, client annotations, or prior criteria, read `references/internal-signal-learning.md`.
 12. Start a short decision trail for non-obvious choices.
-13. If a client annotated workbook exists, treat it as methodology-development data. In TFG cleaning-answer workbooks, `status = 3` means accepted, `status = 5` means rejected.
-14. Separate client rejection probability from fabrication or authenticity risk. A `status = 5` row is an observed client rejection, not proof of bot behavior, LLM use, or fraud.
-15. In annotated methodology runs, exclude leakage before feature extraction. Treat marker or quota fields, client action fields, final decision fields, review helper fields, condition assignment fields, no-answer helper fields, QC helper fields, channel tracking fields, token fields, hidden cleaning fields, and formulas or formatting that reveal cleaning decisions as unavailable to the blind reviewer.
+13. **[EVOLUTION]** If a client annotated workbook exists, treat it as methodology-development data. In TFG cleaning-answer workbooks, `status = 3` means accepted, `status = 5` means rejected.
+14. **[EVOLUTION]** Separate client rejection probability from fabrication or authenticity risk. A `status = 5` row is an observed client rejection, not proof of bot behavior, LLM use, or fraud.
+15. **[EVOLUTION]** In annotated methodology runs, exclude leakage before feature extraction. Treat marker or quota fields, client action fields, final decision fields, review helper fields, condition assignment fields, no-answer helper fields, QC helper fields, channel tracking fields, token fields, hidden cleaning fields, and formulas or formatting that reveal cleaning decisions as unavailable to the blind reviewer.
 
 ## Workbook Exploration
 
