@@ -18,3 +18,11 @@ acbb74c	0.636355	done	agent description TF-IDF + per-dataset selection
 acbb74c	0.633565	done	ultimate ensemble all features + per-dataset selection
 acbb74c	0.613793	done	cross-dataset transfer learning + base model features
 acbb74c	0.646430	done	filtered per-dataset selection with accuracy penalty
+acbb74c	0.657082	done	agent v2 features + semantic reconstruction + per-dataset selection
+acbb74c	0.662974	done	v19 base + agent v2 as targeted option (15 sets x 3 configs)
+acbb74c	0.630847	done	v25 coverage-gated correction (eligibility + categorical rules + cal separation)
+acbb74c	0.639823	done	v26 universal packet backbone (no agent v2, all 11 datasets)
+acbb74c	0.635977	done	v27 gated agent expert (mixture-of-experts)
+acbb74c	0.603430	done	v27 gated agent expert with QA features (fusion hurt)
+acbb74c	0.638162	done	v29 selective classifier with REVIEW band (TFG Q1=100% F1)
+acbb74c	0.622104	done	v30 combined simple+selective (selection noise)

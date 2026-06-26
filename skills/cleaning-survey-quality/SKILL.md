@@ -558,21 +558,83 @@ This runs LODO CV on all 11 datasets, reports accuracy/precision/recall/F1 per d
 
 ### What the ML Model Cannot Do
 
-The model **cannot** achieve 90% F1 on all datasets with the current features. After 19 experiments in an autoresearch loop, the best average F1 is 64.6 percent. The bottleneck is AUC: datasets with AUC below 0.75 cannot reach F1 above 65 percent regardless of threshold tuning or model selection. To reach 90 percent F1, we need AUC above 0.95, which requires information not in the Excel files (panelist history, manual review notes, client-specific criteria).
+The model **cannot** achieve 90% F1 on all datasets with the current features. After 30 experiments in an autoresearch loop, the best average F1 is 66.3 percent (v23, with agent v2 features for covered datasets) and 64.0 percent (v26, universal backbone without agent v2). The bottleneck is AUC: datasets with AUC below 0.75 cannot reach F1 above 65 percent regardless of threshold tuning or model selection. To reach 90% F1, we need AUC above 0.95, which requires information not in the Excel files (panelist history, manual review notes, client-specific criteria).
 
-The model **can** achieve 80+ percent F1 on datasets with AUC above 0.85 (TFG Q1, TFG Q2, OC CAN, ODL). These datasets have strong discriminative features (supplier risk, LangAssess scores, matrix straightlining).
+The model **can** achieve 80+ percent F1 on datasets with AUC above 0.85 (TFG Q1, TFG Q2, OC CAN, ODL). TFG Q1 reached 96.6% F1 with AUC 1.000 when agent v2 features were included. These datasets have strong discriminative features (supplier risk, LangAssess scores, matrix straightlining, agent v2 determinations).
 
-The model is best used as a **triage tool**: flag the top 10-20% highest-risk respondents for agent review, then let the agent rules + semantic parsing make the final determination. The per-dataset model selection (v19) picks the best approach for each dataset automatically.
+The model is best used as a **triage tool**: flag the top 10-20% highest-risk respondents for agent review, then let the agent rules + semantic parsing make the final determination. The per-dataset model selection picks the best approach for each dataset automatically.
+
+### Most Powerful Signals (from feature importance analysis)
+
+These are the strongest predictive signals across all 11 annotated datasets, ranked by average feature importance. The agent should check these signals first when analyzing a new unannotated dataset.
+
+**Tier 1: Universal signals (important in 5+ datasets)**
+
+1. **LangAssessReadLevel** (important in ALL 11 datasets, avg importance 0.051) — The readability level of open-end text. Low readability (simple language, short sentences) correlates with low-quality respondents. This is the single most universal signal.
+
+2. **supplier_x_signals** (important in 6 datasets, avg 0.164) — The interaction between supplier reject rate and signal count. Respondents from high-reject-rate suppliers who also trigger quality signals are very likely to be bad. This is the strongest single feature for TFG Q1 (0.325), OC CAN (0.342), and TFG Q2 (0.194).
+
+3. **supplier_reject_rate** (important in 5 datasets, avg 0.067) — The historical reject rate for the respondent's supplier. High-reject-rate suppliers (>20%) contribute disproportionately to bad respondents.
+
+4. **lang_LangAssessNumSyl** (important in 5 datasets, avg 0.038) — Number of syllables in open-end text. Correlates with text complexity and respondent engagement.
+
+**Tier 2: Strong signals (important in 3-4 datasets)**
+
+5. **raw_answer_entropy** (important in 8 datasets, avg 0.041) — Shannon entropy of all coded + matrix answers. Low entropy = repetitive answers = potential straightlining or random answering.
+
+6. **raw_answer_max_freq** (important in 7 datasets, avg 0.034) — Frequency of the most common answer. High frequency = one answer dominates = potential straightlining.
+
+7. **raw_answer_unique_ratio** (important in 7 datasets, avg 0.030) — Ratio of unique answers to total answers. Low ratio = repetitive answering.
+
+8. **signals_x_matrix** (important in 4 datasets, avg 0.039) — Interaction between signal count and matrix straightlining. Respondents who trigger signals AND straightline are very likely bad.
+
+9. **oe_total_chars** (important in 3 datasets, avg 0.056) — Total characters in open-end responses. Very short open-ends are a strong discard signal.
+
+10. **matrix_most_common_freq** (important in 5 datasets, avg 0.039) — Frequency of the most common matrix answer. High frequency = straightlining.
+
+**Tier 3: Dataset-specific signals (very strong in 1-2 datasets)**
+
+11. **pkt_pkt_answer_count** (THD CX: 0.252) — Number of answered questions. Low answer count = incomplete survey = potential bad respondent.
+
+12. **raw_coded_q_div_min** (Masterlock: 0.166) — Minimum diversity across coded question groups. Low diversity in any question group = potential straightlining.
+
+13. **pkt_pkt_max_dup_shared** (TFG Q1: 0.103) — Maximum number of respondents sharing a duplicate fingerprint. High duplicate sharing = potential fraud.
+
+14. **demo_qager1** (important in 7 datasets, avg 0.030) — Respondent age. Certain age groups may be more prone to low-quality responses depending on survey target.
+
+15. **pkt_pkt_time_per_q_log** (important in 4 datasets, avg 0.029) — Log of time per question. Very low time per question = speeding.
+
+### How to Use These Signals on Unannotated Data
+
+When analyzing a new dataset without annotations:
+
+1. **Extract LangAssess scores** from open-end text. Flag respondents with ReadLevel below the dataset median.
+2. **Compute supplier reject rates** from historical data (if available) or from the current dataset's signal counts.
+3. **Calculate answer entropy** across all coded + matrix questions. Flag respondents in the bottom quartile.
+4. **Check matrix straightlining** by computing the unique ratio for matrix questions. Flag respondents with ratio below 0.3.
+5. **Measure open-end text length**. Flag respondents with total OE chars below 50.
+6. **Check duplicate memberships** (IP, user agent, open-end text). Flag respondents sharing fingerprints with 10+ others.
+7. **Compute time per question**. Flag respondents completing below 5 seconds per question.
+8. **Run the ML model** (if trained on annotated data from the same client) to get a risk probability.
+9. **Apply agent rules** for tier 1/2/3 signals to make the final determination.
+10. **Send uncertain cases to REVIEW** rather than forcing a binary decision.
 
 ### Autoresearch Experiment Loop
 
-We ran 19 experiments following the karpathy/autoresearch methodology. Results are logged in `models/results.tsv`. The best approach (v19) uses per-dataset model selection from 8 feature sets x 3 model configs, with an accuracy filter to avoid selecting approaches that sacrifice too much accuracy for F1.
+We ran 30 experiments following the karpathy/autoresearch methodology. Results are logged in `models/results.tsv`. Key findings:
+
+- **v19** (64.6% F1): Per-dataset model selection with accuracy filter
+- **v23** (66.3% F1): v19 + agent v2 features as targeted option (best overall)
+- **v26** (64.0% F1): Universal packet backbone without agent v2 (best portable)
+- **v29** (63.8% F1): Selective classifier with REVIEW band (TFG Q1 = 100% F1)
 
 Key scripts:
 - `scripts/eval_harness.py` — Fixed evaluation harness (DO NOT MODIFY). Measures F1 on per-dataset test splits.
-- `scripts/train_v19_filtered.py` — Best training script. Per-dataset selection with accuracy filter.
+- `scripts/train_v23_agent_targeted.py` — Best overall training script.
+- `scripts/train_v26_universal.py` — Best portable training script (no agent v2 needed).
+- `scripts/agent_v2_features.py` — Agent v2 feature loader with coverage gating.
 - `scripts/experiment_loop.py` — Runs one experiment and logs to results.tsv.
-- `scripts/train_v1_f1.py` through `train_v18_transfer.py` — Experiment history.
+- `scripts/train_v1_f1.py` through `train_v30_combined.py` — Experiment history.
 
 ## When To Read References
 
