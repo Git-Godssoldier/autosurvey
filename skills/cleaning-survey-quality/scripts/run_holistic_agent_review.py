@@ -997,7 +997,7 @@ def build_holistic_review_packets(filepath, output_dir, review_all=False, chunk_
 def build_agent_instructions(n_respondents, n_chunks, matrix_prevalence, dataset_name):
     """Build detailed instructions for the reviewing agent."""
 
-    return f"""# Holistic Agent Review Instructions — v6 (Three-Component + Disposition Layer)
+    return f"""# Holistic Agent Review Instructions — v7 (Calibrated Three-Component + Convergence Thresholds)
 
 ## Task
 
@@ -1276,9 +1276,24 @@ The nine independent evidence families:
 
 ---
 
-## Evidence Family 1: Core Open-End Quality (THE ANCHOR)
+## Evidence Family 1: Core Open-End Quality (v7 — NOT the primary driver)
 
-The core open-end field is the most important signal. Identify which OE field asks for personal motivation, experience, or project description. Read the question text to determine this.
+**V6 finding**: Core OE quality has NEGATIVE correlation with client discard (-0.030).
+The client does NOT primarily discard on OE quality. OE quality fires in 98% of both
+TPs and FPs — it provides near-zero discrimination.
+
+**v7 rule**: Core OE quality family should ONLY fire when OE genuinely fails:
+- `non_answer` — "good", "N/A", "yes", single-word non-responses
+- `gibberish` — random characters, repeated text
+- `off_topic` — describes wrong-domain project
+- `benefit_stack` — AI-template marketing language
+
+**Do NOT fire core_oe_quality for `thin_on_topic`**. Thin-but-on-topic is the majority
+pattern (769/1566 on ECHO) and has a 30% client discard rate — barely above the 35%
+base rate. Thin OE alone is NOT a quality failure signal.
+
+The core OE field still matters for OE classification and badopen audit, but it should
+NOT be a primary driver of the discard decision. Use it as context, not as a firing family.
 
 ### 1A. Answer-Role Test
 
@@ -1351,27 +1366,43 @@ Genuinely specific details are idiosyncratic:
 
 ---
 
-## Evidence Family 2: Platform Risk
+## Evidence Family 2: Platform Risk (v7 — tightened thresholds)
 
 Read the `defender_summary` field FIRST.
 
+**V6 finding**: platform_risk fired in 58% of keeps AND 58% of discards — zero discrimination
+at the old RD_Search >= 20 threshold. The threshold is too loose.
+
+**v7 thresholds:**
 - **TERMFLAGS=1**: Platform fraud flag. STRONG (-0.7). Override to REVIEW only with unusually strong human evidence (specific named event + chain-consistent + no AI markers).
 - **qc=8 or qc=9**: AUTOMATIC DISCARD (-1.0)
 - **qc=6**: RD /REVIEW rejection — strong discard
 - **qc=7**: OE screening failure — strong concern
 - **qc=11**: Speeder — moderate concern
-- **RD_Search threat >= 25**: Elevated. >= 20: Moderate.
+- **RD_Search threat >= 25**: Elevated — fires platform_risk family
+- **RD_Search threat 20-25**: Moderate — does NOT fire platform_risk alone; requires convergence with model_risk or timing_engagement
 - **Non-English**: Automatic discard for US surveys
 - **LangAssess read_level >= 17**: Very high (AI suspicion). >= 15 with short text: AI suspicion.
 
+**Do NOT fire platform_risk for RD_Search 20-25 unless model_risk or timing_engagement also fires.**
+
 ---
 
-## Evidence Family 3: Model Risk
+## Evidence Family 3: Model Risk (v7 — STRONGEST single predictor)
 
-- **ML >= 0.8**: Very high. If core OE also fails, discard. If core OE is grounded, cap at REVIEW.
-- **ML >= 0.7**: High. If core OE is thin/generic, discard. If grounded, cap at REVIEW.
-- **ML 0.5-0.7**: Ambiguous. Tiebreaker — if any other family fires, lean discard.
-- **ML < 0.4**: Low risk. Protective, but does NOT override a failed core OE.
+ML score is the STRONGEST single predictor of client discard. V6 analysis showed:
+- ML >= 0.8: 83.6% client discard rate
+- ML 0.6-0.8: 70.1% client discard rate
+- ML 0.5-0.6: 49.5% client discard rate
+- ML < 0.2: only 6.2% client discard rate
+
+**v7 thresholds (calibrated from V6 ground truth):**
+- **ML >= 0.8**: AUTO-DISCARD regardless of OE quality. Even grounded OE does not override.
+- **ML >= 0.6**: Strong discard signal. DISCARD unless core OE is substantive AND grounded AND no other family fires. If in REVIEW, UPGRADE to DISCARD.
+- **ML 0.5-0.6**: Moderate. If ANY other family fires, lean DISCARD. If OE is substantive, REVIEW.
+- **ML 0.4-0.5**: Ambiguous. Tiebreaker only.
+- **ML < 0.4**: Low risk. Protective. Do NOT discard based on ML alone. If OE is thin, keep as REVIEW (not DISCARD).
+- **ML < 0.2**: Very low risk. Strong protective signal. Rarely discard these — only for TERMFLAGS=1 or qc=8/9.
 
 ---
 
@@ -1466,12 +1497,21 @@ Read the `brand_funnel` field. Check whether the brand funnel is internally cons
 
 ---
 
-## Evidence Family 8: Timing & Engagement
+## Evidence Family 8: Timing & Engagement (v7 — lowered thresholds)
 
-- **bottom_10% timing**: Very fast. Concern, not sufficient alone.
-- **bottom_25% timing**: Fast. Mild concern.
+**V6 finding**: timing_engagement had a 39.9% gap between TP fire rate (54%) and FN fire
+rate (14.1%) — the most under-fired family in false negatives. The old bottom_10/bottom_25
+thresholds were too restrictive.
+
+**v7 thresholds:**
+- **bottom_10% timing**: Very fast. Fires timing_engagement. Strong concern.
+- **bottom_25% timing**: Fast. Fires timing_engagement. Moderate concern.
+- **below_median timing** (NEW): Below median but above bottom_25. Fires timing_engagement
+  as a WEAK signal — only counts as a converging family when combined with model_risk or
+  platform_risk. Does NOT count as a standalone firing.
 - **above_median timing**: Protective.
-- **Very fast + failed core OE + any risk family** = converging → discard
+- **Very fast + ML >= 0.5** = converging → lean DISCARD
+- **bottom_25 + any other family** = converging → lean DISCARD
 - **Straightlining**: If prevalence >80% (see dataset context), straightlining alone is NOT discriminative.
 
 ---
@@ -1557,51 +1597,85 @@ Would the client's own process discard this? → Fill `client_reject_probability
 What is the PRIMARY removal reason? What is the SECONDARY?
 → Fill `primary_removal_reason`, `secondary_removal_reason`, `removal_confidence`.
 
-### Step 9: Final Decision
+### Step 9: Final Decision (v7 — calibrated convergence thresholds)
+
 Compute `agent_score` from the three components:
-  agent_score = -(authenticity_risk * 0.4 + quality_discard_risk * 0.4 + client_reject_probability * 0.2)
+  agent_score = -(authenticity_risk * 0.3 + quality_discard_risk * 0.2 + client_reject_probability * 0.5)
   Adjust: +0.1 if grounded equipment named, +0.05 if above_median timing,
-  -0.05 per additional converging family beyond 2.
+  -0.05 per additional converging family beyond 3.
 → Fill `agent_score`, `agent_judgment`, `agent_justification`.
 
-### Decision thresholds:
+**v7 scoring weights**: client_reject_probability is now weighted HIGHEST (0.5) because
+it captures the client's actual discard logic. quality_discard_risk is lowered (0.2) because
+OE quality has negative correlation with client discard. authenticity_risk stays at 0.3.
+
+### Decision thresholds (v7 — calibrated from V6 ground truth analysis):
 
 **DISCARD** (score < -0.3 AND removal_confidence > 0.5) when:
-- Core OE fails its role AND >= 1 risk family fires
-- Core OE is thin/generic AND >= 2 families fire
-- Core OE is off-topic AND any risk family fires
+- **ML >= 0.8** — AUTO-DISCARD regardless of OE quality or other signals
+- **ML >= 0.6** AND any other family fires (model_risk convergence)
+- **>= 4 converging families** fire (at 4+, client discard rate is 48% and FP:TP ratio is favorable)
+- **model_risk + brand_funnel** both fire (precision 0.96 on V6 analysis)
+- **model_risk + survey_structure** both fire (precision 0.81)
+- **model_risk + quota_reconstruction** both fire (precision 0.83)
+- Core OE is off_topic AND ML >= 0.5
+- Core OE is non_answer/gibberish AND ML >= 0.5
 - TERMFLAGS=1 AND core OE is not unusually specifically grounded
-- ML >= 0.8 AND core OE fails role or is generic
-- Brand funnel shows wrong brand universe AND core OE is thin
-- CLASSIFY mismatch AND core OE is thin
-- Core OE is a short non-answer AND >= 1 risk family fires
-- primary_removal_reason = quality_auth_failure with high confidence
+- qc=8 or qc=9 (automatic)
+- Brand funnel shows wrong brand universe AND ML >= 0.5
 
 **REVIEW** (score -0.3 to 0 OR removal_confidence 0.3–0.5) when:
-- Core OE is thin but on-topic with no other concerns
-- Core OE is grounded but one risk family fires
-- ML >= 0.7 AND core OE is grounded and specific
+- **2-3 converging families** fire (at 2-3, FP:TP ratio is 1.8-2.0:1 — too many FPs for DISCARD)
+- Core OE is thin_on_topic with no other concerns (thin OE is NOT a discard signal)
+- Core OE is substantive but ML >= 0.5 (substantive OE is NOT protective — 36% client discard rate)
+- ML 0.5-0.6 with no other family firing
+- stage2_quality_verdict = fail but < 4 families fire (stage2 fail is over-aggressive at 84.5% agent discard vs 44.3% client discard)
 - primary_removal_reason = quota_balancing or unknown_mixed
 - Mixed signals where neither KEEP nor DISCARD is clearly warranted
 
-**KEEP** (score > 0 AND no families fired) when:
-- Core OE passes answer-role test AND shows substantive engagement AND no risk family fires
-- Core OE is specific, grounded, and chain-consistent AND ML < 0.5 AND no platform flags
-- primary_removal_reason = none
+**KEEP** (score > 0 AND no families fired OR ML < 0.2) when:
+- ML < 0.2 AND no platform flags (TERMFLAGS=0, qc=0) — very low risk
+- Core OE is substantive AND grounded AND ML < 0.4 AND no risk family fires
+- primary_removal_reason = none AND converging_family_count <= 1
 
-### Thin-but-on-topic rule (IMPORTANT):
+### V7 CALIBRATION RULES (from V6 ground truth analysis):
+
+1. **Substantive OE is NOT a protective signal.** V6 showed 36.1% client discard rate for
+   substantive OE — higher than thin_on_topic (30%). Do NOT score KEEP just because OE is
+   substantive. Score as REVIEW and let ML/platform/timing drive the decision.
+
+2. **ML score is the strongest discriminator within REVIEW.** REVIEW-discards have mean
+   ML=0.493 vs REVIEW-keeps at 0.331. If ML >= 0.5 in REVIEW, UPGRADE to DISCARD.
+
+3. **Stage 2 "fail" should default to REVIEW, not DISCARD.** V6 showed 44.3% client discard
+   rate for stage2_fail but 84.5% agent discard rate — massive over-discard. Only DISCARD
+   stage2_fail when >= 4 families fire or ML >= 0.6.
+
+4. **Badopen "high" severity is a modifier, not a driver.** V6 showed 42.3% client discard
+   rate but 85.8% agent discard rate. High severity should contribute to DISCARD only when
+   combined with model_risk or >= 4 converging families.
+
+5. **core_oe_quality + platform_risk is NOT sufficient for DISCARD.** V6 showed 0.354
+   precision for this pair. This combination should default to REVIEW.
+
+6. **Converging family count is the key threshold.** At 4+ families, client discard rate
+   jumps to 48% and FP:TP ratio improves to 1.2:1. Below 4, we over-discard.
+
+### Thin-but-on-topic rule (v7 — REVISED):
 An answer like "Mowing and blowing/raking leaves" is authentic and on-topic for an OPE survey,
-but it does NOT demonstrate substantive engagement. It names generic tasks without equipment,
-project narrative, or personal detail.
+but it does NOT demonstrate substantive engagement.
+
+**V6 finding**: thin_on_topic has a 30% client discard rate — barely below the 35% base rate.
+This is NOT a quality failure. Do NOT fire core_oe_quality family for thin_on_topic.
 
 For the three-component model:
 - authenticity_risk = LOW (this is a real human answer)
-- quality_discard_risk = MEDIUM (thin but on-topic)
-- client_reject_probability = VARIABLE (depends on client's badopen standard)
+- quality_discard_risk = LOW (thin but on-topic is the majority pattern, not a failure)
+- client_reject_probability = LOW unless ML >= 0.5 or platform/timing families fire
 
-Without calibration data, score this as REVIEW (-0.1 to -0.2), not KEEP.
-If ANY other family fires (ML >= 0.6, brand funnel inconsistency, survey structure mismatch),
-upgrade to DISCARD.
+Score thin_on_topic as REVIEW (-0.1 to -0.2) ONLY if other families fire.
+If NO other families fire, score as KEEP (thin OE alone is not a signal).
+If ML >= 0.6, upgrade to DISCARD (ML convergence is the driver, not OE quality).
 
 ### Short non-answer rule:
 Short answers (<25 chars) to a motivation/project question are almost always role failures.

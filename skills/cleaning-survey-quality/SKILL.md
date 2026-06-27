@@ -7,7 +7,7 @@ description: Cleans and scores Decipher-style survey quality workbooks for marke
 
 Run a reproducible survey quality pass on unannotated Decipher-style survey exports. The output is a per-respondent DISCARD/REVIEW/KEEP judgment with a -1 to +1 score, three-component risk scores, a disposition layer classifying the removal reason, and a natural-language justification citing specific evidence.
 
-## Three-Layer Review (v6)
+## Three-Layer Review (v7)
 
 AutoQuality operates through three linked layers:
 
@@ -38,7 +38,7 @@ Separate from authenticity and quality: would the client's own process discard t
 
 **Key principle**: A respondent can be authentic (low authenticity_risk) AND substantive (low quality_discard_risk) but still discarded by the client (high client_reject_probability) due to quota balancing or badopen triggers. Conversely, a respondent can be inauthentic but kept by the client if they passed the client's review process.
 
-## Disposition Layer (v6)
+## Disposition Layer (v7)
 
 We no longer treat every removal as a "bad respondent" signal. We separate:
 
@@ -53,7 +53,7 @@ We no longer treat every removal as a "bad respondent" signal. We separate:
 
 This lets us learn separate models for true quality/auth failures, quota exclusions, eligibility cases, partial responses, vendor removals, manual decisions, and unknown/mixed cases.
 
-## Badopen Audit Trail (v6)
+## Badopen Audit Trail (v7)
 
 Every "badopen" decision is auditable. Instead of just seeing badopen, we capture the trigger:
 - `duplicate_text`, `too_short`, `pasted_text`, `wrong_topic`, `profanity`, `ai_like_similarity`, `nonresponsive`, `human_reviewer`, `none`
@@ -197,11 +197,11 @@ Merges all chunk judgments, re-runs feature extraction, and writes:
 - **Dashboard HTML** with summary cards, score distribution, supplier analysis, and discard table
 - **Summary JSON** with aggregate statistics
 
-## The Evidence-Family Framework (v5)
+## The Evidence-Family Framework (v7)
 
-The agent instructions use an evidence-family convergence model with two stages and nine independent signal families. The master rule:
+The agent instructions use an evidence-family convergence model with two stages and nine independent signal families. The v7 master rule (calibrated from V6 ground truth):
 
-**A row is discard-like when the core open end fails its question role, lacks grounded chain evidence, and converges with at least one independent risk family — OR when the respondent fails the PM quality bar (thin engagement, brand funnel incoherence, classification mismatch, off-topic content).**
+**A row is discard-like when ML risk is high (>= 0.6) AND converges with at least one independent risk family — OR when >= 4 evidence families fire — OR when platform fraud is certain (TERMFLAGS=1, qc=8/9). OE quality alone is NOT a discard signal (negative correlation with client discard).**
 
 ### Stage 1: Fraud Detection Families
 
@@ -324,27 +324,30 @@ See `templates/output-format-spec.md` for the exact format of each artifact.
 
 After the PM reviews the output and the client provides accept/reject decisions, the annotated workbook can be used to improve the pipeline. This is a **separate activity** from the normal blind run. See `commands/evolution-cycle.md` for the full workflow.
 
-### Known Performance Gaps (v4 → v5 → v5.1 → v6)
+### Known Performance Gaps (v4 → v5 → v5.1 → v6 → v7)
 
-**v5.1 ECHO results (status=5 only):**
-- TP=302, FP=398, FN=251 — best recall (0.546) but over-aggressive (precision 0.431)
-- The thin-but-on-topic rule caused 398 false positives — the client keeps thin OEs that v5.1 discarded
-- The client's discard process is NOT primarily OE-quality-driven
+**v6 ECHO results (status=5 only):**
+- TP=226, FP=293, FN=327, TN=720 | Precision=0.435, Recall=0.409, F1=0.422
+- Soft recall=0.976 (REVIEW catches most client discards)
+- The REVIEW bucket is the primary bottleneck — 969 in REVIEW, 314 are actual discards
+- ML score is the strongest discriminator within REVIEW (mean 0.493 for discards vs 0.331 for keeps)
+- Substantive OE has 36.1% client discard rate — NOT a protective signal
+- core_oe_quality fires in 98% of both TPs and FPs — zero discrimination
+- platform_risk fires equally in discards and keeps — over-firing at RD_Search >= 20
+- model_risk has the highest discriminative gap (+0.34) — best calibrated family
+- Converging family count >= 4 is the key threshold (FP:TP ratio flips favorable)
 
-**Cross-corpus ML signal correlation (v6, 13,388 respondents, 11 datasets):**
-- **Platform risk** has the highest mean correlation with client discard (+0.086) — RD_Searchr1 is a top universal signal
-- **Timing** (qtime, low_total_duration) is the strongest universal signal — fires in 10/11 datasets
-- **Core OE quality** has NEGATIVE correlation (-0.030) — confirming the client does NOT primarily discard on OE quality
-- **Survey structure** (CLASSIFY) is the top global model feature (importance 0.355)
-- Per-dataset AUCs range from 0.528 (Masterlock) to 0.822 (TFG-Contractor-Index-Q2)
-- The global model AUC is 0.499 — no single signal separates discards across all datasets; per-dataset calibration is essential
-
-**v6 framework addresses these gaps by:**
-1. Separating authenticity_risk from quality_discard_risk from client_reject_probability
-2. Injecting cross-corpus ML correlations into every packet so agents weight families correctly
-3. Adding a disposition layer to classify removal reasons (quality_auth_failure vs quota_balancing vs vendor_source etc.)
-4. Making badopen decisions auditable with trigger classification
-5. Recording per-evidence-family firing scores for granular gap analysis
+**v7 calibration addresses these gaps by:**
+1. ML >= 0.8 → auto-DISCARD; ML >= 0.6 → DISCARD with any convergence; ML >= 0.5 in REVIEW → upgrade to DISCARD
+2. Require >= 4 converging families for DISCARD (was 2-3, caused 2:1 FP:TP ratio)
+3. Stop firing core_oe_quality for thin_on_topic (was firing in 98% of both TPs and FPs)
+4. Tighten platform_risk: RD_Search >= 25 fires (was >= 20, which fired in 58% of keeps)
+5. Lower timing_engagement threshold: add below_median as weak signal (was bottom_25 only, missed 39.9% of FNs)
+6. Substantive OE is NOT protective — score as REVIEW, not KEEP (36.1% client discard rate)
+7. Auto-discard for model_risk + brand_funnel/survey_structure/quota_reconstruction (0.73-0.96 precision)
+8. Stage 2 "fail" → default REVIEW (was DISCARD, 84.5% agent discard vs 44.3% client discard)
+9. Badopen "high" severity → modifier, not driver (was 85.8% agent discard vs 42.3% client discard)
+10. Scoring weights: client_reject_probability 0.5, authenticity_risk 0.3, quality_discard_risk 0.2 (was 0.4/0.4/0.2)
 
 **ECHO-specific findings (from residual signal mining):**
 - **Brand funnel** is the strongest field family (signal score 2345.5), far exceeding semantic content fields
