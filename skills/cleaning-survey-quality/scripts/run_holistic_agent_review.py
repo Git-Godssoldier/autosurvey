@@ -821,7 +821,7 @@ def build_holistic_review_packets(filepath, output_dir, review_all=False, chunk_
         brand_funnel = get_brand_funnel(raw_row, hidx, datamap, headers)
 
         # Quota reconstruction (CLASSIFYQuota, RegionQuota, GenderQuota, ChannelQuota, etc.)
-        quota_reconstruction = get_quota_reconstruction(raw_row, hidx, datamap, headers, df=df, idx=pkt_idx)
+        quota_reconstruction = get_quota_reconstruction(raw_row, hidx, datamap, headers, df=df, idx=idx)
 
         # LangAssess
         lang = {}
