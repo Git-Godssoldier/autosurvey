@@ -68,6 +68,33 @@ def integrate_agent_judgments(filepath, output_dir):
             else:
                 ai_suspicion_lookup[rid] = "none"
 
+    # Extract v6 metadata fields from judgments (with fallbacks for v5 judgments)
+    v6_metadata_lookup = {}
+    for j in agent_judgments:
+        rid = j["respondent_id"]
+        v6_metadata_lookup[rid] = {
+            "authenticity_risk": j.get("authenticity_risk"),
+            "quality_discard_risk": j.get("quality_discard_risk"),
+            "client_reject_probability": j.get("client_reject_probability"),
+            "primary_removal_reason": j.get("primary_removal_reason"),
+            "secondary_removal_reason": j.get("secondary_removal_reason"),
+            "removal_confidence": j.get("removal_confidence"),
+            "evidence_families_fired": j.get("evidence_families_fired", []),
+            "badopen_trigger": j.get("badopen_trigger"),
+            "badopen_field": j.get("badopen_field"),
+            "badopen_evidence": j.get("badopen_evidence"),
+            "badopen_severity": j.get("badopen_severity"),
+            "oe_classification": j.get("oe_classification"),
+            "oe_equipment_named": j.get("oe_equipment_named", []),
+            "oe_grounding_anchors": j.get("oe_grounding_anchors", []),
+            "oe_word_count": j.get("oe_word_count"),
+            "ml_top_signals": j.get("ml_top_signals", []),
+            "ml_confidence": j.get("ml_confidence"),
+            "stage1_fraud_verdict": j.get("stage1_fraud_verdict"),
+            "stage2_quality_verdict": j.get("stage2_quality_verdict"),
+            "converging_family_count": j.get("converging_family_count"),
+        }
+
     # Re-run feature extraction
     print(f"\n[1/4] Extracting features...")
     df, datamap, roles, answer_chains = extract_features_and_chain(filepath)
@@ -145,7 +172,7 @@ def integrate_agent_judgments(filepath, output_dir):
     print(f"\n[4/4] Generating outputs with agent justifications...")
 
     excel_path = output_dir / f"{filepath.stem}_annotated.xlsx"
-    write_annotated_excel_with_agent(filepath, df, excel_path, defender_lookup, ai_suspicion_lookup)
+    write_annotated_excel_with_agent(filepath, df, excel_path, defender_lookup, ai_suspicion_lookup, v6_metadata_lookup)
     print(f"  Annotated Excel: {excel_path}")
 
     dashboard_path = output_dir / f"{filepath.stem}_dashboard.html"

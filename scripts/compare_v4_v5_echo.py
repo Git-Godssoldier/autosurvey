@@ -246,6 +246,151 @@ def main():
         for s in fp_samples[:10]:
             print(f'    {s["rid"]} (score={s["score"]}): {s["justification"]}')
 
+        # --- V6 metadata analysis (if judgments have the new fields) ---
+        print(f'\n{"="*80}')
+        print(f'V6 METADATA ANALYSIS (three-component scoring + disposition layer)')
+        print(f'{"="*80}')
+
+        # Check if v5.1 judgments have v6 fields
+        sample_j = v51_judgments.get(next(iter(v51_judgments)), {})
+        has_v6 = 'authenticity_risk' in sample_j or 'primary_removal_reason' in sample_j
+
+        if has_v6:
+            from collections import Counter
+
+            # Removal reason distribution
+            print(f'\n--- Primary Removal Reason Distribution ---')
+            reason_counts = Counter()
+            reason_by_gt = defaultdict(Counter)
+            for rid, gt_label in gt.items():
+                if rid in v51_judgments:
+                    j = v51_judgments[rid]
+                    reason = j.get('primary_removal_reason', 'unknown')
+                    reason_counts[reason] += 1
+                    reason_by_gt[gt_label][reason] += 1
+
+            for reason, count in reason_counts.most_common():
+                discard_count = reason_by_gt['DISCARD'].get(reason, 0)
+                keep_count = reason_by_gt['KEEP'].get(reason, 0)
+                print(f'  {reason}: {count} ({discard_count} actual discards, {keep_count} actual keeps)')
+
+            # Badopen trigger distribution
+            print(f'\n--- Badopen Trigger Distribution ---')
+            badopen_counts = Counter()
+            badopen_by_gt = defaultdict(Counter)
+            for rid, gt_label in gt.items():
+                if rid in v51_judgments:
+                    j = v51_judgments[rid]
+                    trigger = j.get('badopen_trigger', 'unknown')
+                    badopen_counts[trigger] += 1
+                    badopen_by_gt[gt_label][trigger] += 1
+
+            for trigger, count in badopen_counts.most_common():
+                discard_count = badopen_by_gt['DISCARD'].get(trigger, 0)
+                keep_count = badopen_by_gt['KEEP'].get(trigger, 0)
+                precision = discard_count / count if count > 0 else 0
+                print(f'  {trigger}: {count} ({discard_count} discards, {keep_count} keeps, precision={precision:.2f})')
+
+            # OE classification distribution
+            print(f'\n--- OE Classification Distribution ---')
+            oe_counts = Counter()
+            oe_by_gt = defaultdict(Counter)
+            for rid, gt_label in gt.items():
+                if rid in v51_judgments:
+                    j = v51_judgments[rid]
+                    oe_class = j.get('oe_classification', 'unknown')
+                    oe_counts[oe_class] += 1
+                    oe_by_gt[gt_label][oe_class] += 1
+
+            for oe_class, count in oe_counts.most_common():
+                discard_count = oe_by_gt['DISCARD'].get(oe_class, 0)
+                keep_count = oe_by_gt['KEEP'].get(oe_class, 0)
+                discard_rate = discard_count / count if count > 0 else 0
+                print(f'  {oe_class}: {count} ({discard_count} discards, {keep_count} keeps, client discard rate={discard_rate:.2f})')
+
+            # Three-component score analysis
+            print(f'\n--- Three-Component Score Analysis ---')
+            component_stats = defaultdict(lambda: {'DISCARD': [], 'KEEP': []})
+            for rid, gt_label in gt.items():
+                if rid in v51_judgments:
+                    j = v51_judgments[rid]
+                    for comp in ['authenticity_risk', 'quality_discard_risk', 'client_reject_probability']:
+                        val = j.get(comp)
+                        if val is not None:
+                            component_stats[comp][gt_label].append(float(val))
+
+            for comp in ['authenticity_risk', 'quality_discard_risk', 'client_reject_probability']:
+                discard_vals = component_stats[comp]['DISCARD']
+                keep_vals = component_stats[comp]['KEEP']
+                if discard_vals and keep_vals:
+                    import statistics
+                    print(f'  {comp}:')
+                    print(f'    Client discards: mean={statistics.mean(discard_vals):.3f}, median={statistics.median(discard_vals):.3f}')
+                    print(f'    Client keeps:    mean={statistics.mean(keep_vals):.3f}, median={statistics.median(keep_vals):.3f}')
+                    # Separation = difference of means
+                    sep = statistics.mean(discard_vals) - statistics.mean(keep_vals)
+                    print(f'    Separation: {sep:.3f} (positive = good discrimination)')
+
+            # Evidence family firing rates: discards vs keeps
+            print(f'\n--- Evidence Family Firing Rates (discards vs keeps) ---')
+            family_firing = defaultdict(lambda: {'DISCARD': 0, 'KEEP': 0, 'DISCARD_total': 0, 'KEEP_total': 0})
+            for rid, gt_label in gt.items():
+                if rid in v51_judgments:
+                    j = v51_judgments[rid]
+                    fired = j.get('evidence_families_fired', [])
+                    if isinstance(fired, list):
+                        for fam in fired:
+                            family_firing[fam][gt_label] += 1
+                    family_firing['_total'][gt_label] += 1
+
+            total_discards = family_firing['_total']['DISCARD']
+            total_keeps = family_firing['_total']['KEEP']
+            for fam in sorted(family_firing.keys()):
+                if fam == '_total':
+                    continue
+                d_count = family_firing[fam]['DISCARD']
+                k_count = family_firing[fam]['KEEP']
+                d_rate = d_count / total_discards if total_discards > 0 else 0
+                k_rate = k_count / total_keeps if total_keeps > 0 else 0
+                gap = d_rate - k_rate
+                print(f'  {fam}: discards={d_rate:.2f}, keeps={k_rate:.2f}, gap={gap:+.2f}')
+
+            # Stage verdict analysis
+            print(f'\n--- Stage Verdict Analysis ---')
+            stage1_counts = defaultdict(Counter)
+            stage2_counts = defaultdict(Counter)
+            for rid, gt_label in gt.items():
+                if rid in v51_judgments:
+                    j = v51_judgments[rid]
+                    stage1_counts[j.get('stage1_fraud_verdict', 'unknown')][gt_label] += 1
+                    stage2_counts[j.get('stage2_quality_verdict', 'unknown')][gt_label] += 1
+
+            print(f'  Stage 1 (Fraud Detection):')
+            for verdict in ['pass', 'fail', 'ambiguous']:
+                d = stage1_counts[verdict]['DISCARD']
+                k = stage1_counts[verdict]['KEEP']
+                print(f'    {verdict}: {d} discards, {k} keeps')
+            print(f'  Stage 2 (Quality Assessment):')
+            for verdict in ['pass', 'fail', 'ambiguous']:
+                d = stage2_counts[verdict]['DISCARD']
+                k = stage2_counts[verdict]['KEEP']
+                print(f'    {verdict}: {d} discards, {k} keeps')
+
+            # ML signal correlation vs actual gap
+            print(f'\n--- ML Correlation vs Actual Gap Analysis ---')
+            corr_path = Path('/Users/jeremyalston/Perfect/autosurvey/skills/cleaning-survey-quality/evolution/ml-signal-correlation/cross_corpus_signal_correlation.json')
+            if corr_path.exists():
+                with open(corr_path) as f:
+                    corr_data = json.load(f)
+                print(f'  Cross-corpus family correlations (13,388 respondents, 11 datasets):')
+                for fam, data in sorted(corr_data.get('family_correlations', {}).items(),
+                                        key=lambda x: abs(x[1]['mean_correlation']), reverse=True):
+                    print(f'    {fam}: mean_corr={data["mean_correlation"]:+.3f} ({data["direction"]}, {data["n_datasets"]} datasets)')
+                print(f'  → Families with POSITIVE correlation should be weighted higher in client_reject_probability')
+                print(f'  → Families with NEGATIVE correlation (core_oe_quality) should NOT drive discards alone')
+        else:
+            print(f'  (V5.1 judgments do not have v6 metadata fields — rerun with v6 instructions)')
+
         # Save full comparison
         output = {
             'ground_truth': {'total': len(gt), 'discards': gt_discards, 'keeps': gt_keeps},

@@ -1,21 +1,64 @@
 ---
 name: cleaning-survey-quality
-description: Cleans and scores Decipher-style survey quality workbooks for market research datasets. Use when reviewing survey completes, fraud, inattentive respondents, open-end AI suspicion, straightlining, inconsistent brand answers, short completes, duplicate IPs, respondent flags, or survey quality files. The primary flow is a two-stage holistic agent review (fraud detection + PM quality assessment) that produces DISCARD/REVIEW/KEEP judgments with evidence-family convergence scoring across 9 independent signal families including quota reconstruction.
+description: Cleans and scores Decipher-style survey quality workbooks for market research datasets. Use when reviewing survey completes, fraud, inattentive respondents, open-end AI suspicion, straightlining, inconsistent brand answers, short completes, duplicate IPs, respondent flags, or survey quality files. The primary flow is a three-layer holistic agent review (semantic remapping + ML analysis + two-stage agent review) that produces DISCARD/REVIEW/KEEP judgments with three-component scoring (authenticity_risk, quality_discard_risk, client_reject_probability), a disposition layer separating removal reasons, badopen audit trails, and evidence-family convergence scoring across 9 independent signal families.
 ---
 
 # Cleaning Survey Quality
 
-Run a reproducible survey quality pass on unannotated Decipher-style survey exports. The output is a per-respondent DISCARD/REVIEW/KEEP judgment with a -1 to +1 score and a natural-language justification citing specific evidence.
+Run a reproducible survey quality pass on unannotated Decipher-style survey exports. The output is a per-respondent DISCARD/REVIEW/KEEP judgment with a -1 to +1 score, three-component risk scores, a disposition layer classifying the removal reason, and a natural-language justification citing specific evidence.
 
-## Two-Stage Review (v5)
+## Three-Layer Review (v6)
 
-Every respondent passes through two stages:
+AutoQuality operates through three linked layers:
 
-**Stage 1 — Fraud Detection**: Is this respondent authentic? (bots, AI, platform flags, gibberish, non-English, duplicate chains, TERMFLAGS)
+### Layer 0 — Semantic Remapping (before scoring)
 
-**Stage 2 — PM Quality Assessment**: Does this respondent meet the quality bar for this survey? (substantive engagement, brand funnel consistency, classification coherence, on-topic depth, survey-structure fit)
+Each workbook is semantically remapped before scoring. We do NOT treat fields as generic columns. We reconstruct the survey contract: which fields are screeners, quotas, brand funnels, matrices, timing fields, vendor fields, open ends, review markers, and final status fields. Coded values are translated into their real survey meaning (e.g., CLASSIFY=1 → "professional"), so the review is based on what the respondent actually said or selected, not just raw codes.
 
-A respondent can pass Stage 1 (not fraudulent) but fail Stage 2 (low quality). Both result in DISCARD or REVIEW. This separation is critical because client discard processes are primarily quality-driven, not fraud-driven. On ECHO, fraud signals (TERMFLAGS, AI text) cover only 2.2% of discards; the remaining 98% are `badopen` — PM quality judgments.
+### Layer 1 — ML Analysis (statistical guide, not final answer)
+
+ML models are trained across all annotated files (13,388 respondents, 11 datasets) to identify which signals statistically separate accepted and rejected respondents at scale. The ML score guides the review but is NOT the final answer. It shows where evidence is statistically strong or weak.
+
+Cross-corpus signal correlations are injected into every review packet so agents can calibrate their evidence-family weighting:
+- **Platform risk** (RD_Searchr1): mean correlation +0.086 with client discard (strongest)
+- **Timing** (qtime, low_total_duration): +0.073 (fires in 10/11 datasets)
+- **Duplicate semantics**: +0.042 (moderate)
+- **Survey structure** (CLASSIFY): +0.023 (weak positive)
+- **Core OE quality** (thin_open_end): -0.030 (NEGATIVE — client does NOT primarily discard on OE quality)
+
+### Layer 2 — Two-Stage Agent Review
+
+**Stage 1 — Fraud Detection**: Is this respondent authentic? (bots, AI, platform flags, gibberish, non-English, duplicate chains, TERMFLAGS) → `authenticity_risk`
+
+**Stage 2 — PM Quality Assessment**: Does this respondent meet the quality bar for this survey? (substantive engagement, brand funnel consistency, classification coherence, on-topic depth, survey-structure fit) → `quality_discard_risk`
+
+### Layer 3 — Client Rejection Probability
+
+Separate from authenticity and quality: would the client's own process discard this respondent? The client may discard for quota, badopen, eligibility, or admin reasons that are NOT quality failures. → `client_reject_probability`
+
+**Key principle**: A respondent can be authentic (low authenticity_risk) AND substantive (low quality_discard_risk) but still discarded by the client (high client_reject_probability) due to quota balancing or badopen triggers. Conversely, a respondent can be inauthentic but kept by the client if they passed the client's review process.
+
+## Disposition Layer (v6)
+
+We no longer treat every removal as a "bad respondent" signal. We separate:
+
+- `quality_auth_failure` — OE fails role test, off-topic, gibberish, AI text, platform fraud
+- `quota_balancing` — respondent in over-filled quota cell, marginal quality
+- `eligibility_screenout` — fails screener, wrong classification branch
+- `partial_incomplete` — missing required fields, abandoned survey
+- `vendor_source` — supplier reject rate, RD_Search threat
+- `manual_admin` — human reviewer judgment, not detectable from data
+- `unknown_mixed` — converging signals but no single clear cause
+- `none` — no removal reason (KEEP)
+
+This lets us learn separate models for true quality/auth failures, quota exclusions, eligibility cases, partial responses, vendor removals, manual decisions, and unknown/mixed cases.
+
+## Badopen Audit Trail (v6)
+
+Every "badopen" decision is auditable. Instead of just seeing badopen, we capture the trigger:
+- `duplicate_text`, `too_short`, `pasted_text`, `wrong_topic`, `profanity`, `ai_like_similarity`, `nonresponsive`, `human_reviewer`, `none`
+
+This makes open-end review decisions traceable and calibratable.
 
 ## The Normal Input Is an Unannotated Workbook
 
@@ -95,6 +138,7 @@ Read only the references needed for the current task:
 | Client-process reconstruction gaps (ECHO FN/FP analysis) | `references/evolution/client-process-reconstruction-gaps.md` |
 | ECHO residual signal mining (field-family lift, derived signals) | `references/evolution/echo-signal-mining/skill_improvement_recommendations.md` |
 | Cross-dataset signal synthesis (10 workbooks, 12,384 respondents) | `references/evolution/cross-dataset-signal-synthesis.md` |
+| Cross-corpus ML signal correlation (11 datasets, 13,388 respondents) | `evolution/ml-signal-correlation/signal_correlation_summary.md` |
 | Multi-workbook signal mining artifacts (raw field, derived, markers) | `references/evolution/multiworkbook-signal-mining/multiworkbook_skill_recommendations.md` |
 | Five-tier routing and label-aware contrast (evolution) | `references/evolution/authenticity-first-calibration.md` |
 | Status-derived detection rules (evolution) | `references/evolution/tfg-status-derived-detection-methodology.md` |
@@ -125,6 +169,7 @@ Each packet contains:
 - **`survey_structure`** — CLASSIFY, PROAGE, CONAGE, conditions (Ariens/HD/channel), list/source, dcua, FIRMREV
 - **`brand_funnel`** — awareness, rating, consideration, recommendation, NPS, satisfaction, share allocation fields
 - **`quota_reconstruction`** — quota cell membership (CLASSIFYQuota, RegionQuota, GenderQuota, ChannelQuota, BRANDS2RATEQuota, TotalQuota) + population counts per cell
+- **`ml_signal_correlations`** — cross-corpus ML findings (family correlations, universal signals, global top features) from 13,388 respondents across 11 datasets
 - **`key_answers`** — all coded single-choice fields with labels (dynamically discovered, not hardcoded)
 
 The script also generates `agent_review_instructions.md` with the evidence-family framework rules (see below).
@@ -279,11 +324,29 @@ See `templates/output-format-spec.md` for the exact format of each artifact.
 
 After the PM reviews the output and the client provides accept/reject decisions, the annotated workbook can be used to improve the pipeline. This is a **separate activity** from the normal blind run. See `commands/evolution-cycle.md` for the full workflow.
 
-### Known Performance Gaps (v4 → v5)
+### Known Performance Gaps (v4 → v5 → v5.1 → v6)
 
-The v4 holistic review caught fraud well (precision ~0.60) but missed the PM's quality bar (recall ~0.31 on ECHO). The v5 framework addresses this by adding survey-structure and brand-funnel evidence families. Key findings from ECHO residual signal mining and cross-dataset synthesis (10 workbooks, 12,384 respondents):
+**v5.1 ECHO results (status=5 only):**
+- TP=302, FP=398, FN=251 — best recall (0.546) but over-aggressive (precision 0.431)
+- The thin-but-on-topic rule caused 398 false positives — the client keeps thin OEs that v5.1 discarded
+- The client's discard process is NOT primarily OE-quality-driven
 
-**ECHO-specific findings:**
+**Cross-corpus ML signal correlation (v6, 13,388 respondents, 11 datasets):**
+- **Platform risk** has the highest mean correlation with client discard (+0.086) — RD_Searchr1 is a top universal signal
+- **Timing** (qtime, low_total_duration) is the strongest universal signal — fires in 10/11 datasets
+- **Core OE quality** has NEGATIVE correlation (-0.030) — confirming the client does NOT primarily discard on OE quality
+- **Survey structure** (CLASSIFY) is the top global model feature (importance 0.355)
+- Per-dataset AUCs range from 0.528 (Masterlock) to 0.822 (TFG-Contractor-Index-Q2)
+- The global model AUC is 0.499 — no single signal separates discards across all datasets; per-dataset calibration is essential
+
+**v6 framework addresses these gaps by:**
+1. Separating authenticity_risk from quality_discard_risk from client_reject_probability
+2. Injecting cross-corpus ML correlations into every packet so agents weight families correctly
+3. Adding a disposition layer to classify removal reasons (quality_auth_failure vs quota_balancing vs vendor_source etc.)
+4. Making badopen decisions auditable with trigger classification
+5. Recording per-evidence-family firing scores for granular gap analysis
+
+**ECHO-specific findings (from residual signal mining):**
 - **Brand funnel** is the strongest field family (signal score 2345.5), far exceeding semantic content fields
 - **Equipment ownership/use** is second (896.3) — q11 other-specify fields carry strong signal
 - **CLASSIFY=1 (pro)** rejects at 60.4% vs 30.5% for consumer — pro-branch respondents are held to a higher standard
@@ -294,7 +357,7 @@ The v4 holistic review caught fraud well (precision ~0.60) but missed the PM's q
 - Standard fraud signals (duplicate OE, matrix straightline) have lift 1.00 — zero discrimination on ECHO
 - `very_short_required_open_end` is **protective** (lift 0.58) — short answers are LESS likely to be discarded
 
-**Cross-dataset findings (all 10 workbooks):**
+**Cross-dataset findings (10 workbooks, 12,384 respondents):**
 - **Open-end text is the weakest family** (signal score 16.1 across all datasets) — confirms v4's OE-centric approach was misaligned
 - **`badopen` is a universal discard marker** — 100% discard share across ALL 10 datasets, 3092 total mentions
 - **`bad:qualified` is similarly universal** — 100% discard share, 3068 mentions

@@ -1,0 +1,1569 @@
+{
+  "corpus_stats": {
+    "total_respondents": 13388,
+    "total_discards": 3124,
+    "total_keeps": 10264,
+    "n_datasets": 11,
+    "dataset_distribution": {
+      "delta-water-filtration": 1353,
+      "echo-bh": 1566,
+      "odl-switchable-glass": 603,
+      "oldcastle-brand-health": 2164,
+      "oldcastle-canada": 743,
+      "sbd-brand-association": 787,
+      "thd-digital-cx": 1905,
+      "addo-racetrac-us-gp": 1356,
+      "masterlock-conjoint": 916,
+      "tfg-contractor-index-q1": 878,
+      "tfg-contractor-index-q2": 1117
+    }
+  },
+  "per_dataset_models": {
+    "addo-racetrac-us-gp": {
+      "n_total": 1356,
+      "n_discard": 358,
+      "n_keep": 998,
+      "discard_rate": 0.2640117994100295,
+      "auc": 0.5993349274023442,
+      "top_signals": [
+        {
+          "feature": "low_total_duration",
+          "importance": 0.779219235112382,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "survey_meta_substitution",
+          "importance": 0.13654783066096743,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "survey_meta_substitution; low_total_duration",
+          "importance": 0.041642018556721505,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "text_time_mismatch",
+          "importance": 0.015258051970017011,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "low_total_duration; text_time_mismatch",
+          "importance": 0.008083558417989297,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "survey_meta_substitution; text_time_mismatch",
+          "importance": 0.007897910267019147,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "survey_meta_substitution; low_total_duration; text_time_mismatch",
+          "importance": 0.0066928849360038825,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "no_strong_staged_signal",
+          "importance": 0.004658510078899628,
+          "family": "overall_signal_strength"
+        }
+      ]
+    },
+    "delta-water-filtration": {
+      "n_total": 1353,
+      "n_discard": 348,
+      "n_keep": 1005,
+      "discard_rate": 0.2572062084257206,
+      "auc": 0.5734474180820038,
+      "top_signals": [
+        {
+          "feature": "survey_meta_substitution",
+          "importance": 0.732687438103471,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "thin_open_end; low_total_duration",
+          "importance": 0.053598705138267165,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "survey_meta_substitution; low_total_duration; text_time_mismatch",
+          "importance": 0.053568112366520364,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "low_total_duration",
+          "importance": 0.04013176496414827,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "thin_open_end; duplicate_open_chain",
+          "importance": 0.03190524213610959,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "thin_open_end",
+          "importance": 0.02790573257789322,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "low_total_duration; text_time_mismatch",
+          "importance": 0.018133924624736477,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "survey_meta_substitution; thin_open_end",
+          "importance": 0.017224288340770395,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "survey_meta_substitution; text_time_mismatch",
+          "importance": 0.007401085471040504,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "survey_meta_substitution; polished_ungrounded_open_end",
+          "importance": 0.0050738904666504684,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "polished_ungrounded_open_end",
+          "importance": 0.005073376349377036,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "thin_open_end; duplicate_open_chain; low_total_duration",
+          "importance": 0.0050562237095578425,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "survey_meta_substitution; low_total_duration",
+          "importance": 0.0013547531168822014,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "text_time_mismatch",
+          "importance": 0.0008854626345755992,
+          "family": "timing_engagement"
+        }
+      ]
+    },
+    "echo-bh": {
+      "n_total": 1566,
+      "n_discard": 553,
+      "n_keep": 1013,
+      "discard_rate": 0.35312899106002554,
+      "auc": 0.555568471760055,
+      "top_signals": [
+        {
+          "feature": "duplicate_open_chain; weak_persona_context",
+          "importance": 0.7174042742673598,
+          "family": "duplicate_semantics"
+        },
+        {
+          "feature": "survey_meta_substitution; low_total_duration; text_time_mismatch; weak_persona_context",
+          "importance": 0.10891911592615675,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "weak_persona_context",
+          "importance": 0.10354280902486768,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "low_total_duration; weak_persona_context",
+          "importance": 0.06840846298403246,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "text_time_mismatch; weak_persona_context",
+          "importance": 0.0008736348978953557,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "low_total_duration; text_time_mismatch; weak_persona_context",
+          "importance": 0.00085170289968799,
+          "family": "timing_engagement"
+        }
+      ]
+    },
+    "masterlock-conjoint": {
+      "n_total": 916,
+      "n_discard": 206,
+      "n_keep": 710,
+      "discard_rate": 0.22489082969432314,
+      "auc": 0.5280875330956925,
+      "top_signals": [
+        {
+          "feature": "qtime",
+          "importance": 0.5330116649838662,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "RD_Searchr1",
+          "importance": 0.13238579105523435,
+          "family": "platform_risk"
+        },
+        {
+          "feature": "REGION",
+          "importance": 0.08605727665581268,
+          "family": "other"
+        },
+        {
+          "feature": "age",
+          "importance": 0.05621524415073324,
+          "family": "other"
+        },
+        {
+          "feature": "low_total_duration",
+          "importance": 0.03565678647684136,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "low_total_duration; weak_persona_context",
+          "importance": 0.02920516881773229,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "thin_open_end; low_total_duration; weak_persona_context",
+          "importance": 0.021196047534693774,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "survey_meta_substitution; weak_persona_context",
+          "importance": 0.019204769092188254,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "weak_persona_context",
+          "importance": 0.018595241684905936,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "CLASSIFY",
+          "importance": 0.015678219937744462,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "text_time_mismatch; weak_persona_context",
+          "importance": 0.013480789380734012,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "thin_open_end; weak_persona_context",
+          "importance": 0.01263625015161239,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "thin_open_end",
+          "importance": 0.007326537004747955,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "no_strong_staged_signal",
+          "importance": 0.006676181186245226,
+          "family": "overall_signal_strength"
+        },
+        {
+          "feature": "text_time_mismatch",
+          "importance": 0.00571342686374148,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "thin_open_end; low_total_duration",
+          "importance": 0.0034933903204799775,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "low_total_duration; text_time_mismatch; weak_persona_context",
+          "importance": 0.0034672147026864088,
+          "family": "timing_engagement"
+        }
+      ]
+    },
+    "odl-switchable-glass": {
+      "n_total": 603,
+      "n_discard": 32,
+      "n_keep": 571,
+      "discard_rate": 0.05306799336650083,
+      "auc": 0.6162863131173961,
+      "top_signals": [
+        {
+          "feature": "no_strong_staged_signal",
+          "importance": 0.4119989981119131,
+          "family": "overall_signal_strength"
+        },
+        {
+          "feature": "weak_persona_context",
+          "importance": 0.31948770244870206,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "low_total_duration; text_time_mismatch; weak_persona_context",
+          "importance": 0.10728158546482501,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "low_total_duration; weak_persona_context",
+          "importance": 0.05417724672022156,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "survey_meta_substitution",
+          "importance": 0.03802166120933323,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "text_time_mismatch",
+          "importance": 0.026571471201068664,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "low_total_duration; text_time_mismatch",
+          "importance": 0.025132163446592987,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "text_time_mismatch; weak_persona_context",
+          "importance": 0.011768829528378986,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "low_total_duration",
+          "importance": 0.005560341868964482,
+          "family": "timing_engagement"
+        }
+      ]
+    },
+    "oldcastle-brand-health": {
+      "n_total": 2164,
+      "n_discard": 375,
+      "n_keep": 1789,
+      "discard_rate": 0.1732902033271719,
+      "auc": 0.5279865809285055,
+      "top_signals": [
+        {
+          "feature": "low_total_duration; weak_persona_context",
+          "importance": 0.30579532202388354,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "low_total_duration",
+          "importance": 0.20807412269533648,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "weak_persona_context",
+          "importance": 0.1730436896926334,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "high_matrix_uniformity; low_total_duration; weak_persona_context",
+          "importance": 0.07435752472907213,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "no_strong_staged_signal",
+          "importance": 0.04914583532249597,
+          "family": "overall_signal_strength"
+        },
+        {
+          "feature": "high_matrix_uniformity; weak_persona_context",
+          "importance": 0.046909992652025834,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "survey_meta_substitution",
+          "importance": 0.0445927995827212,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "high_matrix_uniformity; low_total_duration",
+          "importance": 0.04012417530904612,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "text_time_mismatch",
+          "importance": 0.030925684046156733,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "high_matrix_uniformity",
+          "importance": 0.012285279677623578,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "duplicate_open_chain",
+          "importance": 0.008440876140983428,
+          "family": "duplicate_semantics"
+        },
+        {
+          "feature": "survey_meta_substitution; low_total_duration",
+          "importance": 0.004202916184483497,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "low_total_duration; text_time_mismatch",
+          "importance": 0.0021017819435380823,
+          "family": "timing_engagement"
+        }
+      ]
+    },
+    "oldcastle-canada": {
+      "n_total": 743,
+      "n_discard": 285,
+      "n_keep": 458,
+      "discard_rate": 0.3835800807537012,
+      "auc": 0.5792150978581645,
+      "top_signals": [
+        {
+          "feature": "RD_Searchr1",
+          "importance": 0.4082645623851425,
+          "family": "platform_risk"
+        },
+        {
+          "feature": "qtime",
+          "importance": 0.2796550359895571,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "CLASSIFY",
+          "importance": 0.10838691653018603,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "age",
+          "importance": 0.08610732217614772,
+          "family": "other"
+        },
+        {
+          "feature": "thin_open_end",
+          "importance": 0.032290978092870196,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "survey_meta_substitution",
+          "importance": 0.027308752710842526,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "survey_meta_substitution; low_total_duration",
+          "importance": 0.014900991053365887,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "low_total_duration; text_time_mismatch",
+          "importance": 0.014453351360238762,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "no_strong_staged_signal",
+          "importance": 0.0104673473552918,
+          "family": "overall_signal_strength"
+        },
+        {
+          "feature": "weak_persona_context",
+          "importance": 0.008150158150894194,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "thin_open_end; low_total_duration",
+          "importance": 0.007715479279326731,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "text_time_mismatch",
+          "importance": 0.002007183326558838,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "low_total_duration",
+          "importance": 0.0002919215895778505,
+          "family": "timing_engagement"
+        }
+      ]
+    },
+    "sbd-brand-association": {
+      "n_total": 787,
+      "n_discard": 350,
+      "n_keep": 437,
+      "discard_rate": 0.44472681067344344,
+      "auc": 0.5579139902592902,
+      "top_signals": [
+        {
+          "feature": "low_total_duration",
+          "importance": 0.49447983417697344,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "no_strong_staged_signal",
+          "importance": 0.14512696592536323,
+          "family": "overall_signal_strength"
+        },
+        {
+          "feature": "high_matrix_uniformity",
+          "importance": 0.12132990015401357,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "text_time_mismatch",
+          "importance": 0.06184651005643514,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "duplicate_open_chain",
+          "importance": 0.05138369039535159,
+          "family": "duplicate_semantics"
+        },
+        {
+          "feature": "low_total_duration; text_time_mismatch",
+          "importance": 0.033349925736067876,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "high_matrix_uniformity; low_total_duration",
+          "importance": 0.029017185091843006,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "survey_meta_substitution",
+          "importance": 0.027744346699916305,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "q16",
+          "importance": 0.011254929395205964,
+          "family": "other"
+        },
+        {
+          "feature": "duplicate_open_chain; low_total_duration",
+          "importance": 0.011244019815583676,
+          "family": "duplicate_semantics"
+        },
+        {
+          "feature": "qtime",
+          "importance": 0.005028006127922547,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "q1",
+          "importance": 0.0031812155951142823,
+          "family": "other"
+        },
+        {
+          "feature": "CLASSIFY",
+          "importance": 0.0021449994657834048,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "age",
+          "importance": 0.0018657490852629262,
+          "family": "other"
+        },
+        {
+          "feature": "RD_Searchr1",
+          "importance": 0.0007385090263387125,
+          "family": "platform_risk"
+        },
+        {
+          "feature": "REGION",
+          "importance": 0.000264213252824405,
+          "family": "other"
+        }
+      ]
+    },
+    "tfg-contractor-index-q1": {
+      "n_total": 878,
+      "n_discard": 97,
+      "n_keep": 781,
+      "discard_rate": 0.11047835990888383,
+      "auc": 0.6480957550192464,
+      "top_signals": [
+        {
+          "feature": "CLASSIFY",
+          "importance": 0.28116246701380565,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "qtime",
+          "importance": 0.21656497813031594,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "age",
+          "importance": 0.16827991708403361,
+          "family": "other"
+        },
+        {
+          "feature": "RD_Searchr1",
+          "importance": 0.12802853779789064,
+          "family": "platform_risk"
+        },
+        {
+          "feature": "duplicate_open_chain",
+          "importance": 0.1043307003874991,
+          "family": "duplicate_semantics"
+        },
+        {
+          "feature": "duplicate_open_chain; low_total_duration",
+          "importance": 0.07313533589556613,
+          "family": "duplicate_semantics"
+        },
+        {
+          "feature": "thin_open_end",
+          "importance": 0.012361669936560562,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "REGION",
+          "importance": 0.009680739079441772,
+          "family": "other"
+        },
+        {
+          "feature": "low_total_duration",
+          "importance": 0.0043483543495557485,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "thin_open_end; duplicate_open_chain",
+          "importance": 0.0013970652758903796,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "no_strong_staged_signal",
+          "importance": 0.00041697318314198824,
+          "family": "overall_signal_strength"
+        },
+        {
+          "feature": "thin_open_end; low_total_duration",
+          "importance": 0.0002932618662985928,
+          "family": "core_oe_quality"
+        }
+      ]
+    },
+    "tfg-contractor-index-q2": {
+      "n_total": 1117,
+      "n_discard": 402,
+      "n_keep": 715,
+      "discard_rate": 0.35989256938227393,
+      "auc": 0.8220886399898122,
+      "top_signals": [
+        {
+          "feature": "qtime",
+          "importance": 0.4897780390882458,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "CLASSIFY",
+          "importance": 0.40749193606618217,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "RD_Searchr1",
+          "importance": 0.04466005540392523,
+          "family": "platform_risk"
+        },
+        {
+          "feature": "age",
+          "importance": 0.03482379241156321,
+          "family": "other"
+        },
+        {
+          "feature": "REGION",
+          "importance": 0.0075405915982583475,
+          "family": "other"
+        },
+        {
+          "feature": "low_total_duration",
+          "importance": 0.005316321003470108,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "thin_open_end; duplicate_open_chain",
+          "importance": 0.003825941260931977,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "thin_open_end",
+          "importance": 0.003083450087678185,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "text_time_mismatch",
+          "importance": 0.001116842526820095,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "thin_open_end; low_total_duration",
+          "importance": 0.0010694798458710294,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "no_strong_staged_signal",
+          "importance": 0.000571157983485941,
+          "family": "overall_signal_strength"
+        },
+        {
+          "feature": "low_total_duration; text_time_mismatch",
+          "importance": 0.0004141242490764123,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "duplicate_open_chain",
+          "importance": 0.00018667084317684128,
+          "family": "duplicate_semantics"
+        },
+        {
+          "feature": "thin_open_end; duplicate_open_chain; low_total_duration",
+          "importance": 0.0001215976313146492,
+          "family": "core_oe_quality"
+        }
+      ]
+    },
+    "thd-digital-cx": {
+      "n_total": 1905,
+      "n_discard": 118,
+      "n_keep": 1787,
+      "discard_rate": 0.06194225721784777,
+      "auc": 0.6813380773062968,
+      "top_signals": [
+        {
+          "feature": "qtime",
+          "importance": 0.38222730639500097,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "RD_Searchr1",
+          "importance": 0.23805479375990524,
+          "family": "platform_risk"
+        },
+        {
+          "feature": "q1",
+          "importance": 0.10511222083379944,
+          "family": "other"
+        },
+        {
+          "feature": "duplicate_open_chain",
+          "importance": 0.09816324680646932,
+          "family": "duplicate_semantics"
+        },
+        {
+          "feature": "no_strong_staged_signal",
+          "importance": 0.0457904314891604,
+          "family": "overall_signal_strength"
+        },
+        {
+          "feature": "duplicate_open_chain; low_total_duration; text_time_mismatch",
+          "importance": 0.04100212809172751,
+          "family": "duplicate_semantics"
+        },
+        {
+          "feature": "CLASSIFY",
+          "importance": 0.027938211269494966,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "thin_open_end",
+          "importance": 0.024194363669459366,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "REGION",
+          "importance": 0.016112304242796086,
+          "family": "other"
+        },
+        {
+          "feature": "low_total_duration",
+          "importance": 0.006479599521103167,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "age",
+          "importance": 0.004864305332253052,
+          "family": "other"
+        },
+        {
+          "feature": "survey_meta_substitution",
+          "importance": 0.0039646586335542544,
+          "family": "survey_structure"
+        },
+        {
+          "feature": "low_total_duration; text_time_mismatch",
+          "importance": 0.0028783004644889255,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "thin_open_end; duplicate_open_chain",
+          "importance": 0.0022846767760136334,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "text_time_mismatch",
+          "importance": 0.0005794540191373511,
+          "family": "timing_engagement"
+        },
+        {
+          "feature": "thin_open_end; low_total_duration",
+          "importance": 0.00027694686170905814,
+          "family": "core_oe_quality"
+        },
+        {
+          "feature": "high_matrix_uniformity; low_total_duration",
+          "importance": 7.705183392732069e-05,
+          "family": "timing_engagement"
+        }
+      ]
+    }
+  },
+  "universal_signals": [
+    {
+      "feature": "low_total_duration",
+      "family": "timing_engagement",
+      "n_datasets": 10,
+      "datasets": [
+        "addo-racetrac-us-gp",
+        "delta-water-filtration",
+        "masterlock-conjoint",
+        "odl-switchable-glass",
+        "oldcastle-brand-health",
+        "oldcastle-canada",
+        "sbd-brand-association",
+        "tfg-contractor-index-q1",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "mean_importance": 0.15795582817583528,
+      "max_importance": 0.779219235112382
+    },
+    {
+      "feature": "text_time_mismatch",
+      "family": "timing_engagement",
+      "n_datasets": 9,
+      "datasets": [
+        "addo-racetrac-us-gp",
+        "delta-water-filtration",
+        "masterlock-conjoint",
+        "odl-switchable-glass",
+        "oldcastle-brand-health",
+        "oldcastle-canada",
+        "sbd-brand-association",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "mean_importance": 0.016100454071612324,
+      "max_importance": 0.06184651005643514
+    },
+    {
+      "feature": "no_strong_staged_signal",
+      "family": "overall_signal_strength",
+      "n_datasets": 9,
+      "datasets": [
+        "addo-racetrac-us-gp",
+        "masterlock-conjoint",
+        "odl-switchable-glass",
+        "oldcastle-brand-health",
+        "oldcastle-canada",
+        "sbd-brand-association",
+        "tfg-contractor-index-q1",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "mean_importance": 0.07498360007066636,
+      "max_importance": 0.4119989981119131
+    },
+    {
+      "feature": "low_total_duration; text_time_mismatch",
+      "family": "timing_engagement",
+      "n_datasets": 8,
+      "datasets": [
+        "addo-racetrac-us-gp",
+        "delta-water-filtration",
+        "odl-switchable-glass",
+        "oldcastle-brand-health",
+        "oldcastle-canada",
+        "sbd-brand-association",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "mean_importance": 0.013068391280341103,
+      "max_importance": 0.033349925736067876
+    },
+    {
+      "feature": "survey_meta_substitution",
+      "family": "survey_structure",
+      "n_datasets": 7,
+      "datasets": [
+        "addo-racetrac-us-gp",
+        "delta-water-filtration",
+        "odl-switchable-glass",
+        "oldcastle-brand-health",
+        "oldcastle-canada",
+        "sbd-brand-association",
+        "thd-digital-cx"
+      ],
+      "mean_importance": 0.1444096410858294,
+      "max_importance": 0.732687438103471
+    },
+    {
+      "feature": "thin_open_end; low_total_duration",
+      "family": "core_oe_quality",
+      "n_datasets": 6,
+      "datasets": [
+        "delta-water-filtration",
+        "masterlock-conjoint",
+        "oldcastle-canada",
+        "tfg-contractor-index-q1",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "mean_importance": 0.011074543885325423,
+      "max_importance": 0.053598705138267165
+    },
+    {
+      "feature": "thin_open_end",
+      "family": "core_oe_quality",
+      "n_datasets": 6,
+      "datasets": [
+        "delta-water-filtration",
+        "masterlock-conjoint",
+        "oldcastle-canada",
+        "tfg-contractor-index-q1",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "mean_importance": 0.01786045522820158,
+      "max_importance": 0.032290978092870196
+    },
+    {
+      "feature": "qtime",
+      "family": "timing_engagement",
+      "n_datasets": 6,
+      "datasets": [
+        "masterlock-conjoint",
+        "oldcastle-canada",
+        "sbd-brand-association",
+        "tfg-contractor-index-q1",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "mean_importance": 0.31771083845248477,
+      "max_importance": 0.5330116649838662
+    },
+    {
+      "feature": "RD_Searchr1",
+      "family": "platform_risk",
+      "n_datasets": 6,
+      "datasets": [
+        "masterlock-conjoint",
+        "oldcastle-canada",
+        "sbd-brand-association",
+        "tfg-contractor-index-q1",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "mean_importance": 0.1586887082380728,
+      "max_importance": 0.4082645623851425
+    },
+    {
+      "feature": "age",
+      "family": "other",
+      "n_datasets": 6,
+      "datasets": [
+        "masterlock-conjoint",
+        "oldcastle-canada",
+        "sbd-brand-association",
+        "tfg-contractor-index-q1",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "mean_importance": 0.058692721706665625,
+      "max_importance": 0.16827991708403361
+    },
+    {
+      "feature": "CLASSIFY",
+      "family": "survey_structure",
+      "n_datasets": 6,
+      "datasets": [
+        "masterlock-conjoint",
+        "oldcastle-canada",
+        "sbd-brand-association",
+        "tfg-contractor-index-q1",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "mean_importance": 0.14046712504719944,
+      "max_importance": 0.40749193606618217
+    },
+    {
+      "feature": "weak_persona_context",
+      "family": "core_oe_quality",
+      "n_datasets": 5,
+      "datasets": [
+        "echo-bh",
+        "masterlock-conjoint",
+        "odl-switchable-glass",
+        "oldcastle-brand-health",
+        "oldcastle-canada"
+      ],
+      "mean_importance": 0.12456392020040064,
+      "max_importance": 0.31948770244870206
+    },
+    {
+      "feature": "REGION",
+      "family": "other",
+      "n_datasets": 5,
+      "datasets": [
+        "masterlock-conjoint",
+        "sbd-brand-association",
+        "tfg-contractor-index-q1",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "mean_importance": 0.023931024965826657,
+      "max_importance": 0.08605727665581268
+    },
+    {
+      "feature": "duplicate_open_chain",
+      "family": "duplicate_semantics",
+      "n_datasets": 5,
+      "datasets": [
+        "oldcastle-brand-health",
+        "sbd-brand-association",
+        "tfg-contractor-index-q1",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "mean_importance": 0.052501036914696056,
+      "max_importance": 0.1043307003874991
+    },
+    {
+      "feature": "survey_meta_substitution; low_total_duration",
+      "family": "survey_structure",
+      "n_datasets": 4,
+      "datasets": [
+        "addo-racetrac-us-gp",
+        "delta-water-filtration",
+        "oldcastle-brand-health",
+        "oldcastle-canada"
+      ],
+      "mean_importance": 0.015525169727863272,
+      "max_importance": 0.041642018556721505
+    },
+    {
+      "feature": "thin_open_end; duplicate_open_chain",
+      "family": "core_oe_quality",
+      "n_datasets": 4,
+      "datasets": [
+        "delta-water-filtration",
+        "tfg-contractor-index-q1",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "mean_importance": 0.009853231362236396,
+      "max_importance": 0.03190524213610959
+    },
+    {
+      "feature": "low_total_duration; weak_persona_context",
+      "family": "timing_engagement",
+      "n_datasets": 4,
+      "datasets": [
+        "echo-bh",
+        "masterlock-conjoint",
+        "odl-switchable-glass",
+        "oldcastle-brand-health"
+      ],
+      "mean_importance": 0.11439655013646746,
+      "max_importance": 0.30579532202388354
+    },
+    {
+      "feature": "text_time_mismatch; weak_persona_context",
+      "family": "timing_engagement",
+      "n_datasets": 3,
+      "datasets": [
+        "echo-bh",
+        "masterlock-conjoint",
+        "odl-switchable-glass"
+      ],
+      "mean_importance": 0.008707751269002785,
+      "max_importance": 0.013480789380734012
+    },
+    {
+      "feature": "low_total_duration; text_time_mismatch; weak_persona_context",
+      "family": "timing_engagement",
+      "n_datasets": 3,
+      "datasets": [
+        "echo-bh",
+        "masterlock-conjoint",
+        "odl-switchable-glass"
+      ],
+      "mean_importance": 0.03720016768906647,
+      "max_importance": 0.10728158546482501
+    },
+    {
+      "feature": "high_matrix_uniformity; low_total_duration",
+      "family": "timing_engagement",
+      "n_datasets": 3,
+      "datasets": [
+        "oldcastle-brand-health",
+        "sbd-brand-association",
+        "thd-digital-cx"
+      ],
+      "mean_importance": 0.02307280407827215,
+      "max_importance": 0.04012417530904612
+    }
+  ],
+  "dataset_specific_signals": {
+    "delta-water-filtration": [
+      {
+        "feature": "survey_meta_substitution; thin_open_end",
+        "importance": 0.017224288340770395,
+        "family": "survey_structure"
+      }
+    ],
+    "echo-bh": [
+      {
+        "feature": "duplicate_open_chain; weak_persona_context",
+        "importance": 0.7174042742673598,
+        "family": "duplicate_semantics"
+      },
+      {
+        "feature": "survey_meta_substitution; low_total_duration; text_time_mismatch; weak_persona_context",
+        "importance": 0.10891911592615675,
+        "family": "survey_structure"
+      }
+    ],
+    "masterlock-conjoint": [
+      {
+        "feature": "thin_open_end; low_total_duration; weak_persona_context",
+        "importance": 0.021196047534693774,
+        "family": "core_oe_quality"
+      },
+      {
+        "feature": "survey_meta_substitution; weak_persona_context",
+        "importance": 0.019204769092188254,
+        "family": "survey_structure"
+      },
+      {
+        "feature": "thin_open_end; weak_persona_context",
+        "importance": 0.01263625015161239,
+        "family": "core_oe_quality"
+      }
+    ],
+    "oldcastle-brand-health": [
+      {
+        "feature": "high_matrix_uniformity; low_total_duration; weak_persona_context",
+        "importance": 0.07435752472907213,
+        "family": "timing_engagement"
+      },
+      {
+        "feature": "high_matrix_uniformity; weak_persona_context",
+        "importance": 0.046909992652025834,
+        "family": "timing_engagement"
+      }
+    ],
+    "sbd-brand-association": [
+      {
+        "feature": "q16",
+        "importance": 0.011254929395205964,
+        "family": "other"
+      }
+    ],
+    "thd-digital-cx": [
+      {
+        "feature": "duplicate_open_chain; low_total_duration; text_time_mismatch",
+        "importance": 0.04100212809172751,
+        "family": "duplicate_semantics"
+      }
+    ]
+  },
+  "family_correlations": {
+    "duplicate_semantics": {
+      "mean_correlation": 0.04187146434930858,
+      "median_correlation": 0.0,
+      "std_correlation": 0.0833024848881867,
+      "n_datasets": 11,
+      "datasets": [
+        "addo-racetrac-us-gp",
+        "delta-water-filtration",
+        "echo-bh",
+        "masterlock-conjoint",
+        "odl-switchable-glass",
+        "oldcastle-brand-health",
+        "oldcastle-canada",
+        "sbd-brand-association",
+        "tfg-contractor-index-q1",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "correlations": {
+        "addo-racetrac-us-gp": 0.0,
+        "delta-water-filtration": 0.0,
+        "echo-bh": -0.08644057391195109,
+        "masterlock-conjoint": 0.0,
+        "odl-switchable-glass": 0.0,
+        "oldcastle-brand-health": -0.013925077361666852,
+        "oldcastle-canada": 0.0,
+        "sbd-brand-association": 0.07986487402191295,
+        "tfg-contractor-index-q1": 0.1956247246991435,
+        "tfg-contractor-index-q2": 0.10695312227827462,
+        "thd-digital-cx": 0.17850903811668126
+      },
+      "direction": "positive"
+    },
+    "timing_engagement": {
+      "mean_correlation": 0.07338479614347285,
+      "median_correlation": 0.06214030036319741,
+      "std_correlation": 0.10772745140034488,
+      "n_datasets": 11,
+      "datasets": [
+        "addo-racetrac-us-gp",
+        "delta-water-filtration",
+        "echo-bh",
+        "masterlock-conjoint",
+        "odl-switchable-glass",
+        "oldcastle-brand-health",
+        "oldcastle-canada",
+        "sbd-brand-association",
+        "tfg-contractor-index-q1",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "correlations": {
+        "addo-racetrac-us-gp": 0.19703057033939508,
+        "delta-water-filtration": -0.056363377895550654,
+        "echo-bh": 0.06214030036319741,
+        "masterlock-conjoint": -0.01586306706375899,
+        "odl-switchable-glass": 0.20135247263461709,
+        "oldcastle-brand-health": 0.08797892878023898,
+        "oldcastle-canada": -0.05483888508851691,
+        "sbd-brand-association": 0.041342506573715666,
+        "tfg-contractor-index-q1": 0.06317215391121268,
+        "tfg-contractor-index-q2": 0.2893601823427876,
+        "thd-digital-cx": -0.008079027319136721
+      },
+      "direction": "positive"
+    },
+    "overall_signal_strength": {
+      "mean_correlation": -0.03816562612063654,
+      "median_correlation": -0.021731281662042964,
+      "std_correlation": 0.08698624991143872,
+      "n_datasets": 11,
+      "datasets": [
+        "addo-racetrac-us-gp",
+        "delta-water-filtration",
+        "echo-bh",
+        "masterlock-conjoint",
+        "odl-switchable-glass",
+        "oldcastle-brand-health",
+        "oldcastle-canada",
+        "sbd-brand-association",
+        "tfg-contractor-index-q1",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "correlations": {
+        "addo-racetrac-us-gp": -0.021731281662042964,
+        "delta-water-filtration": -0.10748260938431294,
+        "echo-bh": 0.0,
+        "masterlock-conjoint": 0.03459398356864427,
+        "odl-switchable-glass": -0.1569129387685183,
+        "oldcastle-brand-health": -0.04914900228637298,
+        "oldcastle-canada": -0.020730738205344525,
+        "sbd-brand-association": -0.216898976675245,
+        "tfg-contractor-index-q1": -0.027967840628451764,
+        "tfg-contractor-index-q2": 0.07593240392884515,
+        "thd-digital-cx": 0.07052511278579719
+      },
+      "direction": "negative"
+    },
+    "core_oe_quality": {
+      "mean_correlation": -0.03030312897622732,
+      "median_correlation": -0.04280975209504745,
+      "std_correlation": 0.052105083483352826,
+      "n_datasets": 11,
+      "datasets": [
+        "addo-racetrac-us-gp",
+        "delta-water-filtration",
+        "echo-bh",
+        "masterlock-conjoint",
+        "odl-switchable-glass",
+        "oldcastle-brand-health",
+        "oldcastle-canada",
+        "sbd-brand-association",
+        "tfg-contractor-index-q1",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "correlations": {
+        "addo-racetrac-us-gp": 0.0,
+        "delta-water-filtration": -0.04280975209504745,
+        "echo-bh": 0.05727168262209264,
+        "masterlock-conjoint": -0.05817628894729629,
+        "odl-switchable-glass": 0.03421217420286266,
+        "oldcastle-brand-health": -0.072020337331222,
+        "oldcastle-canada": -0.10502971123724536,
+        "sbd-brand-association": 0.0,
+        "tfg-contractor-index-q1": 0.01611069933819358,
+        "tfg-contractor-index-q2": -0.06481861976145442,
+        "thd-digital-cx": -0.09807426552938389
+      },
+      "direction": "negative"
+    },
+    "survey_structure": {
+      "mean_correlation": 0.022981915711228203,
+      "median_correlation": 0.004873386729314266,
+      "std_correlation": 0.07432742003085893,
+      "n_datasets": 11,
+      "datasets": [
+        "addo-racetrac-us-gp",
+        "delta-water-filtration",
+        "echo-bh",
+        "masterlock-conjoint",
+        "odl-switchable-glass",
+        "oldcastle-brand-health",
+        "oldcastle-canada",
+        "sbd-brand-association",
+        "tfg-contractor-index-q1",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "correlations": {
+        "addo-racetrac-us-gp": -0.09671074589272999,
+        "delta-water-filtration": 0.15864744658932173,
+        "echo-bh": 0.048399266568900465,
+        "masterlock-conjoint": -0.009979980469046155,
+        "odl-switchable-glass": -0.016739479012747492,
+        "oldcastle-brand-health": 0.028824741466029966,
+        "oldcastle-canada": -0.04879542875190809,
+        "sbd-brand-association": 0.06926796110095752,
+        "tfg-contractor-index-q1": 0.004873386729314266,
+        "tfg-contractor-index-q2": 0.1432041899890361,
+        "thd-digital-cx": -0.028190285493618072
+      },
+      "direction": "positive"
+    },
+    "platform_risk": {
+      "mean_correlation": 0.0860946212373729,
+      "median_correlation": 0.0031697908069771583,
+      "std_correlation": 0.1321892609690519,
+      "n_datasets": 11,
+      "datasets": [
+        "addo-racetrac-us-gp",
+        "delta-water-filtration",
+        "echo-bh",
+        "masterlock-conjoint",
+        "odl-switchable-glass",
+        "oldcastle-brand-health",
+        "oldcastle-canada",
+        "sbd-brand-association",
+        "tfg-contractor-index-q1",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "correlations": {
+        "addo-racetrac-us-gp": 0.0,
+        "delta-water-filtration": 0.0,
+        "echo-bh": 0.0,
+        "masterlock-conjoint": 0.0031697908069771583,
+        "odl-switchable-glass": 0.0,
+        "oldcastle-brand-health": 0.0,
+        "oldcastle-canada": 0.1915675230102909,
+        "sbd-brand-association": 0.03985615721444532,
+        "tfg-contractor-index-q1": 0.17855669233282323,
+        "tfg-contractor-index-q2": 0.4416598690895444,
+        "thd-digital-cx": 0.09223080115702083
+      },
+      "direction": "positive"
+    },
+    "other": {
+      "mean_correlation": 0.032443401732807624,
+      "median_correlation": 0.0,
+      "std_correlation": 0.10612086884573903,
+      "n_datasets": 11,
+      "datasets": [
+        "addo-racetrac-us-gp",
+        "delta-water-filtration",
+        "echo-bh",
+        "masterlock-conjoint",
+        "odl-switchable-glass",
+        "oldcastle-brand-health",
+        "oldcastle-canada",
+        "sbd-brand-association",
+        "tfg-contractor-index-q1",
+        "tfg-contractor-index-q2",
+        "thd-digital-cx"
+      ],
+      "correlations": {
+        "addo-racetrac-us-gp": 0.0,
+        "delta-water-filtration": 0.0,
+        "echo-bh": 0.0,
+        "masterlock-conjoint": -0.010728964586651311,
+        "odl-switchable-glass": 0.0,
+        "oldcastle-brand-health": 0.0,
+        "oldcastle-canada": -0.09435080067947599,
+        "sbd-brand-association": 0.03985615721444532,
+        "tfg-contractor-index-q1": 0.10197879781536938,
+        "tfg-contractor-index-q2": 0.3378416686181564,
+        "thd-digital-cx": -0.01771943932095991
+      },
+      "direction": "positive"
+    }
+  },
+  "global_model": {
+    "auc": 0.4993945432498528,
+    "top_signals": [
+      {
+        "feature": "CLASSIFY",
+        "importance": 0.3552507176406656,
+        "family": "survey_structure"
+      },
+      {
+        "feature": "qtime",
+        "importance": 0.14856159747666028,
+        "family": "timing_engagement"
+      },
+      {
+        "feature": "RD_Searchr1",
+        "importance": 0.13679360969081267,
+        "family": "platform_risk"
+      },
+      {
+        "feature": "thin_open_end",
+        "importance": 0.08118986410651086,
+        "family": "core_oe_quality"
+      },
+      {
+        "feature": "no_strong_staged_signal",
+        "importance": 0.05478071249599348,
+        "family": "overall_signal_strength"
+      },
+      {
+        "feature": "q1",
+        "importance": 0.05039293687360453,
+        "family": "other"
+      },
+      {
+        "feature": "REGION",
+        "importance": 0.03981360199771586,
+        "family": "other"
+      },
+      {
+        "feature": "age",
+        "importance": 0.02141267733348398,
+        "family": "other"
+      },
+      {
+        "feature": "low_total_duration",
+        "importance": 0.017110802975286422,
+        "family": "timing_engagement"
+      },
+      {
+        "feature": "duplicate_open_chain",
+        "importance": 0.015668886326485228,
+        "family": "duplicate_semantics"
+      },
+      {
+        "feature": "thin_open_end; low_total_duration",
+        "importance": 0.012661468660171477,
+        "family": "core_oe_quality"
+      },
+      {
+        "feature": "duplicate_open_chain; low_total_duration; weak_persona_context",
+        "importance": 0.010776439359877262,
+        "family": "duplicate_semantics"
+      },
+      {
+        "feature": "duplicate_open_chain; low_total_duration",
+        "importance": 0.005847644193429821,
+        "family": "duplicate_semantics"
+      },
+      {
+        "feature": "thin_open_end; duplicate_open_chain",
+        "importance": 0.005312174790419046,
+        "family": "core_oe_quality"
+      },
+      {
+        "feature": "weak_persona_context",
+        "importance": 0.005311254750471037,
+        "family": "core_oe_quality"
+      },
+      {
+        "feature": "thin_open_end; weak_persona_context",
+        "importance": 0.005206889050564787,
+        "family": "core_oe_quality"
+      },
+      {
+        "feature": "low_total_duration; weak_persona_context",
+        "importance": 0.005203822928306868,
+        "family": "timing_engagement"
+      },
+      {
+        "feature": "survey_meta_substitution; low_total_duration; text_time_mismatch; weak_persona_context",
+        "importance": 0.0036824206851574577,
+        "family": "survey_structure"
+      },
+      {
+        "feature": "duplicate_open_chain; weak_persona_context",
+        "importance": 0.00338559520741958,
+        "family": "duplicate_semantics"
+      },
+      {
+        "feature": "high_matrix_uniformity; weak_persona_context",
+        "importance": 0.0027026284424973577,
+        "family": "timing_engagement"
+      },
+      {
+        "feature": "high_matrix_uniformity",
+        "importance": 0.002669834038499229,
+        "family": "timing_engagement"
+      },
+      {
+        "feature": "thin_open_end; low_total_duration; weak_persona_context",
+        "importance": 0.0024006347009847494,
+        "family": "core_oe_quality"
+      },
+      {
+        "feature": "q16",
+        "importance": 0.0020090841882240327,
+        "family": "other"
+      },
+      {
+        "feature": "survey_meta_substitution; weak_persona_context",
+        "importance": 0.0018220525445273054,
+        "family": "survey_structure"
+      },
+      {
+        "feature": "high_matrix_uniformity; low_total_duration; weak_persona_context",
+        "importance": 0.0018213397713949398,
+        "family": "timing_engagement"
+      },
+      {
+        "feature": "duplicate_open_chain; low_total_duration; text_time_mismatch",
+        "importance": 0.0018208958042259787,
+        "family": "duplicate_semantics"
+      },
+      {
+        "feature": "survey_meta_substitution; low_total_duration; text_time_mismatch",
+        "importance": 0.00133488116541745,
+        "family": "survey_structure"
+      },
+      {
+        "feature": "survey_meta_substitution",
+        "importance": 0.0012960890960630645,
+        "family": "survey_structure"
+      },
+      {
+        "feature": "high_matrix_uniformity; low_total_duration",
+        "importance": 0.0009232878021774993,
+        "family": "timing_engagement"
+      },
+      {
+        "feature": "low_total_duration; text_time_mismatch; weak_persona_context",
+        "importance": 0.0006446305112897774,
+        "family": "timing_engagement"
+      }
+    ],
+    "n_total": 13388,
+    "n_discard": 3124,
+    "n_keep": 10264
+  }
+}

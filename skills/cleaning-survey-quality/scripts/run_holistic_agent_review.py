@@ -615,6 +615,32 @@ def get_quota_reconstruction(row, hidx, datamap, headers, df=None, idx=None):
     return quota
 
 
+def load_ml_signal_correlations():
+    """Load cross-corpus ML signal correlation data for injection into review packets.
+
+    Returns a dict with:
+    - family_correlations: per-family mean correlation with client discard
+    - universal_signals: signals that fire across 3+ datasets
+    - global_top_signals: top features from the global model
+    - per_dataset_signals: dataset-specific top signals (if dataset name matches)
+    """
+    corr_path = Path(__file__).parent.parent / "evolution" / "ml-signal-correlation" / "cross_corpus_signal_correlation.json"
+    if not corr_path.exists():
+        return None
+    try:
+        with open(corr_path) as f:
+            data = json.load(f)
+        return {
+            "family_correlations": data.get("family_correlations", {}),
+            "universal_signals": data.get("universal_signals", [])[:10],
+            "global_top_signals": data.get("global_model", {}).get("top_signals", [])[:10],
+            "global_auc": data.get("global_model", {}).get("auc", 0),
+            "corpus_stats": data.get("corpus_stats", {}),
+        }
+    except Exception:
+        return None
+
+
 def build_holistic_review_packets(filepath, output_dir, review_all=False, chunk_size=200):
     """Build comprehensive review packets for all respondents."""
     filepath = Path(filepath)
@@ -626,6 +652,15 @@ def build_holistic_review_packets(filepath, output_dir, review_all=False, chunk_
     print(f"{'='*80}")
     print(f"  Input: {filepath.name}")
     print(f"  Output: {output_dir}")
+
+    # Load cross-corpus ML signal correlations
+    ml_correlations = load_ml_signal_correlations()
+    if ml_correlations:
+        print(f"  ML correlations loaded: {ml_correlations['corpus_stats'].get('total_respondents', 0)} respondents, "
+              f"{ml_correlations['corpus_stats'].get('n_datasets', 0)} datasets, "
+              f"global AUC={ml_correlations['global_auc']:.3f}")
+    else:
+        print(f"  ML correlations: not found (run cross_corpus_signal_correlation.py first)")
 
     # Load workbook
     wb = openpyxl.load_workbook(filepath, read_only=True, data_only=True)
@@ -886,6 +921,31 @@ def build_holistic_review_packets(filepath, output_dir, review_all=False, chunk_
             "matrix_unique_ratio": round(float(df_row.get("matrix_unique_ratio", 0)), 3),
             "oe_total_chars": int(df_row.get("oe_total_chars", 0)),
         }
+
+        # Inject cross-corpus ML signal correlations (same for all packets, but agents need it in context)
+        if ml_correlations:
+            packet["ml_signal_correlations"] = {
+                "family_correlations": {
+                    fam: {
+                        "mean_correlation": data["mean_correlation"],
+                        "direction": data["direction"],
+                        "n_datasets": data["n_datasets"],
+                    }
+                    for fam, data in ml_correlations["family_correlations"].items()
+                },
+                "universal_signals": [
+                    {"feature": s["feature"], "family": s["family"], "n_datasets": s["n_datasets"]}
+                    for s in ml_correlations["universal_signals"]
+                ],
+                "global_top_signals": [
+                    {"feature": s["feature"], "family": s["family"], "importance": s["importance"]}
+                    for s in ml_correlations["global_top_signals"]
+                ],
+                "corpus_stats": {
+                    "total_respondents": ml_correlations["corpus_stats"].get("total_respondents", 0),
+                    "n_datasets": ml_correlations["corpus_stats"].get("n_datasets", 0),
+                },
+            }
         review_packets.append(packet)
 
     print(f"  Total packets: {len(review_packets)}")
@@ -937,48 +997,267 @@ def build_holistic_review_packets(filepath, output_dir, review_all=False, chunk_
 def build_agent_instructions(n_respondents, n_chunks, matrix_prevalence, dataset_name):
     """Build detailed instructions for the reviewing agent."""
 
-    return f"""# Holistic Agent Review Instructions — v5 (Two-Stage: Fraud + Quality)
+    return f"""# Holistic Agent Review Instructions — v6 (Three-Component + Disposition Layer)
 
 ## Task
 
 Read the file `review_chunk_XX.json` (assigned to you). It contains ~200 respondent review packets.
 
-For each respondent, you must read ALL signals holistically and assign:
-- `agent_score`: -1.0 to +1.0
-  - -1.0 = clear discard (fraud, bot, incoherent, or fails PM quality bar)
-  - -0.5 = lean discard (multiple converging concerns)
-  - 0.0 = uncertain / needs human review
-  - +0.5 = lean keep (minor concerns but coherent)
-  - +1.0 = clear keep (genuine, engaged respondent)
-- `agent_judgment`: "DISCARD", "REVIEW", or "KEEP"
-  - DISCARD: agent_score < -0.3
-  - REVIEW: agent_score -0.3 to 0
-  - KEEP: agent_score > 0
-- `agent_justification`: 2-4 sentence explanation citing specific evidence
+For each respondent, you must read ALL signals holistically and produce a STRUCTURED judgment
+with three separate risk scores, a disposition layer, per-evidence-family firing, a badopen
+audit trail, OE semantic classification, and ML analysis context.
+
+## Three-Component Scoring
+
+We no longer treat every removal as a "bad respondent" signal. We separate:
+
+1. **authenticity_risk** (0.0–1.0): Is this respondent real?
+   - 0.0 = clearly genuine human
+   - 0.3 = minor platform concerns
+   - 0.5 = ambiguous (could be AI or human)
+   - 0.7 = likely fraud (platform flags, AI text, gibberish)
+   - 0.9 = certain fraud (TERMFLAGS=1 + AI text + gibberish)
+
+2. **quality_discard_risk** (0.0–1.0): Does the content fail the PM quality bar?
+   - 0.0 = substantive, grounded, on-topic
+   - 0.3 = thin but on-topic
+   - 0.5 = off-topic or fails answer-role
+   - 0.7 = short non-answer or product-copy register
+   - 0.9 = gibberish or completely nonresponsive
+
+3. **client_reject_probability** (0.0–1.0): Would the client discard this?
+   - This accounts for quota, badopen, classification, and source logic
+   - 0.0 = client would keep (substantive OE, coherent structure)
+   - 0.3 = client might review (thin OE but on-topic)
+   - 0.5 = client likely discards (badopen trigger + thin OE)
+   - 0.7 = client very likely discards (off-topic + ML high + quota over-filled)
+   - 0.9 = client certainly discards (TERMFLAGS + gibberish + wrong brand universe)
+
+## Disposition Layer
+
+Assign a primary and secondary removal reason from this enum:
+- `quality_auth_failure` — OE fails role test, off-topic, gibberish, AI text, platform fraud
+- `quota_balancing` — respondent in over-filled quota cell, marginal quality
+- `eligibility_screenout` — fails screener, wrong classification branch
+- `partial_incomplete` — missing required fields, abandoned survey
+- `vendor_source` — supplier reject rate, RD_Search threat
+- `manual_admin` — human reviewer judgment, not detectable from data
+- `unknown_mixed` — converging signals but no single clear cause
+- `none` — no removal reason (KEEP)
+
+## Badopen Audit Trail
+
+For every respondent, classify the badopen trigger (even if the OE is good — use `none`):
+- `duplicate_text` — OE text matches or closely paraphrases other respondents
+- `too_short` — OE is under ~20 characters with no substantive content
+- `pasted_text` — OE shows formatting artifacts, line breaks, or copy-paste markers
+- `wrong_topic` — OE describes a project in the wrong domain
+- `profanity` — OE contains profanity or abusive content
+- `ai_like_similarity` — OE has AI-template language, benefit-stack, feature-list register
+- `nonresponsive` — OE doesn't answer the question (e.g., "N/A", "good", "yes")
+- `human_reviewer` — OE is borderline; a human would need to decide
+- `none` — OE passes all badopen checks
 
 ## Output Format
 
-Write to `agent_judgments_chunk_XX.json` as a JSON array:
+Write to `agent_judgments_chunk_XX.json` as a JSON array. EVERY field is required.
+Use null for fields that don't apply, but include all keys.
+
 ```json
 [
   {{
     "respondent_id": "abc123",
     "agent_score": -0.7,
     "agent_judgment": "DISCARD",
-    "agent_justification": "Core OE ('mowing and blowing') is on-topic but lacks substantive engagement with OPE — no equipment named, no project detail. CLASSIFY=2 (consumer) but brand funnel shows no brand awareness consistency. ML=0.72. Thin answer with converging quality concerns."
+    "agent_justification": "Core OE ('mowing and blowing') is on-topic but thin — no equipment named, no project detail. CLASSIFY=2 (consumer) but brand funnel shows no brand awareness. ML=0.72. Thin answer with converging quality concerns.",
+
+    "authenticity_risk": 0.3,
+    "quality_discard_risk": 0.7,
+    "client_reject_probability": 0.6,
+
+    "primary_removal_reason": "quality_auth_failure",
+    "secondary_removal_reason": "vendor_source",
+    "removal_confidence": 0.65,
+
+    "evidence_families_fired": ["core_oe_quality", "model_risk", "brand_funnel"],
+    "evidence_family_scores": {{
+      "core_oe_quality": {{"fired": true, "score": 0.7, "trigger": "thin_on_topic"}},
+      "platform_risk": {{"fired": false, "score": 0.1, "trigger": null}},
+      "model_risk": {{"fired": true, "score": 0.72, "trigger": "ml_0.72_high"}},
+      "source_risk": {{"fired": false, "score": 0.2, "trigger": null}},
+      "duplicate_semantics": {{"fired": false, "score": 0.1, "trigger": null}},
+      "survey_structure": {{"fired": false, "score": 0.2, "trigger": null}},
+      "brand_funnel": {{"fired": true, "score": 0.5, "trigger": "no_brand_awareness_consistency"}},
+      "timing_engagement": {{"fired": false, "score": 0.2, "trigger": null}},
+      "quota_reconstruction": {{"fired": false, "score": 0.1, "trigger": null}}
+    }},
+
+    "badopen_trigger": "nonresponsive",
+    "badopen_field": "qc5",
+    "badopen_evidence": "Names generic tasks (mowing, blowing) without specific equipment or project narrative",
+    "badopen_severity": "medium",
+
+    "oe_classification": "thin_on_topic",
+    "oe_equipment_named": [],
+    "oe_grounding_anchors": [],
+    "oe_word_count": 18,
+
+    "ml_score": 0.72,
+    "ml_top_signals": ["sig_rd_searchr1_2", "sig_very_short_required_open_end"],
+    "ml_confidence": "high",
+
+    "semantic_remapping": {{
+      "core_oe_field": "qc5",
+      "core_oe_role": "project_description",
+      "classify_branch": "consumer",
+      "channel_condition": "HD_or_OPE_dealers",
+      "quota_cells": ["CLASSIFYQuota/Con", "RegionQuota/Northeast"]
+    }},
+
+    "stage1_fraud_verdict": "pass",
+    "stage2_quality_verdict": "fail",
+    "converging_family_count": 3
   }}
 ]
 ```
 
-## CORE FRAMEWORK: Two-Stage Review (v5)
+## Field Reference
 
-The review operates in two stages. Every respondent passes through both.
+### Required Fields (all 21 fields for every respondent)
+
+| Field | Type | Values |
+|-------|------|--------|
+| respondent_id | string | from packet |
+| agent_score | float | -1.0 to +1.0 |
+| agent_judgment | string | DISCARD / REVIEW / KEEP |
+| agent_justification | string | 2-4 sentences citing specific evidence |
+| authenticity_risk | float | 0.0–1.0 |
+| quality_discard_risk | float | 0.0–1.0 |
+| client_reject_probability | float | 0.0–1.0 |
+| primary_removal_reason | string | enum (see Disposition Layer) |
+| secondary_removal_reason | string | enum or null |
+| removal_confidence | float | 0.0–1.0 |
+| evidence_families_fired | array | list of family names that fired |
+| evidence_family_scores | object | per-family {{fired, score, trigger}} |
+| badopen_trigger | string | enum (see Badopen Audit Trail) |
+| badopen_field | string | OE field name or null |
+| badopen_evidence | string | specific text evidence or null |
+| badopen_severity | string | low / medium / high / none |
+| oe_classification | string | substantive/thin_on_topic/off_topic/non_answer/gibberish/product_review/benefit_stack |
+| oe_equipment_named | array | list of equipment/brand names mentioned |
+| oe_grounding_anchors | array | list of grounding details (temporal, locational, sensory) |
+| oe_word_count | int | word count of core OE |
+| ml_score | float | from packet |
+| ml_top_signals | array | top ML feature names contributing |
+| ml_confidence | string | low / medium / high |
+| semantic_remapping | object | {{core_oe_field, core_oe_role, classify_branch, channel_condition, quota_cells}} |
+| stage1_fraud_verdict | string | pass / fail / ambiguous |
+| stage2_quality_verdict | string | pass / fail / ambiguous |
+| converging_family_count | int | number of families that fired |
+
+### Decision Mapping
+
+- **agent_score** = -(authenticity_risk * 0.4 + quality_discard_risk * 0.4 + client_reject_probability * 0.2)
+  - Adjusted up/down by converging family count and grounding evidence
+- **agent_judgment**:
+  - DISCARD: agent_score < -0.3 AND removal_confidence > 0.5
+  - REVIEW: agent_score -0.3 to 0 OR removal_confidence 0.3–0.5
+  - KEEP: agent_score > 0 AND no families fired
+
+## CORE FRAMEWORK: Three-Layer Review (v6)
+
+AutoQuality operates through three linked layers:
+
+### Layer 0 — Semantic Remapping (done before scoring)
+
+Each workbook is semantically remapped before the agent reviews it. We do NOT treat fields as
+generic columns. We reconstruct the survey contract:
+- Which fields are screeners, quotas, brand funnels, matrices, timing fields, vendor fields,
+  open ends, review markers, and final status fields
+- Coded values are translated into their real survey meaning (e.g., CLASSIFY=1 → "professional",
+  CLASSIFY=2 → "consumer")
+- The review is based on what the respondent actually said or selected, not just raw codes
+
+The `semantic_remapping` field in your output captures this: identify the core OE field, its
+question role, the classification branch, the channel condition, and the quota cells.
+
+### Layer 1 — ML Analysis (statistical guide, not final answer)
+
+ML models are trained across annotated files to identify which signals separate accepted and
+rejected respondents at scale. The ML score guides the review but is NOT the final answer.
+
+ML signals include: source risk, timing distributions, duplicate text, marker fields, bad-open
+flags, matrix behavior, and cross-field interactions.
+
+Use the ML score as:
+- **ml >= 0.8**: Very high risk — strong statistical evidence of discard. Combine with OE quality.
+- **ml >= 0.7**: High risk — statistical evidence supports discard if OE is thin.
+- **ml 0.5–0.7**: Ambiguous — use as tiebreaker with other families.
+- **ml < 0.4**: Low risk — protective, but does NOT override a failed core OE.
+
+Record `ml_score`, `ml_top_signals` (which features drove the score), and `ml_confidence`.
+
+### Layer 1b — Cross-Corpus Signal Correlations (from 13,388 respondents across 11 datasets)
+
+Each packet includes a `ml_signal_correlations` field with cross-corpus ML findings.
+USE THIS TO CALIBRATE YOUR EVIDENCE FAMILY WEIGHTING:
+
+**Family correlations with client discard (positive = client discards when this family fires):**
+- `platform_risk`: mean_corr=+0.086 (STRONGEST — RD_Searchr1 is a top universal signal)
+- `timing_engagement`: mean_corr=+0.073 (STRONG — qtime/low_total_duration fire in 10/11 datasets)
+- `duplicate_semantics`: mean_corr=+0.042 (moderate — duplicate_open_chain fires in 5 datasets)
+- `survey_structure`: mean_corr=+0.023 (weak positive — CLASSIFY matters in some datasets)
+- `core_oe_quality`: mean_corr=-0.030 (NEGATIVE — client does NOT primarily discard on OE quality!)
+
+**Key insight**: The client's discard process is driven MORE by platform risk and timing
+than by OE quality. A thin-but-on-topic OE is NOT a strong predictor of client discard.
+Do NOT discard solely for thin OE — require convergence with platform_risk or timing_engagement.
+
+**Universal signals (fire across 3+ datasets, ranked by n_datasets):**
+1. `low_total_duration` — 10 datasets (timing_engagement)
+2. `text_time_mismatch` — 9 datasets (timing_engagement)
+3. `no_strong_staged_signal` — 9 datasets (overall signal weakness)
+4. `survey_meta_substitution` — 7 datasets (survey_structure)
+5. `thin_open_end` — 6 datasets (core_oe_quality)
+6. `RD_Searchr1` — 6 datasets (platform_risk)
+7. `CLASSIFY` — 6 datasets (survey_structure)
+8. `weak_persona_context` — 5 datasets (core_oe_quality)
+9. `duplicate_open_chain` — 5 datasets (duplicate_semantics)
+
+**Global model top features:**
+1. CLASSIFY (importance=0.355) — survey_structure
+2. qtime (importance=0.149) — timing_engagement
+3. RD_Searchr1 (importance=0.137) — platform_risk
+4. thin_open_end (importance=0.081) — core_oe_quality
+5. no_strong_staged_signal (importance=0.055) — overall signal weakness
+
+Use these correlations to weight your `client_reject_probability`:
+- Platform risk + timing firing → HIGH client_reject_probability (even if OE is thin, not failed)
+- OE quality alone firing → LOW client_reject_probability (client keeps thin OEs)
+- Survey structure (CLASSIFY mismatch) + timing → MEDIUM client_reject_probability
+
+### Layer 2 — Two-Stage Agent Review
 
 **Stage 1 — Fraud Detection**: Is this respondent authentic? (bots, AI, platform flags, gibberish, non-English, duplicate chains)
+→ Record as `authenticity_risk` and `stage1_fraud_verdict`
 
 **Stage 2 — PM Quality Assessment**: Does this respondent meet the quality bar for this survey? (substantive engagement, brand funnel consistency, classification coherence, on-topic depth)
+→ Record as `quality_discard_risk` and `stage2_quality_verdict`
 
-A respondent can pass Stage 1 (not fraudulent) but fail Stage 2 (low quality). Both result in DISCARD or REVIEW.
+### Layer 3 — Client Rejection Probability
+
+Separate from authenticity and quality: would the client's own process discard this respondent?
+The client may discard for quota, badopen, eligibility, or admin reasons that are NOT quality
+failures. Record as `client_reject_probability`.
+
+**Key principle**: A respondent can be authentic (low authenticity_risk) AND substantive (low
+quality_discard_risk) but still discarded by the client (high client_reject_probability) due to
+quota balancing or badopen triggers. Conversely, a respondent can be inauthentic (high
+authenticity_risk) but kept by the client if they passed the client's review process.
+
+The `primary_removal_reason` and `secondary_removal_reason` fields capture WHICH type of
+removal this is — separating quality/auth failures from quota, eligibility, partial, admin,
+and source exclusions.
 
 ### The Master Rule
 
@@ -1239,77 +1518,101 @@ The client's `badopen` standard is applied WITHIN quota cells. This means:
 
 ## The Decision Algorithm
 
-For each respondent:
+For each respondent, work through these steps and fill in ALL output fields:
 
-### Step 1: Read defender_summary
-Platform signals firing?
+### Step 1: Semantic Remapping
+Read `defender_summary`, `survey_structure`, `brand_funnel`, `quota_reconstruction`.
+Identify: What is the core OE field? What role does it play? What is the classification branch?
+What channel condition? What quota cells? → Fill `semantic_remapping` object.
 
-### Step 2: Read survey_structure
-What is the respondent's classification? (pro/consumer, channel, age bracket)
+### Step 2: Stage 1 — Fraud Detection (authenticity_risk)
+Read platform signals: TERMFLAGS, qc, RD_Search, ReadLevel, ai_text_suspicion.
+Is this respondent real? → Fill `authenticity_risk` (0–1) and `stage1_fraud_verdict`.
 
-### Step 3: Identify the core OE field
-Which OE field asks for personal motivation/experience/project description?
+### Step 3: Stage 2 — OE Quality Assessment (quality_discard_risk)
+Identify the core OE field. Apply answer-role test, substantive engagement test,
+grounded first-person test, off-topic detection. → Fill `oe_classification`,
+`oe_equipment_named`, `oe_grounding_anchors`, `oe_word_count`, `quality_discard_risk`,
+`stage2_quality_verdict`.
 
-### Step 4: Apply the Answer-Role Test
-Does the answer actually answer the question?
+### Step 4: Badopen Audit Trail
+Classify the badopen trigger for the core OE. Is it too_short, wrong_topic, nonresponsive,
+ai_like_similarity, duplicate_text, pasted_text, profanity, human_reviewer, or none?
+→ Fill `badopen_trigger`, `badopen_field`, `badopen_evidence`, `badopen_severity`.
 
-### Step 5: Apply the Substantive Engagement Test
-Does the answer demonstrate substantive engagement with the survey topic? Or is it thin/generic/off-topic?
+### Step 5: ML Analysis
+Read `ml_triage_score`. What are the top ML signals? How confident is the model?
+→ Fill `ml_score`, `ml_top_signals`, `ml_confidence`.
 
-### Step 6: Apply the Grounded First-Person Test
-Is the first-person content grounded in lived experience?
+### Step 6: Evidence Family Scoring
+For EACH of the 9 evidence families, assess: did it fire? What score (0–1)? What trigger?
+→ Fill `evidence_family_scores` object and `evidence_families_fired` array.
+→ Fill `converging_family_count`.
 
-### Step 7: Check off-topic
-Is the described project in the right domain for this survey?
+### Step 7: Client Rejection Probability
+Considering quota cells, badopen trigger, classification coherence, source risk:
+Would the client's own process discard this? → Fill `client_reject_probability` (0–1).
 
-### Step 8: Check survey structure coherence
-Does the respondent's classification match their answer pattern? (pro should show pro behavior, consumer should show consumer behavior)
+### Step 8: Disposition Layer
+What is the PRIMARY removal reason? What is the SECONDARY?
+→ Fill `primary_removal_reason`, `secondary_removal_reason`, `removal_confidence`.
 
-### Step 9: Check brand funnel consistency
-Are brand answers internally consistent? Real brands? Right universe?
+### Step 9: Final Decision
+Compute `agent_score` from the three components:
+  agent_score = -(authenticity_risk * 0.4 + quality_discard_risk * 0.4 + client_reject_probability * 0.2)
+  Adjust: +0.1 if grounded equipment named, +0.05 if above_median timing,
+  -0.05 per additional converging family beyond 2.
+→ Fill `agent_score`, `agent_judgment`, `agent_justification`.
 
-### Step 10: Check quota reconstruction
-What quota cells does this respondent occupy? Is the cell over-filled? Is there a channel-brand mismatch visible in the quota structure?
+### Decision thresholds:
 
-### Step 11: Check ai_text_suspicion, ML score, timing, duplicates
-
-### Step 12: Count independent evidence families firing
-
-### Step 13: Decide
-
-**DISCARD** (score < -0.3) when:
+**DISCARD** (score < -0.3 AND removal_confidence > 0.5) when:
 - Core OE fails its role AND >= 1 risk family fires
-- Core OE is thin/generic (on-topic but no substantive engagement) AND >= 2 families fire (including survey structure or brand funnel)
-- Core OE is off-topic for the survey domain AND any risk family fires
+- Core OE is thin/generic AND >= 2 families fire
+- Core OE is off-topic AND any risk family fires
 - TERMFLAGS=1 AND core OE is not unusually specifically grounded
 - ML >= 0.8 AND core OE fails role or is generic
-- Brand funnel shows wrong brand universe (non-OPE brands in OPE survey) AND core OE is thin
-- CLASSIFY mismatch (pro answering as consumer or vice versa) AND core OE is thin
+- Brand funnel shows wrong brand universe AND core OE is thin
+- CLASSIFY mismatch AND core OE is thin
 - Core OE is a short non-answer AND >= 1 risk family fires
-- Both core OE and outro are off-topic/gibberish
+- primary_removal_reason = quality_auth_failure with high confidence
 
-**REVIEW** (score -0.3 to 0) when:
-- Core OE is thin but on-topic with no other concerns (PM quality concern, not fraud)
+**REVIEW** (score -0.3 to 0 OR removal_confidence 0.3–0.5) when:
+- Core OE is thin but on-topic with no other concerns
 - Core OE is grounded but one risk family fires
-- TERMFLAGS=1 AND core OE has unusually strong human evidence
 - ML >= 0.7 AND core OE is grounded and specific
-- Brand funnel has minor inconsistencies but core OE is strong
-- Survey structure has a mismatch but core OE is substantive
+- primary_removal_reason = quota_balancing or unknown_mixed
 - Mixed signals where neither KEEP nor DISCARD is clearly warranted
 
-**KEEP** (score > 0) when:
+**KEEP** (score > 0 AND no families fired) when:
 - Core OE passes answer-role test AND shows substantive engagement AND no risk family fires
 - Core OE is specific, grounded, and chain-consistent AND ML < 0.5 AND no platform flags
-- Brand funnel is consistent AND survey structure matches answer pattern
+- primary_removal_reason = none
 
 ### Thin-but-on-topic rule (IMPORTANT):
-An answer like "Mowing and blowing/raking leaves" is authentic and on-topic for an OPE survey, but it does NOT demonstrate substantive engagement. It names generic tasks without equipment, project narrative, or personal detail. For strict clients, this is a quality failure. Without calibration data, score this as REVIEW (-0.1 to -0.2), not KEEP. If ANY other family fires (ML >= 0.6, brand funnel inconsistency, survey structure mismatch), upgrade to DISCARD.
+An answer like "Mowing and blowing/raking leaves" is authentic and on-topic for an OPE survey,
+but it does NOT demonstrate substantive engagement. It names generic tasks without equipment,
+project narrative, or personal detail.
+
+For the three-component model:
+- authenticity_risk = LOW (this is a real human answer)
+- quality_discard_risk = MEDIUM (thin but on-topic)
+- client_reject_probability = VARIABLE (depends on client's badopen standard)
+
+Without calibration data, score this as REVIEW (-0.1 to -0.2), not KEEP.
+If ANY other family fires (ML >= 0.6, brand funnel inconsistency, survey structure mismatch),
+upgrade to DISCARD.
 
 ### Short non-answer rule:
-Short answers (<25 chars) to a motivation/project question are almost always role failures. "It's essential", "Snow Blower", "Home Depot" are NOT project descriptions. When paired with ANY risk family signal, this becomes a discard.
+Short answers (<25 chars) to a motivation/project question are almost always role failures.
+"It's essential", "Snow Blower", "Home Depot" are NOT project descriptions.
+badopen_trigger = too_short or nonresponsive.
+When paired with ANY risk family signal, this becomes a discard.
 
 ### Accepted-row similarity guardrail:
-Before discarding, ask: what makes this row different from accepted rows with the same surface flaw? The discard should come from CONVERGENCE of multiple families, not from any single signal common among accepted rows.
+Before discarding, ask: what makes this row different from accepted rows with the same surface
+flaw? The discard should come from CONVERGENCE of multiple families, not from any single signal
+common among accepted rows. If the client kept similar rows, lower client_reject_probability.
 
 ---
 
