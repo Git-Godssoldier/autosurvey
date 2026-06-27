@@ -204,7 +204,7 @@ def integrate_agent_judgments(filepath, output_dir):
     return df
 
 
-def write_annotated_excel_with_agent(original_path, df, excel_path, defender_lookup=None, ai_suspicion_lookup=None):
+def write_annotated_excel_with_agent(original_path, df, excel_path, defender_lookup=None, ai_suspicion_lookup=None, v6_metadata_lookup=None):
     """Write annotated Excel with agent justifications."""
     import openpyxl
     from openpyxl.styles import PatternFill, Font
@@ -244,6 +244,32 @@ def write_annotated_excel_with_agent(original_path, df, excel_path, defender_loo
         "Defender_Summary",
         "AI_Text_Suspicion",
     ]
+    # v6 metadata columns (only if v6 metadata is available)
+    v6_headers = []
+    if v6_metadata_lookup:
+        v6_headers = [
+            "Authenticity_Risk",
+            "Quality_Discard_Risk",
+            "Client_Reject_Probability",
+            "Primary_Removal_Reason",
+            "Secondary_Removal_Reason",
+            "Removal_Confidence",
+            "Evidence_Families_Fired",
+            "Badopen_Trigger",
+            "Badopen_Field",
+            "Badopen_Evidence",
+            "Badopen_Severity",
+            "OE_Classification",
+            "OE_Equipment_Named",
+            "OE_Grounding_Anchors",
+            "OE_Word_Count",
+            "ML_Top_Signals",
+            "ML_Confidence",
+            "Stage1_Fraud_Verdict",
+            "Stage2_Quality_Verdict",
+            "Converging_Family_Count",
+        ]
+    annotation_headers.extend(v6_headers)
     for i, h in enumerate(annotation_headers):
         col = n_cols + 1 + i
         ws.cell(row=1, column=col, value=h)
@@ -283,6 +309,35 @@ def write_annotated_excel_with_agent(original_path, df, excel_path, defender_loo
         ws.cell(row=row_num, column=n_cols + 7, value=notes_lookup.get(rid, ""))
         ws.cell(row=row_num, column=n_cols + 8, value=(defender_lookup or {}).get(rid, ""))
         ws.cell(row=row_num, column=n_cols + 9, value=(ai_suspicion_lookup or {}).get(rid, "none"))
+
+        # v6 metadata columns
+        if v6_metadata_lookup and rid in v6_metadata_lookup:
+            meta = v6_metadata_lookup[rid]
+            v6_col = n_cols + 10
+            ws.cell(row=row_num, column=v6_col, value=meta.get("authenticity_risk"))
+            ws.cell(row=row_num, column=v6_col + 1, value=meta.get("quality_discard_risk"))
+            ws.cell(row=row_num, column=v6_col + 2, value=meta.get("client_reject_probability"))
+            ws.cell(row=row_num, column=v6_col + 3, value=meta.get("primary_removal_reason"))
+            ws.cell(row=row_num, column=v6_col + 4, value=meta.get("secondary_removal_reason"))
+            ws.cell(row=row_num, column=v6_col + 5, value=meta.get("removal_confidence"))
+            fired = meta.get("evidence_families_fired", [])
+            ws.cell(row=row_num, column=v6_col + 6, value="; ".join(fired) if isinstance(fired, list) else str(fired))
+            ws.cell(row=row_num, column=v6_col + 7, value=meta.get("badopen_trigger"))
+            ws.cell(row=row_num, column=v6_col + 8, value=meta.get("badopen_field"))
+            ws.cell(row=row_num, column=v6_col + 9, value=meta.get("badopen_evidence"))
+            ws.cell(row=row_num, column=v6_col + 10, value=meta.get("badopen_severity"))
+            ws.cell(row=row_num, column=v6_col + 11, value=meta.get("oe_classification"))
+            equip = meta.get("oe_equipment_named", [])
+            ws.cell(row=row_num, column=v6_col + 12, value="; ".join(equip) if isinstance(equip, list) else str(equip))
+            anchors = meta.get("oe_grounding_anchors", [])
+            ws.cell(row=row_num, column=v6_col + 13, value="; ".join(anchors) if isinstance(anchors, list) else str(anchors))
+            ws.cell(row=row_num, column=v6_col + 14, value=meta.get("oe_word_count"))
+            ml_sigs = meta.get("ml_top_signals", [])
+            ws.cell(row=row_num, column=v6_col + 15, value="; ".join(ml_sigs) if isinstance(ml_sigs, list) else str(ml_sigs))
+            ws.cell(row=row_num, column=v6_col + 16, value=meta.get("ml_confidence"))
+            ws.cell(row=row_num, column=v6_col + 17, value=meta.get("stage1_fraud_verdict"))
+            ws.cell(row=row_num, column=v6_col + 18, value=meta.get("stage2_quality_verdict"))
+            ws.cell(row=row_num, column=v6_col + 19, value=meta.get("converging_family_count"))
 
         row_num += 1
 

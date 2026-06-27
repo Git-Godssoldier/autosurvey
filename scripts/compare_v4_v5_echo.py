@@ -41,7 +41,8 @@ def load_client_ground_truth(annotated_path):
     return gt
 
 def load_judgments(path):
-    """Load agent judgments from a JSON file or directory of chunk files."""
+    """Load agent judgments from a JSON file or directory of chunk files.
+    Preserves all fields (including v6 27-field schema) for downstream analysis."""
     path = Path(path)
     judgments = {}
 
@@ -52,21 +53,30 @@ def load_judgments(path):
                 chunk_data = json.load(f)
             for item in chunk_data:
                 rid = item.get('respondent_id') or item.get('uuid')
-                judgments[rid] = {
+                entry = {
                     'judgment': item.get('agent_judgment', item.get('judgment', '')),
                     'score': item.get('agent_score', item.get('score', 0)),
                     'justification': item.get('agent_justification', item.get('justification', ''))
                 }
+                # Preserve all v6 fields if present
+                for k, v in item.items():
+                    if k not in ('respondent_id', 'uuid', 'agent_judgment', 'agent_score', 'agent_justification'):
+                        entry[k] = v
+                judgments[rid] = entry
     else:
         with open(path) as f:
             data = json.load(f)
         for item in data:
             rid = item.get('respondent_id') or item.get('uuid')
-            judgments[rid] = {
+            entry = {
                 'judgment': item.get('agent_judgment', item.get('judgment', '')),
                 'score': item.get('agent_score', item.get('score', 0)),
                 'justification': item.get('agent_justification', item.get('justification', ''))
             }
+            for k, v in item.items():
+                if k not in ('respondent_id', 'uuid', 'agent_judgment', 'agent_score', 'agent_justification'):
+                    entry[k] = v
+            judgments[rid] = entry
     return judgments
 
 def compute_metrics(gt, judgments):
@@ -144,9 +154,10 @@ def main():
     v4_path = '/Users/jeremyalston/Perfect/TFG Data Cleaning Sets/autosurvey-outputs/blind-runs-agent/109-2601 Echo BH/holistic_agent_run/all_judgments.json'
     v5_dir = Path('/Users/jeremyalston/Perfect/TFG Data Cleaning Sets/autosurvey-outputs/blind-runs-agent/109-2601 Echo BH/holistic_agent_run_v5')
     v51_dir = Path('/Users/jeremyalston/Perfect/TFG Data Cleaning Sets/autosurvey-outputs/blind-runs-agent/109-2601 Echo BH/holistic_agent_run_v51')
+    v6_dir = Path('/Users/jeremyalston/Perfect/TFG Data Cleaning Sets/autosurvey-outputs/blind-runs-agent/109-2601 Echo BH/holistic_agent_run_v6')
 
     print('=' * 80)
-    print('ECHO v4 vs v5 vs v5.1 Comparison Against Client Ground Truth (status=5 only)')
+    print('ECHO v4 vs v5 vs v5.1 vs v6 Comparison Against Client Ground Truth (status=5 only)')
     print('=' * 80)
 
     # Load ground truth
@@ -198,19 +209,32 @@ def main():
         v51_metrics = None
         print('\n--- V5.1: Directory not found ---')
 
+    # V6
+    if v6_dir.exists():
+        v6_judgments = load_judgments(v6_dir)
+        if v6_judgments:
+            v6_metrics = compute_metrics(gt, v6_judgments)
+            print_metrics('V6 (three-component + ML correlations + 27-field schema)', v6_metrics)
+        else:
+            v6_metrics = None
+            print('\n--- V6: No judgments found yet ---')
+    else:
+        v6_metrics = None
+        print('\n--- V6: Directory not found ---')
+
     # Comparison table
     print(f'\n{"="*80}')
-    print(f'{"Metric":<20} {"Captain":>10} {"V4":>10} {"V5":>10} {"V5.1":>10}')
+    print(f'{"Metric":<20} {"Captain":>10} {"V4":>10} {"V5":>10} {"V5.1":>10} {"V6":>10}')
     print(f'{"-"*80}')
-    print(f'{"TP":<20} {captain["tp"]:>10} {v4_metrics["tp"]:>10} {(v5_metrics or {}).get("tp", "-"):>10} {(v51_metrics or {}).get("tp", "-"):>10}')
-    print(f'{"FP":<20} {captain["fp"]:>10} {v4_metrics["fp"]:>10} {(v5_metrics or {}).get("fp", "-"):>10} {(v51_metrics or {}).get("fp", "-"):>10}')
-    print(f'{"TN":<20} {captain["tn"]:>10} {v4_metrics["tn"]:>10} {(v5_metrics or {}).get("tn", "-"):>10} {(v51_metrics or {}).get("tn", "-"):>10}')
-    print(f'{"FN":<20} {captain["fn"]:>10} {v4_metrics["fn"]:>10} {(v5_metrics or {}).get("fn", "-"):>10} {(v51_metrics or {}).get("fn", "-"):>10}')
-    print(f'{"Precision":<20} {captain["precision"]:>10.3f} {v4_metrics["precision"]:>10.3f} {(v5_metrics or {}).get("precision", 0):>10.3f} {(v51_metrics or {}).get("precision", 0):>10.3f}')
-    print(f'{"Recall":<20} {captain["recall"]:>10.3f} {v4_metrics["recall"]:>10.3f} {(v5_metrics or {}).get("recall", 0):>10.3f} {(v51_metrics or {}).get("recall", 0):>10.3f}')
-    print(f'{"F1":<20} {captain["f1"]:>10.3f} {v4_metrics["f1"]:>10.3f} {(v5_metrics or {}).get("f1", 0):>10.3f} {(v51_metrics or {}).get("f1", 0):>10.3f}')
-    print(f'{"Balanced Acc":<20} {captain["balanced_acc"]:>10.3f} {v4_metrics["balanced_acc"]:>10.3f} {(v5_metrics or {}).get("balanced_acc", 0):>10.3f} {(v51_metrics or {}).get("balanced_acc", 0):>10.3f}')
-    print(f'{"Discards pred":<20} {captain["discard_predicted"]:>10} {v4_metrics["discard_predicted"]:>10} {(v5_metrics or {}).get("discard_predicted", "-"):>10} {(v51_metrics or {}).get("discard_predicted", "-"):>10}')
+    print(f'{"TP":<20} {captain["tp"]:>10} {v4_metrics["tp"]:>10} {(v5_metrics or {}).get("tp", "-"):>10} {(v51_metrics or {}).get("tp", "-"):>10} {(v6_metrics or {}).get("tp", "-"):>10}')
+    print(f'{"FP":<20} {captain["fp"]:>10} {v4_metrics["fp"]:>10} {(v5_metrics or {}).get("fp", "-"):>10} {(v51_metrics or {}).get("fp", "-"):>10} {(v6_metrics or {}).get("fp", "-"):>10}')
+    print(f'{"TN":<20} {captain["tn"]:>10} {v4_metrics["tn"]:>10} {(v5_metrics or {}).get("tn", "-"):>10} {(v51_metrics or {}).get("tn", "-"):>10} {(v6_metrics or {}).get("tn", "-"):>10}')
+    print(f'{"FN":<20} {captain["fn"]:>10} {v4_metrics["fn"]:>10} {(v5_metrics or {}).get("fn", "-"):>10} {(v51_metrics or {}).get("fn", "-"):>10} {(v6_metrics or {}).get("fn", "-"):>10}')
+    print(f'{"Precision":<20} {captain["precision"]:>10.3f} {v4_metrics["precision"]:>10.3f} {(v5_metrics or {}).get("precision", 0):>10.3f} {(v51_metrics or {}).get("precision", 0):>10.3f} {(v6_metrics or {}).get("precision", 0):>10.3f}')
+    print(f'{"Recall":<20} {captain["recall"]:>10.3f} {v4_metrics["recall"]:>10.3f} {(v5_metrics or {}).get("recall", 0):>10.3f} {(v51_metrics or {}).get("recall", 0):>10.3f} {(v6_metrics or {}).get("recall", 0):>10.3f}')
+    print(f'{"F1":<20} {captain["f1"]:>10.3f} {v4_metrics["f1"]:>10.3f} {(v5_metrics or {}).get("f1", 0):>10.3f} {(v51_metrics or {}).get("f1", 0):>10.3f} {(v6_metrics or {}).get("f1", 0):>10.3f}')
+    print(f'{"Balanced Acc":<20} {captain["balanced_acc"]:>10.3f} {v4_metrics["balanced_acc"]:>10.3f} {(v5_metrics or {}).get("balanced_acc", 0):>10.3f} {(v51_metrics or {}).get("balanced_acc", 0):>10.3f} {(v6_metrics or {}).get("balanced_acc", 0):>10.3f}')
+    print(f'{"Discards pred":<20} {captain["discard_predicted"]:>10} {v4_metrics["discard_predicted"]:>10} {(v5_metrics or {}).get("discard_predicted", "-"):>10} {(v51_metrics or {}).get("discard_predicted", "-"):>10} {(v6_metrics or {}).get("discard_predicted", "-"):>10}')
     print(f'{"="*80}')
 
     # V5.1 FN/FP analysis
@@ -246,25 +270,29 @@ def main():
         for s in fp_samples[:10]:
             print(f'    {s["rid"]} (score={s["score"]}): {s["justification"]}')
 
-        # --- V6 metadata analysis (if judgments have the new fields) ---
+        # --- V6 metadata analysis (if v6 judgments have the new fields) ---
         print(f'\n{"="*80}')
         print(f'V6 METADATA ANALYSIS (three-component scoring + disposition layer)')
         print(f'{"="*80}')
 
-        # Check if v5.1 judgments have v6 fields
-        sample_j = v51_judgments.get(next(iter(v51_judgments)), {})
-        has_v6 = 'authenticity_risk' in sample_j or 'primary_removal_reason' in sample_j
+        # Use v6 judgments if available, otherwise check v5.1
+        v6_or_v51 = v6_judgments if (v6_metrics and v6_judgments) else v51_judgments
+        v6_label = 'V6' if (v6_metrics and v6_judgments) else 'V5.1'
 
-        if has_v6:
+        if v6_or_v51:
+            sample_j = v6_or_v51.get(next(iter(v6_or_v51)), {})
+            has_v6 = 'authenticity_risk' in sample_j or 'primary_removal_reason' in sample_j
+
+        if v6_or_v51 and has_v6:
             from collections import Counter
 
             # Removal reason distribution
-            print(f'\n--- Primary Removal Reason Distribution ---')
+            print(f'\n--- Primary Removal Reason Distribution ({v6_label}) ---')
             reason_counts = Counter()
             reason_by_gt = defaultdict(Counter)
             for rid, gt_label in gt.items():
-                if rid in v51_judgments:
-                    j = v51_judgments[rid]
+                if rid in v6_or_v51:
+                    j = v6_or_v51[rid]
                     reason = j.get('primary_removal_reason', 'unknown')
                     reason_counts[reason] += 1
                     reason_by_gt[gt_label][reason] += 1
@@ -275,12 +303,12 @@ def main():
                 print(f'  {reason}: {count} ({discard_count} actual discards, {keep_count} actual keeps)')
 
             # Badopen trigger distribution
-            print(f'\n--- Badopen Trigger Distribution ---')
+            print(f'\n--- Badopen Trigger Distribution ({v6_label}) ---')
             badopen_counts = Counter()
             badopen_by_gt = defaultdict(Counter)
             for rid, gt_label in gt.items():
-                if rid in v51_judgments:
-                    j = v51_judgments[rid]
+                if rid in v6_or_v51:
+                    j = v6_or_v51[rid]
                     trigger = j.get('badopen_trigger', 'unknown')
                     badopen_counts[trigger] += 1
                     badopen_by_gt[gt_label][trigger] += 1
@@ -292,12 +320,12 @@ def main():
                 print(f'  {trigger}: {count} ({discard_count} discards, {keep_count} keeps, precision={precision:.2f})')
 
             # OE classification distribution
-            print(f'\n--- OE Classification Distribution ---')
+            print(f'\n--- OE Classification Distribution ({v6_label}) ---')
             oe_counts = Counter()
             oe_by_gt = defaultdict(Counter)
             for rid, gt_label in gt.items():
-                if rid in v51_judgments:
-                    j = v51_judgments[rid]
+                if rid in v6_or_v51:
+                    j = v6_or_v51[rid]
                     oe_class = j.get('oe_classification', 'unknown')
                     oe_counts[oe_class] += 1
                     oe_by_gt[gt_label][oe_class] += 1
@@ -309,11 +337,11 @@ def main():
                 print(f'  {oe_class}: {count} ({discard_count} discards, {keep_count} keeps, client discard rate={discard_rate:.2f})')
 
             # Three-component score analysis
-            print(f'\n--- Three-Component Score Analysis ---')
+            print(f'\n--- Three-Component Score Analysis ({v6_label}) ---')
             component_stats = defaultdict(lambda: {'DISCARD': [], 'KEEP': []})
             for rid, gt_label in gt.items():
-                if rid in v51_judgments:
-                    j = v51_judgments[rid]
+                if rid in v6_or_v51:
+                    j = v6_or_v51[rid]
                     for comp in ['authenticity_risk', 'quality_discard_risk', 'client_reject_probability']:
                         val = j.get(comp)
                         if val is not None:
@@ -332,11 +360,11 @@ def main():
                     print(f'    Separation: {sep:.3f} (positive = good discrimination)')
 
             # Evidence family firing rates: discards vs keeps
-            print(f'\n--- Evidence Family Firing Rates (discards vs keeps) ---')
+            print(f'\n--- Evidence Family Firing Rates (discards vs keeps, {v6_label}) ---')
             family_firing = defaultdict(lambda: {'DISCARD': 0, 'KEEP': 0, 'DISCARD_total': 0, 'KEEP_total': 0})
             for rid, gt_label in gt.items():
-                if rid in v51_judgments:
-                    j = v51_judgments[rid]
+                if rid in v6_or_v51:
+                    j = v6_or_v51[rid]
                     fired = j.get('evidence_families_fired', [])
                     if isinstance(fired, list):
                         for fam in fired:
@@ -356,12 +384,12 @@ def main():
                 print(f'  {fam}: discards={d_rate:.2f}, keeps={k_rate:.2f}, gap={gap:+.2f}')
 
             # Stage verdict analysis
-            print(f'\n--- Stage Verdict Analysis ---')
+            print(f'\n--- Stage Verdict Analysis ({v6_label}) ---')
             stage1_counts = defaultdict(Counter)
             stage2_counts = defaultdict(Counter)
             for rid, gt_label in gt.items():
-                if rid in v51_judgments:
-                    j = v51_judgments[rid]
+                if rid in v6_or_v51:
+                    j = v6_or_v51[rid]
                     stage1_counts[j.get('stage1_fraud_verdict', 'unknown')][gt_label] += 1
                     stage2_counts[j.get('stage2_quality_verdict', 'unknown')][gt_label] += 1
 
@@ -389,7 +417,7 @@ def main():
                 print(f'  → Families with POSITIVE correlation should be weighted higher in client_reject_probability')
                 print(f'  → Families with NEGATIVE correlation (core_oe_quality) should NOT drive discards alone')
         else:
-            print(f'  (V5.1 judgments do not have v6 metadata fields — rerun with v6 instructions)')
+            print(f'  (No v6 metadata fields found in {v6_label} judgments)')
 
         # Save full comparison
         output = {
@@ -398,8 +426,9 @@ def main():
             'v4': v4_metrics,
             'v5': v5_metrics,
             'v5.1': v51_metrics,
+            'v6': v6_metrics,
         }
-        output_path = v51_dir / 'comparison_results.json'
+        output_path = (v6_dir if v6_dir.exists() else v51_dir) / 'comparison_results.json'
         with open(output_path, 'w') as f:
             json.dump(output, f, indent=2)
         print(f'\nFull comparison saved to: {output_path}')
