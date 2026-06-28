@@ -23,7 +23,7 @@ These respondents were correctly discarded. They represent the patterns where th
 - Signals: `termflags_nonzero`, `rd_review_nonzero`, `rd_searchr3_united states`, `rd_searchr1_16`
 - Supplier: PrimeInsightsGroupLLC-API (moderate, 18.4%)
 - Open-end: "**I decided to buy a kitchen sink water filtration device to improve the taste and q..."
-- **Why correct**: TIER 1 signal (termflags). Markdown bold formatting (`**`) in an open-end is a strong bot/fraud indicator. Even with a moderate-risk supplier, TIER 1 mandates auto-discard.
+- **Why correct**: TIER 1 signal (termflags). Markdown bold formatting (`**`) in an open-end is a strong bot/fraud indicator. Under V7, this should become DISCARD only when the platform signal or model-family convergence meets the calibrated threshold.
 
 ### Pattern B: Off-Topic or Nonsensical Open-End
 
@@ -199,14 +199,14 @@ These respondents were kept by the agent but rejected by the client. They repres
 | 1-2 words | On-topic (e.g., "the quality") | No | Moderate/Low | **KEEP** (client tolerates) |
 | 1-2 words | On-topic | No | High | **REVIEW** (not auto-discard) |
 | 1-2 words | Off-topic / brand name | No | Any | **DISCARD** (Rule 4) |
-| 1-2 words | Any | TIER 1 | Any | **AUTO-DISCARD** |
+| 1-2 words | Any | TIER 1 | Any | **DISCARD only if V7 threshold is met** |
 | 3-5 words | On-topic, genuine | No | Any | **KEEP** |
 | 3-5 words | Tautology ("It's essential") | No | Moderate | **KEEP** (client tolerates) |
 | 3-5 words | Tautology | No | High | **REVIEW** |
 | Full sentence | Personal, specific | No | Any | **KEEP** |
 | Full sentence | AI-like, third-person, polished | No | Any | **REVIEW** (possible FN pattern) |
 | Full sentence | Marketing copy / product specs | No | Any | **REVIEW** (client may reject) |
-| Any | Any | TIER 1 | Any | **AUTO-DISCARD** |
+| Any | Any | TIER 1 | Any | **DISCARD only if V7 threshold is met** |
 
 ### Demographic "Incoherence" — Do NOT Discard For These Alone
 
@@ -233,7 +233,7 @@ These respondents were kept by the agent but rejected by the client. They repres
 
 | Supplier | Reject Rate | Risk Level | TP Precision | FP Rate | Guidance |
 |----------|------------|------------|-------------|---------|----------|
-| None (no supplier) | 40.8% | High | 57% | High | Lower discard threshold. TIER 1 auto-discard. TIER 2 + semantic weakness = discard. |
+| None (no supplier) | 40.8% | High | 57% | High | Lower discard threshold. TIER 1 is strong evidence. TIER 2 plus semantic weakness can support discard. |
 | PrimeInsightsGroupLLC-API | 18.4% | Moderate | 26% | Very High | DO NOT discard for TIER 3 alone. DO NOT discard for demographic "incoherence". Only discard with TIER 1 or clear incoherence (off-topic open-end). |
 | Attapoll | ~55% | High | 55% | Low | Standard high-risk treatment. |
 | MakeOpinionGmbH-API | ~14% | Low/Moderate | 14% | High | Be very conservative. Most discards are wrong. |

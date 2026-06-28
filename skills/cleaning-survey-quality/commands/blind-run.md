@@ -25,6 +25,13 @@ This parses the Datamap, extracts features, runs ML triage, detects AI text simi
 - `review_chunk_XX.json` — one review packet per chunk (~200 respondents each)
 - `agent_review_instructions.md` — the evidence-family framework instructions
 
+Before Stage 2, read the generated instructions and confirm they preserve the current V7 calibration:
+- ML >= 0.8 can drive DISCARD.
+- ML >= 0.6 requires at least one independent evidence family for DISCARD.
+- 4 or more independent evidence families can drive DISCARD without strong ML.
+- `thin_on_topic` does not fire `core_oe_quality`.
+- Stage 2 quality failure and badopen severity default to REVIEW unless ML or family convergence supports DISCARD.
+
 ### 3. Stage 2 — Subagent review (YOU spawn the subagents)
 
 **The agent running this skill performs Stage 2 itself** by spawning subagents using its own subagent/tool infrastructure. Do NOT use external CLI tools (Codex, etc.). No external tool installation is required.
@@ -32,7 +39,7 @@ This parses the Datamap, extracts features, runs ML triage, detects AI text simi
 For each `review_chunk_XX.json` file, spawn a subagent that:
 1. Reads the `agent_review_instructions.md` file
 2. Reads the `review_chunk_XX.json` file
-3. Applies the evidence-family framework to each respondent
+3. Applies the V7 evidence-family framework to each respondent
 4. Writes `agent_judgments_chunk_XX.json` to the same output directory, as a JSON array with `respondent_id`, `agent_score` (-1 to +1), `agent_judgment` (DISCARD/REVIEW/KEEP), and `agent_justification` (2-4 sentences)
 
 **Spawn all chunk subagents in parallel.** Wait for all to complete before proceeding to Stage 3.
@@ -59,5 +66,6 @@ This merges all chunk judgments and writes:
 
 - `references/production/progressive-chain-filtering.md` — Full four-layer progressive filtering specification
 - `references/production/decipher-blind-authenticity-review.md` — Blind authenticity review rules
+- `references/production/v7-calibration-and-guardrails.md` — Current calibrated disposition thresholds
 - `references/production/agent-authored-row-review.md` — Prevents the pipeline from becoming a rigid checklist
 - `references/production/discard-exemplar-library.md` — Calibrated exemplars of true positives, false positives, true negatives, and false negatives

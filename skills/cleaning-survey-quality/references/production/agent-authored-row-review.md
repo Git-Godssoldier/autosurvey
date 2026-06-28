@@ -29,6 +29,22 @@ The human advocate asks how a real respondent could reasonably produce the same 
 
 The evidence judge decides the final tier after weighing both sides. The judge must explain why the evidence is enough, not enough, or inconclusive.
 
+## V7 row-level guardrails
+
+Use the V7 calibration as the current decision boundary.
+
+The evidence judge should not discard a row because it is merely short, plain, thin, or imperfect. The judge should ask whether the row has calibrated evidence:
+
+- ML at least 0.8;
+- ML at least 0.6 plus one independent family;
+- ML at least 0.5 plus a strong family such as brand funnel, survey structure, quota reconstruction, wrong brand universe, off-topic core open end, non-answer, or gibberish;
+- 4 or more independent evidence families;
+- certain platform fraud.
+
+If the row has only a Stage 2 quality concern, badopen severity, moderate platform risk, or thin-on-topic text, default to REVIEW unless the full response chain supplies stronger convergence.
+
+The judge must name the accepted-row guardrail before assigning DISCARD. Examples include "short but prompt-valid", "rough but coherent", "generic but correct for a simple prompt", "off-topic surface but coherent branch", or "substantive text does not override high ML and brand-funnel failure."
+
 ## Learned badopen boundary
 
 Client markers such as `badopen` are training clues, not runtime fields. The transferable lesson is semantic.
@@ -51,6 +67,8 @@ Common protective patterns include:
 - rough wording that still gives a concrete reason, use, role, or experience;
 - concise survey-summary answers when the prompt asked what the survey was about;
 - accepted controls that show the same surface pattern without authenticity concern.
+
+Current V7 boundary: `thin_on_topic` does not fire `core_oe_quality` by itself. It can remain KEEP when the chain is coherent and ML is low. It should become REVIEW when another weak concern exists. It should become DISCARD only when ML or independent family convergence supplies the real discard reason.
 
 ## Output requirement
 

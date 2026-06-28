@@ -130,7 +130,7 @@ def get_defender_signals(row, hidx):
         if tf is not None:
             signals["termflags"] = tf
             if tf != 0:
-                summary_parts.append(f"TERMFLAGS={tf} (PLATFORM FRAUD FLAG — auto-discard)")
+                summary_parts.append(f"TERMFLAGS={tf} (STRONG PLATFORM FRAUD FLAG)")
 
     # === 3. RD_Search (research defender — bot/fraud/threat detection) ===
     rd_search_labels = {
@@ -1072,16 +1072,16 @@ Use null for fields that don't apply, but include all keys.
     "agent_justification": "Core OE ('mowing and blowing') is on-topic but thin — no equipment named, no project detail. CLASSIFY=2 (consumer) but brand funnel shows no brand awareness. ML=0.72. Thin answer with converging quality concerns.",
 
     "authenticity_risk": 0.3,
-    "quality_discard_risk": 0.7,
+    "quality_discard_risk": 0.4,
     "client_reject_probability": 0.6,
 
     "primary_removal_reason": "quality_auth_failure",
     "secondary_removal_reason": "vendor_source",
     "removal_confidence": 0.65,
 
-    "evidence_families_fired": ["core_oe_quality", "model_risk", "brand_funnel"],
+    "evidence_families_fired": ["model_risk", "brand_funnel"],
     "evidence_family_scores": {{
-      "core_oe_quality": {{"fired": true, "score": 0.7, "trigger": "thin_on_topic"}},
+      "core_oe_quality": {{"fired": false, "score": 0.2, "trigger": "thin_on_topic_protected"}},
       "platform_risk": {{"fired": false, "score": 0.1, "trigger": null}},
       "model_risk": {{"fired": true, "score": 0.72, "trigger": "ml_0.72_high"}},
       "source_risk": {{"fired": false, "score": 0.2, "trigger": null}},
@@ -1092,7 +1092,7 @@ Use null for fields that don't apply, but include all keys.
       "quota_reconstruction": {{"fired": false, "score": 0.1, "trigger": null}}
     }},
 
-    "badopen_trigger": "nonresponsive",
+    "badopen_trigger": "too_short",
     "badopen_field": "qc5",
     "badopen_evidence": "Names generic tasks (mowing, blowing) without specific equipment or project narrative",
     "badopen_severity": "medium",
@@ -1116,7 +1116,7 @@ Use null for fields that don't apply, but include all keys.
 
     "stage1_fraud_verdict": "pass",
     "stage2_quality_verdict": "fail",
-    "converging_family_count": 3
+    "converging_family_count": 2
   }}
 ]
 ```
@@ -1164,7 +1164,7 @@ Use null for fields that don't apply, but include all keys.
   - REVIEW: agent_score -0.3 to 0 OR removal_confidence 0.3–0.5
   - KEEP: agent_score > 0 AND no families fired
 
-## CORE FRAMEWORK: Three-Layer Review (v6)
+## CORE FRAMEWORK: Three-Layer Review (v7)
 
 AutoQuality operates through three linked layers:
 
@@ -1261,7 +1261,7 @@ and source exclusions.
 
 ### The Master Rule
 
-**A row is discard-like when the core open end fails its question role, lacks grounded chain evidence, AND converges with at least one independent risk family — OR when the respondent fails the PM quality bar (thin engagement, brand funnel incoherence, classification mismatch, off-topic content).**
+**A row is discard-like when ML risk is high (>= 0.6) and converges with at least one independent risk family, OR when 4 or more evidence families fire, OR when platform fraud is certain (qc=8/9, non-English in a US survey, or TERMFLAGS without strong human counterevidence). Core open-end quality alone is not enough. Stage 2 quality failure alone is not enough.**
 
 The nine independent evidence families:
 1. **Core OE Quality** — answer-role test, grounded detail, substantiveness
@@ -1318,7 +1318,7 @@ This is the key test that separates fraud detection from quality assessment. A r
 - **Off-topic**: Describes a project in the wrong domain (gardening/fertilizer when the survey is about outdoor power EQUIPMENT) — this is a quality failure
 - **Generic first-person**: "I love cutting grasses" — authentic but not substantive
 
-**IMPORTANT**: The substantive engagement threshold varies by dataset. Some clients tolerate generic first-person (Delta), others require specific detail (ECHO). When in doubt without calibration data, treat thin-but-on-topic as REVIEW, not KEEP. If ANY other family fires (ML >= 0.6, brand funnel inconsistency, survey structure mismatch), upgrade to DISCARD.
+**IMPORTANT**: The substantive engagement threshold varies by dataset. Some clients tolerate generic first-person answers, while others require specific detail. V7 learned that thin-but-on-topic answers should not fire `core_oe_quality` by themselves. When in doubt without calibration data, treat thin-but-on-topic as KEEP or REVIEW depending on the rest of the chain. Upgrade to DISCARD only when ML >= 0.6, when ML >= 0.5 plus a strong independent family fires, or when 4 or more independent families converge.
 
 ### 1C. Grounded First-Person Test
 
@@ -1681,7 +1681,7 @@ If ML >= 0.6, upgrade to DISCARD (ML convergence is the driver, not OE quality).
 Short answers (<25 chars) to a motivation/project question are almost always role failures.
 "It's essential", "Snow Blower", "Home Depot" are NOT project descriptions.
 badopen_trigger = too_short or nonresponsive.
-When paired with ANY risk family signal, this becomes a discard.
+When paired with weak evidence only, keep as REVIEW. Upgrade to DISCARD only when ML >= 0.6, ML >= 0.5 plus a strong independent family fires, or 4 or more independent families converge.
 
 ### Accepted-row similarity guardrail:
 Before discarding, ask: what makes this row different from accepted rows with the same surface

@@ -61,16 +61,16 @@ Ask these questions on every blank dataset. Adapt them to the Datamap and the re
    Is the answer coherent but off-domain? Examples include IT or office-management claims inside contractor studies, personal shopping examples inside professional purchase studies, or general construction prose that never ties to the respondent's own trade.
 
 8. **Brand or product funnel plausibility**
-   Do awareness, familiarity, use, consideration, preference, recommendation, purchase, satisfaction, and open-ended rationale form a plausible chain? Treat impossible or unexplained jumps as review evidence. Check brand name quality in OE fields — real brands vs garbled/wrong-universe brands. Check share allocation plausibility — equal share to all brands or many zero allocations are quality concerns. Brand funnel fields are the strongest raw predictors of client discards (signal score 2345.5 on ECHO, far exceeding semantic content fields).
+   Do awareness, familiarity, use, consideration, preference, recommendation, purchase, satisfaction, and open-ended rationale form a plausible chain? Treat impossible or unexplained jumps as review evidence. Check brand name quality in OE fields. Compare real brands against garbled or wrong-universe brands. Check share allocation plausibility. Equal share to all brands or many zero allocations are quality concerns. Brand funnel fields were the strongest raw predictors in ECHO and should be read before final disposition.
 
 9. **Content-aware straightlining**
    Are repeated answers occurring across similar items or across questions that should differ? Straightlining across substantively similar questions may be a real opinion. Straightlining across opposed, unrelated, reverse-coded, or high-burden items is stronger evidence, especially when timing and open ends are weak.
 
-10. **Survey-structure coherence** (NEW — v5)
-    Does the respondent's classification match their answer pattern? CLASSIFY=1 (professional) respondents should show professional purchasing patterns (dealer channels, commercial equipment, volume). A pro who answers like a consumer is a quality failure. Check channel conditions (conditionsAriens, conditionsHD_or_OPE_dealers) — a respondent in the Ariens channel who never mentions Ariens is a quality concern. Check PROAGE/CONAGE — pro-branch respondents should show professional experience. These survey-structure fields carry 2x+ discrimination power (CLASSIFY=1 rejects at 60.4% vs 30.5% for consumer on ECHO).
+10. **Survey-structure coherence**
+    Does the respondent's classification match their answer pattern? Professional respondents should show professional purchasing patterns, such as dealer channels, commercial equipment, or professional volume. A pro who answers like a consumer is a quality concern. Check channel conditions. A respondent in a channel condition should usually show some matching brand or dealer logic. Check pro and consumer branch fields before judging the answer.
 
-11. **Substantive engagement** (NEW — v5)
-    Does the core open-end demonstrate substantive engagement with the survey's specific topic? An answer like "Mowing and blowing" is on-topic for an OPE survey but thin — it names generic tasks without equipment, project narrative, or personal detail. For strict clients, this is a quality failure even though the respondent is authentic. The substantive engagement threshold varies by dataset — some clients tolerate generic first-person (Delta), others require specific detail (ECHO). When in doubt without calibration data, treat thin-but-on-topic as REVIEW, not KEEP.
+11. **Substantive engagement**
+    Does the core open-end demonstrate substantive engagement with the survey's specific topic? An answer like "Mowing and blowing" is on-topic for an outdoor power equipment survey but thin. V7 learned that thin-on-topic should not fire the core open-end quality family by itself. Treat it as REVIEW only when another concern exists. Promote it to DISCARD only when ML is strong or independent evidence families converge.
 
 12. **Cross-respondent synthetic clustering**
    Do multiple supposedly independent respondents share rare phrases, open-end templates, response vectors, timing vectors, matrix patterns, or burst timing? Similar technical context alone is not enough. Similar response chains make the signal stronger.
@@ -107,6 +107,21 @@ Do not count correlated checks as independent proof. Aggregate evidence into fam
 - protective human evidence
 
 Move a row toward exclusion review only when independent families converge and the full response chain does not provide a benign explanation. Keep single-family concerns as review routing unless the evidence is severe and directly tied to a required high-value response.
+
+## V7 disposition standard
+
+Use the calibrated V7 rules unless a newer sealed benchmark has replaced them.
+
+- DISCARD when ML is at least 0.8.
+- DISCARD when ML is at least 0.6 and at least one independent evidence family also fires.
+- DISCARD when at least 4 independent evidence families fire.
+- DISCARD when certain platform fraud appears, such as qc 8, qc 9, non-English in a US survey, or TERMFLAGS without strong human counterevidence.
+- REVIEW when 2 or 3 families fire.
+- REVIEW when Stage 2 quality fails but ML is below 0.6 and fewer than 4 families fire.
+- REVIEW when badopen severity is high but convergence is weak.
+- KEEP or REVIEW thin-on-topic answers based on the rest of the chain. Do not discard them for shortness alone.
+
+The successful V7 pattern improved ECHO precision to 0.664, recall to 0.524, F1 to 0.586, and balanced accuracy to 0.690. Preserve those guardrails before adding broader recall rules.
 
 ## Output expectation
 

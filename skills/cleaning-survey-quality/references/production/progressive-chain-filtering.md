@@ -28,32 +28,30 @@ Regex and scripted rules have a role, but it is strictly limited to Stage 1 data
 
 This is the only way to achieve high precision without annotations. Scripted rules produce false positives because they cannot read context. The agent can.
 
-### Blind run validation results
+### Current validation results
 
-The four-stage multi-agent pipeline was validated on the Delta Water Filtration unannotated set (1353 rows) and compared against the annotated answer bank (348 rejects, 1005 accepts):
+The current calibration target is V7 on the ECHO benchmark. V7 reviewed all 1,566 respondents, then joined the sealed ledger to the annotated answer bank.
 
-| Metric | Scripted approach | Agent semantic approach |
-|---|---:|---:|
-| Discard precision | 33.9% | 42.0% |
-| Discard recall | 10.9% | 18.1% |
-| Discard F1 | 16.5% | 25.3% |
-| Flagged F1 (discard+review) | 40.9% | 40.9% |
+| Metric | Captain semantic baseline | V6 | V7 |
+|---|---:|---:|---:|
+| Precision | 0.581 | 0.451 | 0.664 |
+| Recall | 0.508 | 0.401 | 0.524 |
+| F1 | 0.542 | 0.425 | 0.586 |
+| Balanced accuracy | 0.654 | 0.567 | 0.690 |
+| False positives | 203 | 270 | 147 |
 
-The agent semantic approach improves discard precision by +8.1pp and recall by +7.2pp over scripted scoring. The agent correctly identified 63 of 348 annotated rejects as discards, and flagged 200 of 348 (57.5%) as discard or review. The agent is more conservative than human annotators (11.1% discard rate vs 25.7% human rejection rate), prioritizing precision over recall — the right behavior for a first-pass filter.
+V7 surpassed the Captain semantic baseline on every hard metric while keeping a REVIEW bucket for human judgment. The gain came from using ML as a controlled disposition gate, requiring 4 independent evidence families when ML was not strong, and protecting thin-on-topic accepted rows.
 
-Key patterns the agent caught that human annotators also caught:
-- Kitchen-faucet-for-bathroom synthetic family (71 respondents, physically impossible)
-- Finance/banking attention-check cluster (7 respondents with attention-check text as purchase reason)
-- Garbled/nonsensical open-end text
-- Brand name as purchase reason
-- Concern contradictions ("not at all concerned" but actively shopping)
-- Impossible demographics (5,000+ sq ft home valued under $250K)
-- Off-topic survey descriptions (outro about "electronic devices", "whiskey")
-- Templated/LLM-generated text
-- Non-English responses
-- Supplier-based fraud clusters (RevenueUniverse 60% severe issue rate)
+Key V7 lessons:
 
-The main gap is false negatives (148 annotated rejects kept by the agent). These are cases requiring cross-dataset context, supplier-level rejection patterns, or domain expertise not available in a single-dataset blind run.
+- ML score is the strongest single discriminator and should guide disposition at calibrated thresholds.
+- Thin-on-topic does not fire core open-end quality by itself.
+- Stage 2 quality failure defaults to REVIEW unless ML is at least 0.6 or 4 families converge.
+- Badopen severity is a modifier, not a discard driver.
+- Moderate platform risk needs convergence.
+- Accepted-row guardrails are the main precision protection.
+
+The main remaining gap is 263 false negatives. The next improvement cycle should study those misses for learnable badopen boundaries, field-specific contracts, brand-funnel inconsistencies, survey-structure gaps, and quota context that was not visible enough in the row packet. Do not weaken the V7 false-positive guardrails unless the next sealed benchmark shows a net gain.
 
 ## Layer 1: Datamap to response-question mapping
 

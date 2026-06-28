@@ -12,6 +12,15 @@ After the PM reviews the blind-run output and the client provides accept/reject 
 
 This is a **separate activity** from the normal blind run. It does not run on unannotated data.
 
+The current benchmark to beat is V7 on ECHO:
+- Precision 0.664
+- Recall 0.524
+- F1 0.586
+- Balanced accuracy 0.690
+- False positives 147
+
+Do not promote a change only because it increases recall. A successful change must preserve the V7 false-positive guardrails or explain why the added review burden is worth it.
+
 ## Steps
 
 ### 1. Compare agent judgments against client decisions
@@ -34,11 +43,13 @@ For each false negative (missed discard):
 - Read the full response chain
 - Identify which evidence family should have triggered
 - Determine why the agent missed it (too strict? wrong threshold? missing signal?)
+- Decide whether the miss is learnable from runtime fields or depends on hidden client process data
 
 For each false positive (wrong discard):
 - Read the full response chain
 - Identify which evidence family triggered incorrectly
 - Determine what protective factor should have prevented the discard
+- Compare it to accepted rows with the same surface pattern and document the guardrail
 
 ### 3. Update the evidence-family framework
 
@@ -46,6 +57,7 @@ Based on the miss analysis:
 - Update `build_agent_instructions()` in `run_holistic_agent_review.py`
 - Adjust thresholds for evidence families
 - Add new guardrails for false positive patterns
+- Update `references/production/v7-calibration-and-guardrails.md` when the new benchmark beats V7
 - Document the changes in the commit message
 
 ### 4. Retrain the ML model (optional)
@@ -69,3 +81,4 @@ Run `commands/blind-run.md` on the unannotated workbook again and compare the ne
 - `references/evolution/dataset-cycle-loop.md` — Improvement cycle specification
 - `references/evolution/ml-pipeline-report.md` — ML building process and per-dataset evaluation results
 - `references/evolution/internal-signal-learning.md` — Internal comments and PM notes learning
+- `references/production/v7-calibration-and-guardrails.md` — Current benchmark and guardrail rules

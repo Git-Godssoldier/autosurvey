@@ -4,7 +4,7 @@ This directory documents the format of the output artifacts produced by the pipe
 
 ## Annotated Excel Format
 
-The annotated Excel file is the original workbook with 9 added columns:
+The annotated Excel file is the original workbook with review columns added. It must include the legacy 9 columns and the V7 decision fields when available.
 
 | Column | Type | Description |
 |---|---|---|
@@ -17,6 +17,15 @@ The annotated Excel file is the original workbook with 9 added columns:
 | `Reassessment_Notes` | string | Notes from second-pass reassessment (if applicable) |
 | `Defender_Summary` | string | Human-readable consolidation of platform signals |
 | `AI_Text_Suspicion` | float (0-1) | Cross-respondent AI text similarity score |
+| `Authenticity_Risk` | float (0-1) | Fraud, bot, platform, duplicate, or synthetic-response risk |
+| `Quality_Discard_Risk` | float (0-1) | Project quality bar risk after full-chain review |
+| `Client_Reject_Probability` | float (0-1) | Likelihood the client process would reject the row |
+| `Primary_Removal_Reason` | string | quality_auth_failure, quota_balancing, eligibility_screenout, partial_incomplete, vendor_source, manual_admin, unknown_mixed, or none |
+| `Evidence_Families_Fired` | string | Independent evidence families that fired, not correlated subchecks |
+| `Converging_Family_Count` | int | Number of independent families after aggregation |
+| `Badopen_Trigger` | string | duplicate_text, too_short, pasted_text, wrong_topic, profanity, ai_like_similarity, nonresponsive, human_reviewer, or none |
+| `OE_Classification` | string | substantive, thin_on_topic, off_topic, non_answer, gibberish, product_review, benefit_stack, or other |
+| `Protective_Evidence` | string | Accepted-row guardrail or benign explanation considered before final action |
 
 ## Dashboard HTML Format
 
@@ -30,6 +39,8 @@ Self-contained HTML file with:
 6. **LangAssess readability distribution** — Open-end text readability levels
 7. **ML triage score distribution** — Risk probability distribution
 8. **Discard set table** — Top 50 discards with scores, signals, and agent justifications
+9. **Evidence-family health** — firing rate by family, guardrail notes, and whether each family shows positive, neutral, or negative discrimination when labels exist
+10. **Error-learning section** — after labeled evaluation, narrative analysis of false positives and false negatives with recommended skill changes
 
 ## Summary JSON Format
 
@@ -44,7 +55,7 @@ Self-contained HTML file with:
       "second_pass_decision_counts": {"keep_no_issue": 1505, "keep_with_recommendation": 61}
     }
   },
-  "rubric_version": "v4-evidence-family"
+  "rubric_version": "v7-calibrated-convergence"
 }
 ```
 
@@ -73,13 +84,30 @@ Each `review_chunk_XX.json` contains an array of respondent packets:
 
 ## Agent Judgment Format (Stage 2 output)
 
-Each `agent_judgments_chunk_XX.json` contains:
+Each `agent_judgments_chunk_XX.json` contains one object per respondent. The minimum runtime fields are below. A run should not be accepted if it only contains respondent ID, score, judgment, and a generic justification.
 
 ```json
 [{
   "respondent_id": "uuid",
   "agent_score": -0.7,
   "agent_judgment": "DISCARD",
-  "agent_justification": "The core OE answer 'water filtration systems' fails the motivation question role. It names the topic but gives no lived experience. Converges with ML triage 0.82 and generic outro matching 12 other respondents."
+  "agent_justification": "The core OE answer 'water filtration systems' fails the motivation question role. It names the topic but gives no lived experience. Converges with ML triage 0.82 and generic outro matching 12 other respondents.",
+  "authenticity_risk": 0.72,
+  "quality_discard_risk": 0.61,
+  "client_reject_probability": 0.84,
+  "stage1_fraud_verdict": "review",
+  "stage2_quality_verdict": "fail",
+  "primary_removal_reason": "quality_auth_failure",
+  "secondary_removal_reason": "model_risk",
+  "removal_confidence": 0.78,
+  "evidence_families_fired": ["model_risk", "brand_funnel"],
+  "evidence_family_scores": {
+    "model_risk": {"fired": true, "score": 0.82, "trigger": "ml_ge_0_8"},
+    "core_oe_quality": {"fired": false, "score": 0.2, "trigger": "thin_on_topic_protected"}
+  },
+  "badopen_trigger": "none",
+  "oe_classification": "thin_on_topic",
+  "converging_family_count": 2,
+  "protective_evidence": "The answer is short but on topic; the discard comes from model and brand-funnel convergence, not shortness alone."
 }]
 ```

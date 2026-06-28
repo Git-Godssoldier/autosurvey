@@ -142,6 +142,22 @@ A strong discard recommendation usually blends multiple evidence families:
 
 Do not double-count the same fact. For example, one IP address appearing in many columns is not many independent signals. It becomes stronger only when multiple supposedly independent respondents share technical evidence and similar weak chains.
 
+## V7 calibration test for new signals
+
+Before a new signal affects final disposition, test it against the V7 guardrails.
+
+Ask:
+
+- Does the signal improve precision, recall, F1, and balanced accuracy on a sealed benchmark?
+- Does it reduce false positives or provide enough recall gain to justify the added false-positive exposure?
+- Does the signal fire more often for rejected rows than accepted rows after accepted-row controls are checked?
+- Is the signal independent from other firing families, or is it a duplicate expression of the same fact?
+- Does the signal explain a known false-negative family without reopening a known false-positive family?
+
+Promote a signal only when the answer is clear. Otherwise keep it as review routing or report-only context.
+
+The current benchmark pattern to preserve is V7 on ECHO: precision 0.664, recall 0.524, F1 0.586, balanced accuracy 0.690, and 147 false positives. A broader rule that lowers precision should not be promoted unless it is tested on the next held-out dataset and clearly improves the operating point.
+
 ## Required agent output
 
 For each important discovery, write:

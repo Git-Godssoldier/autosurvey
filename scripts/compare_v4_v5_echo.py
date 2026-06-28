@@ -156,10 +156,12 @@ def main():
     v51_dir = Path('/Users/jeremyalston/Perfect/TFG Data Cleaning Sets/autosurvey-outputs/blind-runs-agent/109-2601 Echo BH/holistic_agent_run_v51')
     v6_dir = Path('/Users/jeremyalston/Perfect/TFG Data Cleaning Sets/autosurvey-outputs/blind-runs-agent/109-2601 Echo BH/holistic_agent_run_v6')
     v7_dir = Path('/Users/jeremyalston/Perfect/TFG Data Cleaning Sets/autosurvey-outputs/blind-runs-agent/109-2601 Echo BH/holistic_agent_run_v7')
+    v8_dir = Path('/Users/jeremyalston/Perfect/TFG Data Cleaning Sets/autosurvey-outputs/blind-runs-agent/109-2601 Echo BH/holistic_agent_run_v8')
+    v9_dir = Path('/Users/jeremyalston/Perfect/TFG Data Cleaning Sets/autosurvey-outputs/blind-runs-agent/109-2601 Echo BH/holistic_agent_run_v9')
 
-    print('=' * 80)
-    print('ECHO v4 vs v5 vs v5.1 vs v6 vs v7 Comparison Against Client Ground Truth (status=5 only)')
-    print('=' * 80)
+    print('=' * 100)
+    print('ECHO v4 vs v5 vs v5.1 vs v6 vs v7 vs v8 vs v9 Comparison Against Client Ground Truth (status=5 only)')
+    print('=' * 100)
 
     # Load ground truth
     gt = load_client_ground_truth(annotated_path)
@@ -236,20 +238,46 @@ def main():
         v7_metrics = None
         print('\n--- V7: Directory not found ---')
 
+    # V8
+    if v8_dir.exists():
+        v8_judgments = load_judgments(v8_dir)
+        if v8_judgments:
+            v8_metrics = compute_metrics(gt, v8_judgments)
+            print_metrics('V8 (error-driven calibration + channel/class signals + FP reduction)', v8_metrics)
+        else:
+            v8_metrics = None
+            print('\n--- V8: No judgments found yet ---')
+    else:
+        v8_metrics = None
+        print('\n--- V8: Directory not found ---')
+
+    # V9
+    if v9_dir.exists():
+        v9_judgments = load_judgments(v9_dir)
+        if v9_judgments:
+            v9_metrics = compute_metrics(gt, v9_judgments)
+            print_metrics('V9 (precision-tuned FN reduction + thin OE guard + consistent thresholds)', v9_metrics)
+        else:
+            v9_metrics = None
+            print('\n--- V9: No judgments found yet ---')
+    else:
+        v9_metrics = None
+        print('\n--- V9: Directory not found ---')
+
     # Comparison table
-    print(f'\n{"="*90}')
-    print(f'{"Metric":<20} {"Captain":>10} {"V4":>10} {"V5":>10} {"V5.1":>10} {"V6":>10} {"V7":>10}')
-    print(f'{"-"*90}')
-    print(f'{"TP":<20} {captain["tp"]:>10} {v4_metrics["tp"]:>10} {(v5_metrics or {}).get("tp", "-"):>10} {(v51_metrics or {}).get("tp", "-"):>10} {(v6_metrics or {}).get("tp", "-"):>10} {(v7_metrics or {}).get("tp", "-"):>10}')
-    print(f'{"FP":<20} {captain["fp"]:>10} {v4_metrics["fp"]:>10} {(v5_metrics or {}).get("fp", "-"):>10} {(v51_metrics or {}).get("fp", "-"):>10} {(v6_metrics or {}).get("fp", "-"):>10} {(v7_metrics or {}).get("fp", "-"):>10}')
-    print(f'{"TN":<20} {captain["tn"]:>10} {v4_metrics["tn"]:>10} {(v5_metrics or {}).get("tn", "-"):>10} {(v51_metrics or {}).get("tn", "-"):>10} {(v6_metrics or {}).get("tn", "-"):>10} {(v7_metrics or {}).get("tn", "-"):>10}')
-    print(f'{"FN":<20} {captain["fn"]:>10} {v4_metrics["fn"]:>10} {(v5_metrics or {}).get("fn", "-"):>10} {(v51_metrics or {}).get("fn", "-"):>10} {(v6_metrics or {}).get("fn", "-"):>10} {(v7_metrics or {}).get("fn", "-"):>10}')
-    print(f'{"Precision":<20} {captain["precision"]:>10.3f} {v4_metrics["precision"]:>10.3f} {(v5_metrics or {}).get("precision", 0):>10.3f} {(v51_metrics or {}).get("precision", 0):>10.3f} {(v6_metrics or {}).get("precision", 0):>10.3f} {(v7_metrics or {}).get("precision", 0):>10.3f}')
-    print(f'{"Recall":<20} {captain["recall"]:>10.3f} {v4_metrics["recall"]:>10.3f} {(v5_metrics or {}).get("recall", 0):>10.3f} {(v51_metrics or {}).get("recall", 0):>10.3f} {(v6_metrics or {}).get("recall", 0):>10.3f} {(v7_metrics or {}).get("recall", 0):>10.3f}')
-    print(f'{"F1":<20} {captain["f1"]:>10.3f} {v4_metrics["f1"]:>10.3f} {(v5_metrics or {}).get("f1", 0):>10.3f} {(v51_metrics or {}).get("f1", 0):>10.3f} {(v6_metrics or {}).get("f1", 0):>10.3f} {(v7_metrics or {}).get("f1", 0):>10.3f}')
-    print(f'{"Balanced Acc":<20} {captain["balanced_acc"]:>10.3f} {v4_metrics["balanced_acc"]:>10.3f} {(v5_metrics or {}).get("balanced_acc", 0):>10.3f} {(v51_metrics or {}).get("balanced_acc", 0):>10.3f} {(v6_metrics or {}).get("balanced_acc", 0):>10.3f} {(v7_metrics or {}).get("balanced_acc", 0):>10.3f}')
-    print(f'{"Discards pred":<20} {captain["discard_predicted"]:>10} {v4_metrics["discard_predicted"]:>10} {(v5_metrics or {}).get("discard_predicted", "-"):>10} {(v51_metrics or {}).get("discard_predicted", "-"):>10} {(v6_metrics or {}).get("discard_predicted", "-"):>10} {(v7_metrics or {}).get("discard_predicted", "-"):>10}')
-    print(f'{"="*90}')
+    print(f'\n{"="*100}')
+    print(f'{"Metric":<20} {"Captain":>10} {"V4":>10} {"V5":>10} {"V5.1":>10} {"V6":>10} {"V7":>10} {"V8":>10} {"V9":>10}')
+    print(f'{"-"*100}')
+    print(f'{"TP":<20} {captain["tp"]:>10} {v4_metrics["tp"]:>10} {(v5_metrics or {}).get("tp", "-"):>10} {(v51_metrics or {}).get("tp", "-"):>10} {(v6_metrics or {}).get("tp", "-"):>10} {(v7_metrics or {}).get("tp", "-"):>10} {(v8_metrics or {}).get("tp", "-"):>10}')
+    print(f'{"FP":<20} {captain["fp"]:>10} {v4_metrics["fp"]:>10} {(v5_metrics or {}).get("fp", "-"):>10} {(v51_metrics or {}).get("fp", "-"):>10} {(v6_metrics or {}).get("fp", "-"):>10} {(v7_metrics or {}).get("fp", "-"):>10} {(v8_metrics or {}).get("fp", "-"):>10}')
+    print(f'{"TN":<20} {captain["tn"]:>10} {v4_metrics["tn"]:>10} {(v5_metrics or {}).get("tn", "-"):>10} {(v51_metrics or {}).get("tn", "-"):>10} {(v6_metrics or {}).get("tn", "-"):>10} {(v7_metrics or {}).get("tn", "-"):>10} {(v8_metrics or {}).get("tn", "-"):>10}')
+    print(f'{"FN":<20} {captain["fn"]:>10} {v4_metrics["fn"]:>10} {(v5_metrics or {}).get("fn", "-"):>10} {(v51_metrics or {}).get("fn", "-"):>10} {(v6_metrics or {}).get("fn", "-"):>10} {(v7_metrics or {}).get("fn", "-"):>10} {(v8_metrics or {}).get("fn", "-"):>10}')
+    print(f'{"Precision":<20} {captain["precision"]:>10.3f} {v4_metrics["precision"]:>10.3f} {(v5_metrics or {}).get("precision", 0):>10.3f} {(v51_metrics or {}).get("precision", 0):>10.3f} {(v6_metrics or {}).get("precision", 0):>10.3f} {(v7_metrics or {}).get("precision", 0):>10.3f} {(v8_metrics or {}).get("precision", 0):>10.3f}')
+    print(f'{"Recall":<20} {captain["recall"]:>10.3f} {v4_metrics["recall"]:>10.3f} {(v5_metrics or {}).get("recall", 0):>10.3f} {(v51_metrics or {}).get("recall", 0):>10.3f} {(v6_metrics or {}).get("recall", 0):>10.3f} {(v7_metrics or {}).get("recall", 0):>10.3f} {(v8_metrics or {}).get("recall", 0):>10.3f}')
+    print(f'{"F1":<20} {captain["f1"]:>10.3f} {v4_metrics["f1"]:>10.3f} {(v5_metrics or {}).get("f1", 0):>10.3f} {(v51_metrics or {}).get("f1", 0):>10.3f} {(v6_metrics or {}).get("f1", 0):>10.3f} {(v7_metrics or {}).get("f1", 0):>10.3f} {(v8_metrics or {}).get("f1", 0):>10.3f}')
+    print(f'{"Balanced Acc":<20} {captain["balanced_acc"]:>10.3f} {v4_metrics["balanced_acc"]:>10.3f} {(v5_metrics or {}).get("balanced_acc", 0):>10.3f} {(v51_metrics or {}).get("balanced_acc", 0):>10.3f} {(v6_metrics or {}).get("balanced_acc", 0):>10.3f} {(v7_metrics or {}).get("balanced_acc", 0):>10.3f} {(v8_metrics or {}).get("balanced_acc", 0):>10.3f}')
+    print(f'{"Discards pred":<20} {captain["discard_predicted"]:>10} {v4_metrics["discard_predicted"]:>10} {(v5_metrics or {}).get("discard_predicted", "-"):>10} {(v51_metrics or {}).get("discard_predicted", "-"):>10} {(v6_metrics or {}).get("discard_predicted", "-"):>10} {(v7_metrics or {}).get("discard_predicted", "-"):>10} {(v8_metrics or {}).get("discard_predicted", "-"):>10}')
+    print(f'{"="*100}')
 
     # V5.1 FN/FP analysis
     if v51_metrics:
@@ -289,9 +317,9 @@ def main():
         print(f'V6 METADATA ANALYSIS (three-component scoring + disposition layer)')
         print(f'{"="*80}')
 
-        # Use v7 judgments if available, otherwise v6, otherwise check v5.1
-        v6_or_v51 = v7_judgments if (v7_metrics and v7_judgments) else (v6_judgments if (v6_metrics and v6_judgments) else v51_judgments)
-        v6_label = 'V7' if (v7_metrics and v7_judgments) else ('V6' if (v6_metrics and v6_judgments) else 'V5.1')
+        # Use v8 judgments if available, otherwise v7, otherwise v6, otherwise check v5.1
+        v6_or_v51 = v9_judgments if (v9_metrics and v9_judgments) else (v8_judgments if (v8_metrics and v8_judgments) else (v7_judgments if (v7_metrics and v7_judgments) else (v6_judgments if (v6_metrics and v6_judgments) else v51_judgments)))
+        v6_label = 'V9' if (v9_metrics and v9_judgments) else ('V8' if (v8_metrics and v8_judgments) else ('V7' if (v7_metrics and v7_judgments) else ('V6' if (v6_metrics and v6_judgments) else 'V5.1')))
 
         if v6_or_v51:
             sample_j = v6_or_v51.get(next(iter(v6_or_v51)), {})
@@ -442,8 +470,10 @@ def main():
             'v5.1': v51_metrics,
             'v6': v6_metrics,
             'v7': v7_metrics,
+            'v8': v8_metrics,
+            'v9': v9_metrics,
         }
-        output_path = (v7_dir if v7_dir.exists() else (v6_dir if v6_dir.exists() else v51_dir)) / 'comparison_results.json'
+        output_path = (v9_dir if v9_dir.exists() else (v8_dir if v8_dir.exists() else (v7_dir if v7_dir.exists() else (v6_dir if v6_dir.exists() else v51_dir)))) / 'comparison_results.json'
         with open(output_path, 'w') as f:
             json.dump(output, f, indent=2)
         print(f'\nFull comparison saved to: {output_path}')

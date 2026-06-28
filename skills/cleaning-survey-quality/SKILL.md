@@ -123,6 +123,7 @@ Read only the references needed for the current task:
 | Full four-layer progressive filtering specification | `references/production/progressive-chain-filtering.md` |
 | Blind authenticity review rules | `references/production/decipher-blind-authenticity-review.md` |
 | Signal weighting, semantic similarity, convergence logic | `references/production/semantic-signal-expansion.md` |
+| V7 calibrated disposition rules and benchmark lessons | `references/production/v7-calibration-and-guardrails.md` |
 | Preventing rigid checklist behavior | `references/production/agent-authored-row-review.md` |
 | Escalation routing for full dataset runs | `references/production/agentic-escalation-path.md` |
 | Client, PM, survey, and quality term definitions | `references/production/client-terminology-glossary.md` |
@@ -203,6 +204,14 @@ The agent instructions use an evidence-family convergence model with two stages 
 
 **A row is discard-like when ML risk is high (>= 0.6) AND converges with at least one independent risk family — OR when >= 4 evidence families fire — OR when platform fraud is certain (TERMFLAGS=1, qc=8/9). OE quality alone is NOT a discard signal (negative correlation with client discard).**
 
+The V7 release improved every hard benchmark metric on ECHO against both V6 and the Captain semantic baseline. It raised precision to 0.664, recall to 0.524, F1 to 0.586, balanced accuracy to 0.690, and cut false positives from 270 to 147 versus V6. Preserve the pattern that produced that gain:
+
+1. Use ML as a calibrated disposition gate, not as a replacement for reasoning.
+2. Require 4 or more independent evidence families for discard when ML is not strong.
+3. Do not fire `core_oe_quality` for `thin_on_topic`.
+4. Treat Stage 2 quality failures and badopen severity as modifiers unless ML or family convergence supports them.
+5. Protect accepted-row guardrails before expanding discard rules.
+
 ### Stage 1: Fraud Detection Families
 
 1. **Platform risk** — TERMFLAGS=1, qc flag, RD_Search elevated, non-English
@@ -259,7 +268,7 @@ AI text suspicion on the outro field ONLY is downweighted. Generic topic restate
 
 ### Short Non-Answer Rule
 
-Short answers (<25 chars) to a motivation/project question are almost always role failures. "It's essential", "Snow Blower", "Home Depot" are NOT project descriptions. When paired with ANY risk family signal, this becomes a discard.
+Short answers (<25 chars) to a motivation/project question can be role failures, but only when they do not answer the prompt type. "It's essential", "Snow Blower", and "Home Depot" are not project descriptions. A short answer that names the right topic and has no other concern is review or keep, not discard. Upgrade only when ML is at least 0.6 or when multiple independent families converge.
 
 ### Typo Laundering Guard
 
@@ -324,7 +333,7 @@ See `templates/output-format-spec.md` for the exact format of each artifact.
 
 After the PM reviews the output and the client provides accept/reject decisions, the annotated workbook can be used to improve the pipeline. This is a **separate activity** from the normal blind run. See `commands/evolution-cycle.md` for the full workflow.
 
-### Known Performance Gaps (v4 → v5 → v5.1 → v6 → v7)
+### Known Performance Gaps (v4 to v5 to v5.1 to v6 to v7)
 
 **v6 ECHO results (status=5 only):**
 - TP=226, FP=293, FN=327, TN=720 | Precision=0.435, Recall=0.409, F1=0.422
@@ -338,7 +347,7 @@ After the PM reviews the output and the client provides accept/reject decisions,
 - Converging family count >= 4 is the key threshold (FP:TP ratio flips favorable)
 
 **v7 calibration addresses these gaps by:**
-1. ML >= 0.8 → auto-DISCARD; ML >= 0.6 → DISCARD with any convergence; ML >= 0.5 in REVIEW → upgrade to DISCARD
+1. ML >= 0.8 → direct DISCARD; ML >= 0.6 → DISCARD with any convergence; ML >= 0.5 in REVIEW → upgrade only when a real independent family also fires
 2. Require >= 4 converging families for DISCARD (was 2-3, caused 2:1 FP:TP ratio)
 3. Stop firing core_oe_quality for thin_on_topic (was firing in 98% of both TPs and FPs)
 4. Tighten platform_risk: RD_Search >= 25 fires (was >= 20, which fired in 58% of keeps)
@@ -348,6 +357,18 @@ After the PM reviews the output and the client provides accept/reject decisions,
 8. Stage 2 "fail" → default REVIEW (was DISCARD, 84.5% agent discard vs 44.3% client discard)
 9. Badopen "high" severity → modifier, not driver (was 85.8% agent discard vs 42.3% client discard)
 10. Scoring weights: client_reject_probability 0.5, authenticity_risk 0.3, quality_discard_risk 0.2 (was 0.4/0.4/0.2)
+
+**v7 ECHO results after calibration:**
+- TP=290, FP=147, FN=263, TN=866
+- Precision=0.664, Recall=0.524, F1=0.586, Balanced Accuracy=0.690
+- False positives dropped 46% versus V6 while true positives rose from 222 to 290
+- V7 surpassed the Captain semantic baseline on precision, recall, F1, and balanced accuracy
+- Soft recall dropped from 0.976 to 0.875 because the REVIEW bucket became smaller; this is an acceptable tradeoff only when the next pass continues to monitor missed discards
+
+**The next improvement target:**
+- Study the 263 false negatives for thin-on-topic rows with low ML and no convergence that the client still rejected.
+- Study the 147 false positives to protect accepted rows where the quality bar is stricter than the client's actual bar.
+- Study the 247 Stage 2 fail rows that the client accepted before turning any quality-stage finding into a stronger runtime rule.
 
 **ECHO-specific findings (from residual signal mining):**
 - **Brand funnel** is the strongest field family (signal score 2345.5), far exceeding semantic content fields
@@ -405,6 +426,7 @@ cleaning-survey-quality/
 │   │   ├── progressive-chain-filtering.md
 │   │   ├── decipher-blind-authenticity-review.md
 │   │   ├── semantic-signal-expansion.md
+│   │   ├── v7-calibration-and-guardrails.md
 │   │   ├── agent-authored-row-review.md
 │   │   ├── agentic-escalation-path.md
 │   │   ├── client-terminology-glossary.md

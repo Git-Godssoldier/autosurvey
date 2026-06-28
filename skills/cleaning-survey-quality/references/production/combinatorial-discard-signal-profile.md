@@ -4,6 +4,12 @@
 
 Analysis of 13,388 respondents across 11 annotated Excel datasets. Ground truth is `status == 5` as client reject/discard; all other statuses are treated as accepts. Overall reject rate is 23.3% (3,124/13,388).
 
+## Current status
+
+Use this file as signal discovery background, not as the final disposition rule. The V7 calibration in `v7-calibration-and-guardrails.md` supersedes the older auto-discard language below whenever there is a conflict.
+
+The key correction is that raw signal tiers must pass accepted-row guardrails and evidence-family convergence. A high-lift signal can route a row to REVIEW, but DISCARD still requires the V7 threshold pattern: strong ML, certain platform fraud, or independent family convergence.
+
 ## Key Conclusions
 
 1. **Combinations are more informative than raw signal count, but still not sufficient as a global discard rule.** The derived signal count distributions overlap heavily between accepts and rejects. High-volume signals usually lift reject odds only modestly above the 23.3% baseline.
@@ -32,7 +38,7 @@ Analysis of 13,388 respondents across 11 annotated Excel datasets. Ground truth 
 
 Based on empirical lift analysis against client ground truth, signals fall into three tiers with very different predictive values. **Do NOT treat all signals equally. Do NOT use signal count as a risk accumulator** — nearly every respondent has 4-6 signals.
 
-### TIER 1 — High Precision (auto-discard candidates, 50-90% precision)
+### TIER 1 — High Precision (strong disposition candidates, 50-90% precision)
 
 | Signal | Support | Rejects | Reject Rate | Lift | Recall |
 |--------|---------|---------|-------------|------|--------|
@@ -42,7 +48,7 @@ Based on empirical lift analysis against client ground truth, signals fall into 
 | `long_low_specificity_text` | 55 | 50 | 90.9% | 3.90x | 1.6% |
 | `pasted_text_flag` / `pasted_open_end` | 33 | 9 | 27.3% | 1.17x | 0.3% |
 
-**Usage**: Auto-discard if any TIER 1 signal is present (except `pasted_text_flag` alone, which routes to REVIEW). These signals are rare but highly predictive. On Delta, `termflags_nonzero` achieved 73% precision with 2.32x lift in agent discards.
+**Usage**: Treat TIER 1 signals as strong review evidence. Auto-discard only when the V7 threshold is met, such as ML >= 0.8, certain platform fraud, or independent family convergence. `pasted_text_flag` alone routes to REVIEW.
 
 ### TIER 2 — Moderate (use with supplier risk or semantic weakness)
 
@@ -132,9 +138,11 @@ On Delta, high-risk supplier discards achieved 58% precision vs 28% for moderate
 - **Above-median timing is MORE predictive of rejection.** On Delta, above-median timing discards had 59% precision vs 33% for bottom-25% timing.
 - **`qtime_under_dataset_p10`** (bottom 10% of timing for the dataset) has 1.34x lift, making it the only timing signal with meaningful discriminative power. Use it as a TIER 2 signal, not a standalone discard trigger.
 
-## Refined Discard Decision Rules
+## Historical refined discard decision rules
 
-1. **AUTO-DISCARD**: Any TIER 1 signal present (`termflags_nonzero`, `long_low_specificity_text`, `ai_or_overpolished_text_marker`, `generic_placeholder_open_end`)
+These rules came before V7 and should be interpreted through the V7 guardrails.
+
+1. **Strong review or discard candidate**: Any TIER 1 signal present (`termflags_nonzero`, `long_low_specificity_text`, `ai_or_overpolished_text_marker`, `generic_placeholder_open_end`)
 2. **DISCARD**: Supplier is high-risk AND profile shows ANY semantic weakness
 3. **DISCARD**: Supplier is high-risk AND 2+ TIER 2 signals present
 4. **DISCARD**: Profile is clearly incoherent (demographic contradictions, off-topic open-end, AI-generated text, third-person text)
