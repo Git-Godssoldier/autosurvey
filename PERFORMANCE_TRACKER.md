@@ -264,6 +264,80 @@ The threshold-tuning approach (V4-V9) has reached its ceiling at 69% BAcc. The s
 
 ---
 
+## 6. Evolution Loop Results (V10-V18)
+
+After V7-V9 threshold tuning reached a ceiling at 0.690 BAcc, an autonomous evolution loop
+was built to systematically explore ML-based approaches. All results use **5-fold cross-validation**
+on Echo BH (no data leakage). V7 agent judgment features are used as semi-supervised labels.
+
+### Version Comparison
+
+| Version | Approach | BAcc | F1 | AUC | Key Change |
+|---------|----------|------|-----|-----|------------|
+| V7 | Agent review (threshold tuning) | 0.690 | 0.586 | N/A | Baseline (best agent version) |
+| V10 | sklearn ensemble + V7 features | 0.729 | 0.650 | 0.773 | Calibrated GBM+RF+LR with isotonic regression |
+| V11 | XGB+LGB+MLP+RF + TF-IDF | 0.737 | 0.659 | 0.777 | Advanced models + word TF-IDF + supplier interactions |
+| V12 | + char n-grams + feature selection | 0.735 | 0.655 | 0.768 | Char n-grams + mutual information feature selection |
+| V13 | Multi-dataset (no V7 features) | 0.702 | 0.613 | 0.745 | Train on all 11 datasets (only Echo has labels) |
+| **V14** | **Self-training + V8 features** | **0.744** | **0.670** | **0.788** | **Self-training on 13K unlabeled + V7+V8 agent features** |
+| V15 | Optuna hyperparameter optimization | 0.740 | 0.661 | 0.791 | Bayesian optimization (overfits to noisy pseudo-labels) |
+| V16 | Separate Pro/Consumer models | 0.732 | 0.648 | 0.786 | Pro BAcc 0.765, Consumer BAcc 0.689 (bottleneck) |
+| V17 | LLM embeddings + V7+V8+V9 | 0.739 | 0.662 | 0.786 | Sentence-transformer embeddings (384 dims) + 3 agent sources |
+| V18 | Two-stage model (REVIEW tier) | 0.738 | 0.661 | 0.792 | Specialized model for uncertain cases (stage1_only always best) |
+
+### Best Version: V14
+
+**V14 (Self-Training + V8 Features)** is the best performing version at **BAcc 0.744, F1 0.670, AUC 0.788**.
+
+Key components:
+1. Self-training: Echo labels → predict on 13,388 unlabeled respondents from 10 other datasets → high-confidence predictions (≥0.85) become pseudo-labels → retrain (3 iterations, ~14K training samples)
+2. V7 + V8 agent judgment features (semi-supervised labels from two agent versions)
+3. XGBoost + LightGBM + MLP ensemble with isotonic calibration
+4. Per-channel threshold optimization (Pro vs Consumer)
+5. 17 enhanced semantic features (OE specificity, equipment mentions, grounding anchors, etc.)
+
+### AUC Ceiling Analysis
+
+The AUC has plateaued at ~0.79 across V14-V18 despite trying:
+- 6 different model architectures (sklearn GBM, XGBoost, LightGBM, MLP, RF, CatBoost)
+- 5 feature types (semantic, TF-IDF word, TF-IDF char n-gram, LLM embeddings, cross-question)
+- 3 training strategies (self-training, multi-dataset, cost-sensitive)
+- 3 agent feature sources (V7, V8, V9)
+- 2 architectural approaches (two-stage, per-channel)
+- Optuna Bayesian hyperparameter optimization
+
+This suggests an **AUC ceiling of ~0.80** for the available signals. Reaching 90% BAcc
+requires AUC > 0.95, which needs fundamentally different data sources.
+
+### What Would Break the Ceiling
+
+1. **Active learning**: Get human labels for the 30% of respondents in the REVIEW tier
+2. **Client reject reasons**: The annotated file only has status (3/5), not WHY each was rejected
+3. **Cross-survey history**: Track respondents across multiple surveys to detect patterns
+4. **Real-time behavioral data**: Click patterns, response editing, time-per-question curves
+5. **LLM-based text quality scoring**: Use GPT-4/Claude to score OE text quality directly
+
+### Artifacts
+
+| Artifact | Path |
+|----------|------|
+| Evolution loop script | `autosurvey/scripts/evolution_loop.py` |
+| ML model improvement | `autosurvey/scripts/improve_ml_model.py` |
+| V10 CV evaluation | `autosurvey/scripts/v10_cv_evaluation.py` |
+| V11 advanced ensemble | `autosurvey/scripts/v11_advanced_ensemble.py` |
+| V12 CatBoost + features | `autosurvey/scripts/v12_catboost_features.py` |
+| V13 multi-dataset | `autosurvey/scripts/v13_multi_dataset.py` |
+| V14 self-training (BEST) | `autosurvey/scripts/v14_self_training.py` |
+| V15 Optuna optimization | `autosurvey/scripts/v15_optuna.py` |
+| V16 channel models | `autosurvey/scripts/v16_channel_models.py` |
+| V17 LLM embeddings | `autosurvey/scripts/v17_llm_embeddings.py` |
+| V18 two-stage model | `autosurvey/scripts/v18_two_stage.py` |
+| Decision log | `autosurvey/DECISION_LOG.md` |
+| CV results (all versions) | `autosurvey/v10_cv_results.json` through `v18_cv_results.json` |
+| Calibrated model | `autosurvey/skills/cleaning-survey-quality/models/echo_calibrated_model.joblib` |
+
+---
+
 ## 5. Artifacts Location
 
 | Artifact | Path |
