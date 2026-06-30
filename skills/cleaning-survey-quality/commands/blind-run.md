@@ -45,15 +45,24 @@ Before Stage 2, read the generated instructions and confirm they preserve the cu
 
 ### 4. Stage 2 — Chunk review agents
 
-**The agent running this skill performs Stage 2 itself** by running chunk review agents through its own subagent/tool infrastructure. Do NOT use external CLI tools (Codex, etc.). No external tool installation is required.
+Run Stage 2 through Devin CLI print mode with GLM 5.2. Do not use Codex CLI for row review. The review lane is the full packet set generated in Stage 1, not only a score band.
 
-For each `review_chunk_XX.json` file, run a chunk review agent that:
-1. Reads the `agent_review_instructions.md` file
-2. Reads the `review_chunk_XX.json` file
-3. Applies the V7 evidence-family framework to each respondent
-4. Writes `agent_judgments_chunk_XX.json` to the same output directory, as a JSON array with `respondent_id`, `agent_score` (-1 to +1), `agent_judgment` (DISCARD/REVIEW/KEEP), and `agent_justification` (2-4 sentences)
+For each `review_chunk_XX.json` file, create a prompt file that tells Devin to:
+- read `agent_review_instructions.md`;
+- read the specific `review_chunk_XX.json`;
+- apply the V7 evidence-family framework to each respondent;
+- write raw JSON only to `agent_judgments_chunk_XX.json`, as an array with `respondent_id`, `agent_score` (-1 to +1), `agent_judgment` (DISCARD/REVIEW/KEEP), and `agent_justification` (2-4 sentences).
 
-Use the active run concurrency policy. For traceable improvement runs, concurrency is 1: process one chunk, log its start/completion/output path/exception/follow-up action, then move to the next chunk. Only use parallel chunk review when the run log explicitly allows it.
+Run each chunk with:
+
+```bash
+PROMPT_FILE="/path/to/holistic_output/prompts/review_chunk_XX.prompt.md"
+OUTPUT_JSON="/path/to/holistic_output/agent_judgments_chunk_XX.json"
+devin --model "glm-5.2" --prompt-file "$PROMPT_FILE" -p > "$OUTPUT_JSON"
+python3 -m json.tool "$OUTPUT_JSON" >/dev/null
+```
+
+Use the active run concurrency policy. For traceable improvement runs, concurrency is 1: process one chunk, log its start/completion/output path/JSON validation/exception/follow-up action, then move to the next chunk. Only use parallel chunk review when the run log explicitly allows it.
 
 ### 5. Stage 3 — Integrate judgments
 

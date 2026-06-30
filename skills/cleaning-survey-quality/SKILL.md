@@ -68,6 +68,36 @@ The ML triage model is **pre-trained and bundled** (`models/survey_quality_model
 
 Annotated workbooks (`status = 3` accepted, `status = 5` rejected) are used only for **evolution** — improving the model and rules after client feedback is received. See `commands/evolution-cycle.md`.
 
+## No-ML Production Signal Table Mode
+
+Some production runs cannot use the bundled ML model or any training step. In those runs, build an explicit signal table before row assessment and use it as the agent's working memory.
+
+Read `references/production/no-ml-signal-table-mode.md` before starting the run.
+
+Required tables or artifacts:
+- `signal_dictionary` — one row per allowed production signal, with signal name, family, source field or agent assessment source, description, and leakage status.
+- `signal_matrix` — one row per respondent and one Boolean column per signal. The agent must mark each signal present or absent for every respondent before final judgment.
+- `signal_lift` — optional when labels exist after the run. Use it only for evaluation and evolution, never during blind scoring.
+
+No-ML production mode must not use:
+- client `status`;
+- raw client `markers`;
+- `bad:` marker tokens;
+- training labels;
+- same-dataset fitted models;
+- prior-loop prediction scores.
+
+No-ML production mode may use:
+- workbook-derived fields normalized into SQLite;
+- Datamap question text and coded value labels;
+- timing, matrix, duplicate, platform, language, brand funnel, quota, and survey-structure reconstructions;
+- agent-authored semantic signal columns such as wrong topic, nonresponsive, thin on topic, brand-chain mismatch, and quota concern;
+- cross-dataset signal definitions stored in this skill and its references.
+
+In no-ML production mode, the review lane is the full dataset. The signal table is the case file and memory layer for row assessment; it is not a filter that removes rows from agent review. Every source respondent must receive an agent-authored assessment after the Boolean signal matrix is built. Label-tuned score bands from perturbation runs are diagnostic planning evidence only, not a production routing rule.
+
+Treat fully automated no-ML discard as conservative. Automated gates may provide a proposed disposition, but the full dataset still goes through row-level agent review before final delivery.
+
 ## Dataset Normalization Store
 
 For full production runs, benchmark runs, residual analysis, or any run where metrics must be reproducible, normalize the workbook into SQLite before scoring. Read `references/production/dataset-normalization-sqlite.md` and write the store under `{output_dir}/normalized/survey_quality.sqlite`.
@@ -88,13 +118,13 @@ Do not mark the run complete until the todo list shows every required item compl
 
 **Do NOT run `run_quality_loop.py` or `survey_pipeline.py` alone.** These are the old scripted pipelines that produce only Keep/Light review with zero discards. They are data-staging tools, not the review pipeline.
 
-**Do NOT use external CLI tools (Codex, etc.) for Stage 2.** Stage 2 is performed by the agent itself running chunk review agents through its own subagent infrastructure. No external tool installation is required.
+**Use Devin CLI print mode for Stage 2 agent runs.** Do not use Codex CLI for row review. Run Devin one chunk at a time with GLM 5.2, capture raw JSON, validate it, and log the command, output path, validation result, and any retry in `workledger.md`.
 
 The production flow is the **holistic agent review** with three stages:
 
 ```
 Stage 1: scripts/run_holistic_agent_review.py  → generates review packets + agent instructions
-Stage 2: YOU run chunk review agents           → one chunk at a time unless the run log allows more
+Stage 2: Devin CLI chunk review agents         → one chunk at a time unless the run log allows more
 Stage 3: scripts/integrate_agent_judgments.py  → merges judgments into annotated Excel + dashboard
 ```
 
@@ -112,13 +142,22 @@ python3 skills/cleaning-survey-quality/scripts/run_holistic_agent_review.py /pat
 
 After Stage 1 completes, the output directory contains `review_chunk_00.json` through `review_chunk_XX.json` and `agent_review_instructions.md`.
 
-**Stage 2 — YOU run chunk review agents.** For each chunk file, run a review agent (using your own subagent/tool infrastructure) that:
-1. Reads `agent_review_instructions.md`
-2. Reads `review_chunk_XX.json`
-3. Applies the evidence-family framework to each respondent
-4. Writes `agent_judgments_chunk_XX.json` to the same output directory
+**Stage 2 — run Devin chunk review agents.** For each chunk file, build a prompt file that includes the generated instructions, the chunk path, the output path, and the requirement to return raw JSON only. Then run:
 
-Use the active run concurrency policy. For traceable improvement runs, concurrency is 1: process one chunk, log its start/completion/output path/exception/follow-up action, then move to the next chunk. Only use parallel chunk review when the run log explicitly allows it.
+```bash
+PROMPT_FILE="/path/to/holistic_output/prompts/review_chunk_XX.prompt.md"
+OUTPUT_JSON="/path/to/holistic_output/agent_judgments_chunk_XX.json"
+devin --model "glm-5.2" --prompt-file "$PROMPT_FILE" -p > "$OUTPUT_JSON"
+python3 -m json.tool "$OUTPUT_JSON" >/dev/null
+```
+
+Each Devin chunk agent must:
+1. Read `agent_review_instructions.md`
+2. Read `review_chunk_XX.json`
+3. Apply the evidence-family framework to each respondent
+4. Write `agent_judgments_chunk_XX.json` to the same output directory
+
+Use the active run concurrency policy. For traceable improvement runs, concurrency is 1: process one chunk, log its start/completion/output path/JSON validation/exception/follow-up action, then move to the next chunk. Only use parallel chunk review when the run log explicitly allows it.
 
 ```bash
 # Stage 3: Integrate judgments into annotated Excel + dashboard
@@ -138,6 +177,7 @@ Read only the references needed for the current task:
 | Output format specs (Excel, dashboard, JSON) | `templates/output-format-spec.md` |
 | Full four-layer progressive filtering specification | `references/production/progressive-chain-filtering.md` |
 | Dataset normalization, SQLite store, SQL analysis standards | `references/production/dataset-normalization-sqlite.md` |
+| No-ML production signal table and Boolean row-signal matrix | `references/production/no-ml-signal-table-mode.md` |
 | Blind authenticity review rules | `references/production/decipher-blind-authenticity-review.md` |
 | Signal weighting, semantic similarity, convergence logic | `references/production/semantic-signal-expansion.md` |
 | V7 calibrated disposition rules and benchmark lessons | `references/production/v7-calibration-and-guardrails.md` |
@@ -206,15 +246,24 @@ The script also generates `agent_review_instructions.md` with the evidence-famil
 
 ### Stage 2: Chunk Review Agents
 
-**The agent running this skill performs Stage 2 itself** by running chunk review agents through its own subagent infrastructure. No external CLI tool (Codex, etc.) is needed.
+Stage 2 row review is run through Devin CLI print mode with GLM 5.2. Do not use Codex CLI for row review. Process review chunks sequentially unless the run log explicitly allows a higher concurrency.
 
-For each `review_chunk_XX.json` file, run a chunk review agent that:
-1. Reads `agent_review_instructions.md` (the evidence-family framework)
-2. Reads `review_chunk_XX.json` (~200 respondent packets)
-3. Applies the framework to each respondent
-4. Writes `agent_judgments_chunk_XX.json` to the same output directory
+For each `review_chunk_XX.json` file, create a prompt file and run:
 
-Use the active run concurrency policy. For traceable improvement runs, process chunks sequentially with concurrency = 1. Each chunk review agent produces a JSON array with:
+```bash
+PROMPT_FILE="/path/to/holistic_output/prompts/review_chunk_XX.prompt.md"
+OUTPUT_JSON="/path/to/holistic_output/agent_judgments_chunk_XX.json"
+devin --model "glm-5.2" --prompt-file "$PROMPT_FILE" -p > "$OUTPUT_JSON"
+python3 -m json.tool "$OUTPUT_JSON" >/dev/null
+```
+
+Each chunk review agent must:
+1. Read `agent_review_instructions.md` (the evidence-family framework)
+2. Read `review_chunk_XX.json` (~200 respondent packets)
+3. Apply the framework to each respondent
+4. Write `agent_judgments_chunk_XX.json` to the same output directory
+
+Use the active run concurrency policy. For traceable improvement runs, process chunks sequentially with concurrency = 1 and record the command, output file, validation result, retry count, and next action in `workledger.md`. Each chunk review agent produces a JSON array with:
 - `respondent_id`
 - `agent_score` (-1.0 to +1.0)
 - `agent_judgment` (DISCARD / REVIEW / KEEP)
