@@ -1,0 +1,16 @@
+signal,description,hits,discard_hits,keep_hits,discard_rate,lift
+conditions_ariens,Ariens condition flag,289,171,118,0.5916955017301038,0.23856651067007822
+pro_branch,CLASSIFY=1 professional branch,250,151,99,0.604,0.25087100893997444
+brand_share_fragmented,Nonzero share assigned to 8+ brands,348,181,167,0.5201149425287356,0.16698595146871004
+fast_under_5min,Total qtime under 5 minutes,15,15,0,1.0,0.6468710089399745
+brand_share_many_zero_allocations,Many zero values in brand share allocation among answered brands,426,201,225,0.47183098591549294,0.1187019948554674
+consumer_branch,CLASSIFY=2 consumer branch,1316,402,914,0.30547112462006076,-0.04765786643996478
+low_topic_open_text,Open text exists but no OPE/store/brand topical term,543,231,312,0.425414364640884,0.07228537358085846
+few_open_texts,0-1 open text fields present,405,115,290,0.2839506172839506,-0.06917837377607494
+termflags_nonzero,TERMFLAGS nonzero,15,10,5,0.6666666666666666,0.3135376756066411
+many_high_brand_ratings,12+ high 8-10 brand ratings,1362,493,869,0.3619676945668135,0.008838703506787948
+open_placeholders,At least one placeholder open end,100,33,67,0.33,-0.023128991060025528
+list25,sample/list 25,0,0,0,0,0
+brand_share_sum_not_100,Brand share allocation does not sum near 100,0,0,0,0,0
+pro_missing_proage,Professional classification but PROAGE missing,0,0,0,0,0
+consumer_has_proage_missing_conage,Consumer classification but CONAGE missing,0,0,0,0,0

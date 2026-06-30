@@ -1,0 +1,28 @@
+commit	avg_f1	status	description
+acbb74c	0.590784	done	baseline F1-optimal threshold
+acbb74c	0.561217	done	no signal map features
+acbb74c	0.548406	done	XGBoost with scale_pos_weight
+acbb74c	0.545772	done	ensemble GBM+XGB+LGB
+acbb74c	0.551714	done	per-dataset adaptive (raw for low-reject, F-beta threshold)
+acbb74c	0.590987	done	engineered features + agent rules as features
+acbb74c	0.588967	done	per-dataset strategy selection + aggressive rules
+acbb74c	0.613778	done	TF-IDF text features + structured
+acbb74c	0.613586	done	TF-IDF + SMOTE + model selection
+acbb74c	0.606198	done	word+char TF-IDF + stacking ensemble
+acbb74c	0.593810	done	agent features + word+char TF-IDF
+acbb74c	0.609562	done	per-dataset feature selection + TF-IDF + multi-config
+acbb74c	0.606953	done	deep answer-chain features + TF-IDF
+acbb74c	0.633392	done	per-dataset best model selection (6 approaches x 3 configs)
+acbb74c	0.633745	done	raw Excel per-question features + per-dataset selection
+acbb74c	0.636355	done	agent description TF-IDF + per-dataset selection
+acbb74c	0.633565	done	ultimate ensemble all features + per-dataset selection
+acbb74c	0.613793	done	cross-dataset transfer learning + base model features
+acbb74c	0.646430	done	filtered per-dataset selection with accuracy penalty
+acbb74c	0.657082	done	agent v2 features + semantic reconstruction + per-dataset selection
+acbb74c	0.662974	done	v19 base + agent v2 as targeted option (15 sets x 3 configs)
+acbb74c	0.630847	done	v25 coverage-gated correction (eligibility + categorical rules + cal separation)
+acbb74c	0.639823	done	v26 universal packet backbone (no agent v2, all 11 datasets)
+acbb74c	0.635977	done	v27 gated agent expert (mixture-of-experts)
+acbb74c	0.603430	done	v27 gated agent expert with QA features (fusion hurt)
+acbb74c	0.638162	done	v29 selective classifier with REVIEW band (TFG Q1=100% F1)
+acbb74c	0.622104	done	v30 combined simple+selective (selection noise)

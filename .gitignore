@@ -14,6 +14,10 @@ outputs/
 *.pdf
 *.html
 
+# Skill-owned reference tables are part of the repo skill content.
+!skills/**/*.csv
+!skills/**/*.tsv
+
 # Local/runtime noise
 __pycache__/
 *.pyc

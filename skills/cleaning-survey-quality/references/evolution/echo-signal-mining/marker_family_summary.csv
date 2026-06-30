@@ -1,0 +1,12 @@
+marker_family,mentions,discard_mentions,keep_mentions,discard_share
+BRANDS2RATEQuota,1326,1040,286,0.7843
+GenderQuota,928,553,375,0.5959
+CLASSIFYQuota,582,553,29,0.9502
+TotalQuota,553,553,0,1.0
+RegionQuota,553,553,0,1.0
+ChannelQuota,582,553,29,0.9502
+badopen,553,553,0,1.0
+bad:qualified,553,553,0,1.0
+CONAgeQuota,696,402,294,0.5776
+PROAgeQuota,151,151,0,1.0
+FirmRevQuota,151,151,0,1.0
