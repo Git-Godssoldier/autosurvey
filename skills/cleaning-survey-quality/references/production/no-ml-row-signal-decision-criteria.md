@@ -8,22 +8,20 @@ The agent must not only cite broad evidence families. It must mark every product
 
 The no-ML full-dataset run over Echo reviewed 1,566 respondents.
 
-Strict mode treated only `DISCARD` as a discard. It reached 65.5 percent accuracy, 53.0 percent precision, 20.8 percent recall, and 29.9 percent F1.
+The first no-ML run produced 217 `DISCARD`, 1,095 `REVIEW`, and 254 `KEEP` rows. Strict mode treated only `DISCARD` as a discard. It reached 65.5 percent accuracy, 53.0 percent precision, 20.8 percent recall, and 29.9 percent F1.
 
-Soft mode treated `DISCARD` or `REVIEW` as a discard. It reached 42.9 percent accuracy, 37.0 percent precision, 87.7 percent recall, and 52.0 percent F1.
-
-The run produced 217 `DISCARD`, 1,095 `REVIEW`, and 254 `KEEP` rows.
+The second no-ML run added required `signal_assessments` for all 37 production-safe signals. It produced 58 `DISCARD`, 1,416 `REVIEW`, and 92 `KEEP` rows. Strict mode reached 65.6 percent accuracy, 62.1 percent precision, 6.5 percent recall, and 11.8 percent F1. Soft mode treated `DISCARD` or `REVIEW` as a discard. It reached 39.0 percent accuracy, 36.4 percent precision, 96.9 percent recall, and 52.9 percent F1.
 
 The main shortcomings were:
 
-- The agent emitted evidence-family scores, but it emitted no per-signal assessments.
-- The agent overused `REVIEW`. It sent 69.9 percent of rows to review.
-- Strict recall was too low. The agent missed 438 of 553 client discards.
-- Soft precision was too low. The `REVIEW` lane included 827 accepted rows.
+- The first run emitted evidence-family scores, but it emitted no per-signal assessments.
+- The second run fixed signal assessment hygiene, but it overused `REVIEW` even more. It sent 90.4 percent of rows to final review.
+- Strict recall was too low in both runs. The second run caught only 36 of 553 client discards.
+- Soft precision was too low. The second run placed 938 accepted rows into `DISCARD` or `REVIEW`.
 - Several signals were too broad to help row decisions. In this run, `matrix_near_straightline` and `matrix_many_straightlined_grids` were present in every FP, FN, TP, and TN bucket. `brand_low_awareness_count` appeared in about 94 percent to 98 percent of each bucket.
 - The agent overcalled `wrong_topic` for outdoor-property answers such as sprinkler systems, decks, ponds, landscaping, mulch, weeds, garden beds, irrigation, patios, fences, and yard cleanup.
 
-These findings mean the next workflow must force row-level signal marking, signal quality checks, and stricter decision gates.
+These findings mean the next workflow must force row-level signal marking, signal quality checks, stricter decision gates, and a second-read review compression pass. Validator compliance is necessary, but it is not enough.
 
 ## Signal preflight
 
@@ -84,6 +82,35 @@ For each signal:
 - `confidence` must be a number from 0.0 to 1.0.
 
 Do not leave a signal implicit. If the signal is absent, include it with `present: false` and evidence that explains why it is absent.
+
+## Required second-read review compression
+
+After the first full-dataset row review, run a second pass over every row marked `REVIEW`.
+
+The goal is not to hide uncertainty. The goal is to separate rows that can safely exit review from rows that need a human decision.
+
+Each `REVIEW` row must be reassigned to one of these routing classes:
+
+- `auto_keep_candidate`: The row has no hard signal, no strong semantic failure, at most one independent review-only risk family, and protective evidence or no row-specific risk.
+- `targeted_second_read`: The row has one unresolved question that the agent can answer from workbook evidence, SQLite evidence, duplicate text context, or the raw answer chain.
+- `human_review`: The row has a concrete unresolved question that requires human PM judgment. The output must state that question.
+- `high_conf_discard_candidate`: The row meets a DISCARD gate after the second read, and the output cites the hard signal or independent counted families.
+
+The final `REVIEW` lane should be budgeted. For no-ML production runs, target a final `REVIEW` rate of 25 percent to 35 percent. Treat 40 percent as the default ceiling unless the workledger explains why the dataset needs more human review.
+
+Do not preserve `REVIEW` only because the row is short, thin, common, or mildly uncertain. If the only present signals are weak or context-only and the row has an outdoor task or no row-specific risk, move it to `KEEP`.
+
+Every row after review compression must include:
+
+- `second_read_action`, one of `keep`, `review`, or `discard`;
+- `review_routing_class`, one of the four classes above;
+- `review_reason_code`, e.g. `thin_on_topic_only`, `weak_source_timing`, `brand_chain_uncertain`, `possible_wrong_topic`, `possible_nonanswer`, `quota_or_source_context`, `conflicting_evidence`, or `human_pm_judgment`;
+- `review_priority`, one of `low`, `medium`, `high`, or `urgent`;
+- `review_exit_criteria`, stating what would move the row to KEEP or DISCARD;
+- `auto_keep_reason` for KEEP rows;
+- `discard_candidate_reason` for DISCARD rows.
+
+Use `human_review` only when the output names the exact human question. A vague statement such as "mixed evidence" is not enough.
 
 ## Forbidden row inputs
 
@@ -210,11 +237,13 @@ Use `DISCARD` when one of these is true:
 
 Use `REVIEW` when one of these is true:
 
-- there is mixed evidence;
-- the row has only review-only signals;
-- the row has outdoor-adjacent text that may or may not fit the survey;
-- the row has weak source, timing, language, or brand evidence but no hard failure;
-- the row has conflicting protective and risk signals.
+- there is mixed evidence after the second-read pass;
+- the row has a named unresolved question that a human reviewer can answer;
+- the row has outdoor-adjacent text that may or may not fit the survey, and no workbook evidence resolves the fit;
+- the row has weak source, timing, language, or brand evidence plus another row-specific concern;
+- the row has conflicting protective and risk signals that cannot be resolved from the answer chain.
+
+Do not use `REVIEW` when weak review-only signals are the only concerns and protective evidence is present.
 
 ### KEEP
 
@@ -222,7 +251,7 @@ Use `KEEP` when all of these are true:
 
 - no hard-discard signal is present;
 - no strong semantic failure is present;
-- at most one independent counted risk family is present;
+- at most one independent counted risk family is present, or only weak review-only signals are present;
 - the answer is substantive or thin but on topic;
 - protective evidence is present or the signal table shows no meaningful row-specific risk.
 
@@ -237,3 +266,5 @@ Do not accept an agent output if:
 - near-universal signals are counted toward discard;
 - the row has a final judgment but no `disposition_rule_id`;
 - the justification does not cite the signals that drove the final judgment.
+- review compression is active and `review_reason_code`, `review_priority`, or `review_exit_criteria` is missing;
+- review compression is active and the final `REVIEW` rate exceeds the configured review budget without a workledger exception.

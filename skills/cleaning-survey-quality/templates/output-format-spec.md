@@ -123,11 +123,20 @@ Each `agent_judgments_chunk_XX.json` contains one object per respondent. The min
   "badopen_trigger": "none",
   "oe_classification": "thin_on_topic",
   "converging_family_count": 2,
-  "protective_evidence": "The answer is short but on topic; the discard comes from model and brand-funnel convergence, not shortness alone."
+  "protective_evidence": "The answer is short but on topic; the discard comes from model and brand-funnel convergence, not shortness alone.",
+  "second_read_action": "discard",
+  "review_routing_class": "high_conf_discard_candidate",
+  "review_reason_code": "model_brand_convergence",
+  "review_priority": "high",
+  "review_exit_criteria": "Keep only if the brand-funnel contradiction is resolved by source workbook evidence.",
+  "auto_keep_reason": "",
+  "discard_candidate_reason": "The discard is supported by model risk and brand-funnel convergence."
 }]
 ```
 
 In no-ML signal-table mode, `signal_assessments` is required. It must include one key for every production-safe signal in `signal_dictionary`. Each signal entry must include `present`, `criterion`, `evidence`, `decision_weight`, `decision_effect`, and `confidence`.
+
+When no-ML review compression is active, each final output row must also include `second_read_action`, `review_routing_class`, `review_reason_code`, `review_priority`, and `review_exit_criteria`. KEEP rows must include `auto_keep_reason`. DISCARD rows must include `discard_candidate_reason` or a specific `disposition_rule_id`.
 
 Validate each chunk with:
 
@@ -136,4 +145,15 @@ python3 skills/cleaning-survey-quality/scripts/validate_agent_judgments.py \
   /path/to/review_chunk_XX.json /path/to/agent_judgments_chunk_XX.json \
   --signal-dictionary /path/to/signal_dictionary.csv \
   --signal-matrix /path/to/signal_matrix.csv
+```
+
+For compressed no-ML outputs, add:
+
+```bash
+python3 skills/cleaning-survey-quality/scripts/validate_agent_judgments.py \
+  /path/to/review_chunk_XX.json /path/to/agent_judgments_chunk_XX.json \
+  --signal-dictionary /path/to/signal_dictionary.csv \
+  --signal-matrix /path/to/signal_matrix.csv \
+  --require-review-routing \
+  --max-review-rate 0.40
 ```

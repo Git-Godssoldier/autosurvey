@@ -53,6 +53,8 @@ For each `review_chunk_XX.json` file, create a prompt file that tells Devin to:
 - apply the V7 evidence-family framework to each respondent;
 - when no-ML signal-table mode is active, read `references/production/no-ml-row-signal-decision-criteria.md`, `signal_dictionary`, and `signal_matrix`;
 - when no-ML signal-table mode is active, include `signal_assessments` with one entry per production-safe signal for every respondent;
+- when no-ML signal-table mode is active, run a second-read review compression pass over first-pass REVIEW rows;
+- when no-ML signal-table mode is active, include `second_read_action`, `review_routing_class`, `review_reason_code`, `review_priority`, and `review_exit_criteria`;
 - write raw JSON only to `agent_judgments_chunk_XX.json`, as an array with `respondent_id`, `agent_score` (-1 to +1), `agent_judgment` (DISCARD/REVIEW/KEEP), `agent_justification` (2-4 sentences), and any required signal-table fields.
 
 Run each chunk with:
@@ -69,6 +71,28 @@ python3 skills/cleaning-survey-quality/scripts/validate_agent_judgments.py \
 ```
 
 Use the active run concurrency policy. For traceable improvement runs, concurrency is 1: process one chunk, log its start/completion/output path/JSON validation/signal validation/exception/follow-up action, then move to the next chunk. Only use parallel chunk review when the run log explicitly allows it.
+
+### 4b. Stage 2b — Review compression for no-ML runs
+
+For no-ML runs, do not accept a final output where most rows remain REVIEW. The first pass can use REVIEW for uncertainty. The second pass must sort every first-pass REVIEW row into one of these classes:
+
+- `auto_keep_candidate`
+- `targeted_second_read`
+- `human_review`
+- `high_conf_discard_candidate`
+
+The final REVIEW lane should only contain rows with a named unresolved question. Target a final REVIEW rate of 25 percent to 35 percent. Use 40 percent as the default ceiling unless the workledger explains the exception.
+
+Validate compressed no-ML outputs with:
+
+```bash
+python3 skills/cleaning-survey-quality/scripts/validate_agent_judgments.py \
+  "/path/to/holistic_output/review_chunk_XX.json" "$OUTPUT_JSON" \
+  --signal-dictionary "/path/to/holistic_output/signal_dictionary.csv" \
+  --signal-matrix "/path/to/holistic_output/signal_matrix.csv" \
+  --require-review-routing \
+  --max-review-rate 0.40
+```
 
 ### 5. Stage 3 — Integrate judgments
 

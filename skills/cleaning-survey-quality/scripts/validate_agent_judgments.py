@@ -42,6 +42,21 @@ VALID_EFFECTS = {
     "protected_keep",
     "conflict_requires_review",
 }
+VALID_SECOND_READ_ACTIONS = {"keep", "review", "discard"}
+VALID_REVIEW_ROUTING_CLASSES = {
+    "auto_keep_candidate",
+    "targeted_second_read",
+    "human_review",
+    "high_conf_discard_candidate",
+}
+VALID_REVIEW_PRIORITIES = {"low", "medium", "high", "urgent"}
+REVIEW_ROUTING_REQUIRED_FIELDS = {
+    "second_read_action",
+    "review_routing_class",
+    "review_reason_code",
+    "review_priority",
+    "review_exit_criteria",
+}
 
 
 def load_json(path: Path):
@@ -75,6 +90,8 @@ def validate(
     judgments_path: Path,
     signal_dictionary_path: Path | None,
     signal_matrix_path: Path | None,
+    require_review_routing: bool = False,
+    max_review_rate: float | None = None,
 ) -> list[str]:
     errors: list[str] = []
 
@@ -93,6 +110,15 @@ def validate(
 
     if len(judgments) != len(expected_ids):
         errors.append(f"judgment count {len(judgments)} does not match chunk count {len(expected_ids)}")
+
+    if max_review_rate is not None and judgments:
+        review_count = sum(1 for row in judgments if isinstance(row, dict) and row.get("agent_judgment") == "REVIEW")
+        review_rate = review_count / len(judgments)
+        if review_rate > max_review_rate:
+            errors.append(
+                f"review rate {review_rate:.1%} exceeds max-review-rate {max_review_rate:.1%} "
+                f"({review_count}/{len(judgments)} REVIEW)"
+            )
 
     signal_names: list[str] = []
     signal_matrix: dict[str, dict[str, str]] = {}
@@ -122,6 +148,46 @@ def validate(
 
         if row.get("agent_judgment") not in VALID_JUDGMENTS:
             errors.append(f"{rid}: invalid agent_judgment {row.get('agent_judgment')!r}")
+
+        if require_review_routing:
+            missing_review_fields = sorted(REVIEW_ROUTING_REQUIRED_FIELDS - row.keys())
+            if missing_review_fields:
+                errors.append(f"{rid}: missing review routing fields {missing_review_fields}")
+            else:
+                if row.get("second_read_action") not in VALID_SECOND_READ_ACTIONS:
+                    errors.append(f"{rid}: invalid second_read_action {row.get('second_read_action')!r}")
+                if row.get("review_routing_class") not in VALID_REVIEW_ROUTING_CLASSES:
+                    errors.append(f"{rid}: invalid review_routing_class {row.get('review_routing_class')!r}")
+                if row.get("review_priority") not in VALID_REVIEW_PRIORITIES:
+                    errors.append(f"{rid}: invalid review_priority {row.get('review_priority')!r}")
+                if not str(row.get("review_reason_code", "")).strip():
+                    errors.append(f"{rid}: review_reason_code is blank")
+                if not str(row.get("review_exit_criteria", "")).strip():
+                    errors.append(f"{rid}: review_exit_criteria is blank")
+
+            judgment = row.get("agent_judgment")
+            action = row.get("second_read_action")
+            if judgment == "KEEP":
+                if action not in {None, "keep"}:
+                    errors.append(f"{rid}: KEEP row has second_read_action {action!r}")
+                if row.get("review_routing_class") != "auto_keep_candidate":
+                    errors.append(f"{rid}: KEEP row must use review_routing_class auto_keep_candidate")
+                if not str(row.get("auto_keep_reason", "")).strip():
+                    errors.append(f"{rid}: KEEP row missing auto_keep_reason")
+            elif judgment == "DISCARD":
+                if action not in {None, "discard"}:
+                    errors.append(f"{rid}: DISCARD row has second_read_action {action!r}")
+                if row.get("review_routing_class") != "high_conf_discard_candidate":
+                    errors.append(f"{rid}: DISCARD row must use review_routing_class high_conf_discard_candidate")
+                if not str(row.get("discard_candidate_reason", "")).strip() and not str(row.get("disposition_rule_id", "")).strip():
+                    errors.append(f"{rid}: DISCARD row missing discard_candidate_reason or disposition_rule_id")
+            elif judgment == "REVIEW":
+                if action not in {None, "review"}:
+                    errors.append(f"{rid}: REVIEW row has second_read_action {action!r}")
+                if row.get("review_routing_class") == "auto_keep_candidate":
+                    errors.append(f"{rid}: REVIEW row cannot use review_routing_class auto_keep_candidate")
+                if row.get("review_routing_class") == "high_conf_discard_candidate":
+                    errors.append(f"{rid}: REVIEW row cannot use review_routing_class high_conf_discard_candidate")
 
         if signal_names:
             assessments = row.get("signal_assessments")
@@ -193,10 +259,21 @@ def main() -> int:
     parser.add_argument("judgments_json", type=Path)
     parser.add_argument("--signal-dictionary", type=Path)
     parser.add_argument("--signal-matrix", type=Path)
+    parser.add_argument("--require-review-routing", action="store_true")
+    parser.add_argument("--max-review-rate", type=float)
     parser.add_argument("--max-errors", type=int, default=50)
     args = parser.parse_args()
+    if args.max_review_rate is not None and not 0.0 <= args.max_review_rate <= 1.0:
+        parser.error("--max-review-rate must be a decimal from 0.0 to 1.0")
 
-    errors = validate(args.chunk_json, args.judgments_json, args.signal_dictionary, args.signal_matrix)
+    errors = validate(
+        args.chunk_json,
+        args.judgments_json,
+        args.signal_dictionary,
+        args.signal_matrix,
+        args.require_review_routing,
+        args.max_review_rate,
+    )
     if errors:
         print(f"FAILED: {len(errors)} validation error(s)", file=sys.stderr)
         for error in errors[: args.max_errors]:

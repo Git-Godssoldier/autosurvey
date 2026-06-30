@@ -23,6 +23,7 @@ Before writing or running scoring scripts:
 15. **[EVOLUTION]** In annotated methodology runs, exclude leakage before feature extraction. Treat marker or quota fields, client action fields, final decision fields, review helper fields, condition assignment fields, no-answer helper fields, QC helper fields, channel tracking fields, token fields, hidden cleaning fields, and formulas or formatting that reveal cleaning decisions as unavailable to the blind reviewer.
 16. For Stage 2 agent review runs, use Devin CLI print mode with GLM 5.2 using Devin model id `glm-5-2`. Process one chunk at a time unless the run log explicitly allows more concurrency, and record the command, output path, validation result, and next action in `workledger.md`.
 17. In no-ML signal-table mode, validate each judgment chunk with `scripts/validate_agent_judgments.py`. Do not accept a chunk unless it includes one `signal_assessments` entry per production-safe signal for every respondent.
+18. In no-ML signal-table mode, run a second-read review compression pass over every first-pass REVIEW row. Do not accept a final output where REVIEW is used as a default uncertainty bucket. Each remaining REVIEW row must state a concrete unresolved question and pass the configured review-rate budget.
 
 ## Workbook Exploration
 
@@ -40,12 +41,13 @@ Before writing or running scoring scripts:
 10. Plan for row-level agent authorship from the start. Every source respondent must receive an agent-written semantic judgment.
 11. In no-ML production mode, treat the review lane as the full dataset. Signal-table score bands may prioritize or diagnose, but they do not remove rows from agent review.
 12. In no-ML production mode, build a signal preflight profile. Signals present in more than 85 percent of rows are context only unless the row has separate row-specific evidence.
-13. Build an agent-authored question-set authenticity map before scoring text quality. For every major question set, state the intended respondent universe, the field role, what an authentic answer should sound like, what a fabricated or bot-like answer might sound like, what learned guardrails apply, and which source fields support that interpretation.
-14. Build a Question Contract and question-relation graph before respondent analysis.
-15. Build a semantic signal expansion plan before final weighting.
-16. Decide which fields can be scored in the first pass, which fields need PM mapping, and which fields should only produce review notes.
-17. Do not run topic mismatch or low-effort scoring until the field role is clear.
-18. Build a project-specific topic and answer map from the Datamap, prompt wording, value labels, and sampled open ends before topic or answer-depth scoring.
+13. In no-ML production mode, plan for review compression before chunk review starts. The first pass may mark uncertainty as REVIEW. The second pass must move weak, protected, or no-risk rows to KEEP and hard or convergent failures to DISCARD.
+14. Build an agent-authored question-set authenticity map before scoring text quality. For every major question set, state the intended respondent universe, the field role, what an authentic answer should sound like, what a fabricated or bot-like answer might sound like, what learned guardrails apply, and which source fields support that interpretation.
+15. Build a Question Contract and question-relation graph before respondent analysis.
+16. Build a semantic signal expansion plan before final weighting.
+17. Decide which fields can be scored in the first pass, which fields need PM mapping, and which fields should only produce review notes.
+18. Do not run topic mismatch or low-effort scoring until the field role is clear.
+19. Build a project-specific topic and answer map from the Datamap, prompt wording, value labels, and sampled open ends before topic or answer-depth scoring.
 
 ## Quality Hypothesis Building
 
