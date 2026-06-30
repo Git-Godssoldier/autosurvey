@@ -51,7 +51,9 @@ For each `review_chunk_XX.json` file, create a prompt file that tells Devin to:
 - read `agent_review_instructions.md`;
 - read the specific `review_chunk_XX.json`;
 - apply the V7 evidence-family framework to each respondent;
-- write raw JSON only to `agent_judgments_chunk_XX.json`, as an array with `respondent_id`, `agent_score` (-1 to +1), `agent_judgment` (DISCARD/REVIEW/KEEP), and `agent_justification` (2-4 sentences).
+- when no-ML signal-table mode is active, read `references/production/no-ml-row-signal-decision-criteria.md`, `signal_dictionary`, and `signal_matrix`;
+- when no-ML signal-table mode is active, include `signal_assessments` with one entry per production-safe signal for every respondent;
+- write raw JSON only to `agent_judgments_chunk_XX.json`, as an array with `respondent_id`, `agent_score` (-1 to +1), `agent_judgment` (DISCARD/REVIEW/KEEP), `agent_justification` (2-4 sentences), and any required signal-table fields.
 
 Run each chunk with:
 
@@ -60,9 +62,13 @@ PROMPT_FILE="/path/to/holistic_output/prompts/review_chunk_XX.prompt.md"
 OUTPUT_JSON="/path/to/holistic_output/agent_judgments_chunk_XX.json"
 devin --model "glm-5-2" --prompt-file "$PROMPT_FILE" -p > "$OUTPUT_JSON"
 python3 -m json.tool "$OUTPUT_JSON" >/dev/null
+python3 skills/cleaning-survey-quality/scripts/validate_agent_judgments.py \
+  "/path/to/holistic_output/review_chunk_XX.json" "$OUTPUT_JSON" \
+  --signal-dictionary "/path/to/holistic_output/signal_dictionary.csv" \
+  --signal-matrix "/path/to/holistic_output/signal_matrix.csv"
 ```
 
-Use the active run concurrency policy. For traceable improvement runs, concurrency is 1: process one chunk, log its start/completion/output path/JSON validation/exception/follow-up action, then move to the next chunk. Only use parallel chunk review when the run log explicitly allows it.
+Use the active run concurrency policy. For traceable improvement runs, concurrency is 1: process one chunk, log its start/completion/output path/JSON validation/signal validation/exception/follow-up action, then move to the next chunk. Only use parallel chunk review when the run log explicitly allows it.
 
 ### 5. Stage 3 — Integrate judgments
 
@@ -90,4 +96,5 @@ This merges all chunk judgments and writes:
 - `references/production/decipher-blind-authenticity-review.md` — Blind authenticity review rules
 - `references/production/v7-calibration-and-guardrails.md` — Current calibrated disposition thresholds
 - `references/production/agent-authored-row-review.md` — Prevents the pipeline from becoming a rigid checklist
+- `references/production/no-ml-row-signal-decision-criteria.md` — Required per-signal criteria for no-ML signal-table mode
 - `references/production/discard-exemplar-library.md` — Calibrated exemplars of true positives, false positives, true negatives, and false negatives

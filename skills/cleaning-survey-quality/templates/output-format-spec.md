@@ -105,9 +105,35 @@ Each `agent_judgments_chunk_XX.json` contains one object per respondent. The min
     "model_risk": {"fired": true, "score": 0.82, "trigger": "ml_ge_0_8"},
     "core_oe_quality": {"fired": false, "score": 0.2, "trigger": "thin_on_topic_protected"}
   },
+  "signal_assessments": {
+    "platform_qc_auto_fail": {
+      "present": false,
+      "criterion": "qc is 8 or 9",
+      "evidence": "qc=0",
+      "decision_weight": "hard_discard",
+      "decision_effect": "not_counted",
+      "confidence": 1.0
+    }
+  },
+  "signals_present": ["model_risk"],
+  "signals_counted_for_discard": ["model_risk"],
+  "signals_context_only": [],
+  "signals_protective": ["thin_on_topic_protected"],
+  "disposition_rule_id": "discard_model_brand_convergence",
   "badopen_trigger": "none",
   "oe_classification": "thin_on_topic",
   "converging_family_count": 2,
   "protective_evidence": "The answer is short but on topic; the discard comes from model and brand-funnel convergence, not shortness alone."
 }]
+```
+
+In no-ML signal-table mode, `signal_assessments` is required. It must include one key for every production-safe signal in `signal_dictionary`. Each signal entry must include `present`, `criterion`, `evidence`, `decision_weight`, `decision_effect`, and `confidence`.
+
+Validate each chunk with:
+
+```bash
+python3 skills/cleaning-survey-quality/scripts/validate_agent_judgments.py \
+  /path/to/review_chunk_XX.json /path/to/agent_judgments_chunk_XX.json \
+  --signal-dictionary /path/to/signal_dictionary.csv \
+  --signal-matrix /path/to/signal_matrix.csv
 ```

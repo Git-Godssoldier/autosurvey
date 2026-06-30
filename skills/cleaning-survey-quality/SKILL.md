@@ -72,11 +72,12 @@ Annotated workbooks (`status = 3` accepted, `status = 5` rejected) are used only
 
 Some production runs cannot use the bundled ML model or any training step. In those runs, build an explicit signal table before row assessment and use it as the agent's working memory.
 
-Read `references/production/no-ml-signal-table-mode.md` before starting the run.
+Read `references/production/no-ml-signal-table-mode.md` and `references/production/no-ml-row-signal-decision-criteria.md` before starting the run.
 
 Required tables or artifacts:
 - `signal_dictionary` — one row per allowed production signal, with signal name, family, source field or agent assessment source, description, and leakage status.
 - `signal_matrix` — one row per respondent and one Boolean column per signal. The agent must mark each signal present or absent for every respondent before final judgment.
+- `signal_profile` — one row per signal with present count, absent count, present rate, and decision weight. Near-universal signals must be marked `context_only`.
 - `signal_lift` — optional when labels exist after the run. Use it only for evaluation and evolution, never during blind scoring.
 
 No-ML production mode must not use:
@@ -97,6 +98,8 @@ No-ML production mode may use:
 In no-ML production mode, the review lane is the full dataset. The signal table is the case file and memory layer for row assessment; it is not a filter that removes rows from agent review. Every source respondent must receive an agent-authored assessment after the Boolean signal matrix is built. Label-tuned score bands from perturbation runs are diagnostic planning evidence only, not a production routing rule.
 
 Treat fully automated no-ML discard as conservative. Automated gates may provide a proposed disposition, but the full dataset still goes through row-level agent review before final delivery.
+
+Every no-ML judgment must include `signal_assessments` with one present/absent entry per production-safe signal. Each entry must include the criterion, row evidence, decision weight, decision effect, and confidence. Reject the chunk if a signal is missing or if the present value does not match `signal_matrix`.
 
 ## Dataset Normalization Store
 
@@ -149,6 +152,10 @@ PROMPT_FILE="/path/to/holistic_output/prompts/review_chunk_XX.prompt.md"
 OUTPUT_JSON="/path/to/holistic_output/agent_judgments_chunk_XX.json"
 devin --model "glm-5-2" --prompt-file "$PROMPT_FILE" -p > "$OUTPUT_JSON"
 python3 -m json.tool "$OUTPUT_JSON" >/dev/null
+python3 skills/cleaning-survey-quality/scripts/validate_agent_judgments.py \
+  "/path/to/holistic_output/review_chunk_XX.json" "$OUTPUT_JSON" \
+  --signal-dictionary "/path/to/holistic_output/signal_dictionary.csv" \
+  --signal-matrix "/path/to/holistic_output/signal_matrix.csv"
 ```
 
 Each Devin chunk agent must:
@@ -178,6 +185,7 @@ Read only the references needed for the current task:
 | Full four-layer progressive filtering specification | `references/production/progressive-chain-filtering.md` |
 | Dataset normalization, SQLite store, SQL analysis standards | `references/production/dataset-normalization-sqlite.md` |
 | No-ML production signal table and Boolean row-signal matrix | `references/production/no-ml-signal-table-mode.md` |
+| No-ML per-row signal criteria and discard gates | `references/production/no-ml-row-signal-decision-criteria.md` |
 | Blind authenticity review rules | `references/production/decipher-blind-authenticity-review.md` |
 | Signal weighting, semantic similarity, convergence logic | `references/production/semantic-signal-expansion.md` |
 | V7 calibrated disposition rules and benchmark lessons | `references/production/v7-calibration-and-guardrails.md` |
@@ -255,6 +263,10 @@ PROMPT_FILE="/path/to/holistic_output/prompts/review_chunk_XX.prompt.md"
 OUTPUT_JSON="/path/to/holistic_output/agent_judgments_chunk_XX.json"
 devin --model "glm-5-2" --prompt-file "$PROMPT_FILE" -p > "$OUTPUT_JSON"
 python3 -m json.tool "$OUTPUT_JSON" >/dev/null
+python3 skills/cleaning-survey-quality/scripts/validate_agent_judgments.py \
+  "/path/to/holistic_output/review_chunk_XX.json" "$OUTPUT_JSON" \
+  --signal-dictionary "/path/to/holistic_output/signal_dictionary.csv" \
+  --signal-matrix "/path/to/holistic_output/signal_matrix.csv"
 ```
 
 Each chunk review agent must:

@@ -1092,6 +1092,22 @@ Use null for fields that don't apply, but include all keys.
       "quota_reconstruction": {{"fired": false, "score": 0.1, "trigger": null}}
     }},
 
+    "signal_assessments": {{
+      "platform_qc_auto_fail": {{
+        "present": false,
+        "criterion": "qc is 8 or 9",
+        "evidence": "qc=0",
+        "decision_weight": "hard_discard",
+        "decision_effect": "not_counted",
+        "confidence": 1.0
+      }}
+    }},
+    "signals_present": ["model_risk"],
+    "signals_counted_for_discard": ["model_risk"],
+    "signals_context_only": [],
+    "signals_protective": ["thin_on_topic_protected"],
+    "disposition_rule_id": "discard_model_brand_convergence",
+
     "badopen_trigger": "too_short",
     "badopen_field": "qc5",
     "badopen_evidence": "Names generic tasks (mowing, blowing) without specific equipment or project narrative",
@@ -1123,7 +1139,7 @@ Use null for fields that don't apply, but include all keys.
 
 ## Field Reference
 
-### Required Fields (all 21 fields for every respondent)
+### Required Fields
 
 | Field | Type | Values |
 |-------|------|--------|
@@ -1154,6 +1170,28 @@ Use null for fields that don't apply, but include all keys.
 | stage1_fraud_verdict | string | pass / fail / ambiguous |
 | stage2_quality_verdict | string | pass / fail / ambiguous |
 | converging_family_count | int | number of families that fired |
+| signal_assessments | object | required in no-ML signal-table mode. One key per production-safe signal |
+| signals_present | array | signal names present for this row |
+| signals_counted_for_discard | array | signals allowed to affect DISCARD |
+| signals_context_only | array | signals marked but not counted because they are too broad or cohort-only |
+| signals_protective | array | protective evidence that prevents over-discard |
+| disposition_rule_id | string | short rule id explaining the final decision gate |
+
+### No-ML signal-table output
+
+When `signal_dictionary` and `signal_matrix` are provided, `signal_assessments` is required.
+For every production-safe signal, include:
+
+- `present`: boolean. It must match the signal matrix.
+- `criterion`: the exact rule used to decide present or absent.
+- `evidence`: the row value or answer text checked.
+- `decision_weight`: `hard_discard`, `strong_risk`, `review_only`, `context_only`, or `protective`.
+- `decision_effect`: `counted_for_discard`, `review_only`, `not_counted`, `protected_keep`, or `conflict_requires_review`.
+- `confidence`: 0.0 to 1.0.
+
+Do not count near-universal signals toward discard. If a signal is present in more than 85 percent of rows, keep it in `signal_assessments`, but set `decision_weight` to `context_only` unless the row has a separate row-specific trigger.
+
+Do not call outdoor-property answers hard wrong-topic only because they do not name outdoor power equipment. Sprinkler systems, decks, ponds, landscaping, mulch, weeds, flower beds, garden beds, irrigation, patios, fences, snow removal, yard cleanup, lawn work, trimming, and blowing leaves are outdoor-adjacent. Use REVIEW unless another hard or strong signal is present.
 
 ### Decision Mapping
 
@@ -1584,20 +1622,25 @@ ai_like_similarity, duplicate_text, pasted_text, profanity, human_reviewer, or n
 Read `ml_triage_score`. What are the top ML signals? How confident is the model?
 → Fill `ml_score`, `ml_top_signals`, `ml_confidence`.
 
-### Step 6: Evidence Family Scoring
+### Step 6: Row Signal Marking
+If `signal_dictionary` and `signal_matrix` are provided, mark every production-safe signal present or absent for this respondent.
+For each signal, state the criterion, the row evidence, the decision weight, the decision effect, and confidence.
+→ Fill `signal_assessments`, `signals_present`, `signals_counted_for_discard`, `signals_context_only`, and `signals_protective`.
+
+### Step 7: Evidence Family Scoring
 For EACH of the 9 evidence families, assess: did it fire? What score (0–1)? What trigger?
 → Fill `evidence_family_scores` object and `evidence_families_fired` array.
 → Fill `converging_family_count`.
 
-### Step 7: Client Rejection Probability
+### Step 8: Client Rejection Probability
 Considering quota cells, badopen trigger, classification coherence, source risk:
 Would the client's own process discard this? → Fill `client_reject_probability` (0–1).
 
-### Step 8: Disposition Layer
+### Step 9: Disposition Layer
 What is the PRIMARY removal reason? What is the SECONDARY?
-→ Fill `primary_removal_reason`, `secondary_removal_reason`, `removal_confidence`.
+→ Fill `primary_removal_reason`, `secondary_removal_reason`, `removal_confidence`, and `disposition_rule_id`.
 
-### Step 9: Final Decision (v7 — calibrated convergence thresholds)
+### Step 10: Final Decision (v7 — calibrated convergence thresholds)
 
 Compute `agent_score` from the three components:
   agent_score = -(authenticity_risk * 0.3 + quality_discard_risk * 0.2 + client_reject_probability * 0.5)
