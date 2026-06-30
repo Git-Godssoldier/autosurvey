@@ -86,7 +86,7 @@ Use KEEP when hard failures are absent and the signal table shows no meaningful 
 
 ## Devin Stage 2 runtime
 
-Run production row-review agents through Devin CLI print mode with GLM 5.2. Do not use Codex CLI for row review.
+Run production row-review agents through Devin CLI print mode with GLM 5.2 using Devin model id `glm-5-2`. Do not use Codex CLI for row review.
 
 Process one chunk at a time unless the run log explicitly allows more concurrency.
 
@@ -95,7 +95,7 @@ For each chunk:
 ```bash
 PROMPT_FILE="/path/to/holistic_output/prompts/review_chunk_XX.prompt.md"
 OUTPUT_JSON="/path/to/holistic_output/agent_judgments_chunk_XX.json"
-devin --model "glm-5.2" --prompt-file "$PROMPT_FILE" -p > "$OUTPUT_JSON"
+devin --model "glm-5-2" --prompt-file "$PROMPT_FILE" -p > "$OUTPUT_JSON"
 python3 -m json.tool "$OUTPUT_JSON" >/dev/null
 ```
 

@@ -21,7 +21,7 @@ Before writing or running scoring scripts:
 13. **[EVOLUTION]** If a client annotated workbook exists, treat it as methodology-development data. In TFG cleaning-answer workbooks, `status = 3` means accepted, `status = 5` means rejected.
 14. **[EVOLUTION]** Separate client rejection probability from fabrication or authenticity risk. A `status = 5` row is an observed client rejection, not proof of bot behavior, LLM use, or fraud.
 15. **[EVOLUTION]** In annotated methodology runs, exclude leakage before feature extraction. Treat marker or quota fields, client action fields, final decision fields, review helper fields, condition assignment fields, no-answer helper fields, QC helper fields, channel tracking fields, token fields, hidden cleaning fields, and formulas or formatting that reveal cleaning decisions as unavailable to the blind reviewer.
-16. For Stage 2 agent review runs, use Devin CLI print mode with GLM 5.2. Process one chunk at a time unless the run log explicitly allows more concurrency, and record the command, output path, validation result, and next action in `workledger.md`.
+16. For Stage 2 agent review runs, use Devin CLI print mode with GLM 5.2 using Devin model id `glm-5-2`. Process one chunk at a time unless the run log explicitly allows more concurrency, and record the command, output path, validation result, and next action in `workledger.md`.
 
 ## Workbook Exploration
 

@@ -45,7 +45,7 @@ Before Stage 2, read the generated instructions and confirm they preserve the cu
 
 ### 4. Stage 2 — Chunk review agents
 
-Run Stage 2 through Devin CLI print mode with GLM 5.2. Do not use Codex CLI for row review. The review lane is the full packet set generated in Stage 1, not only a score band.
+Run Stage 2 through Devin CLI print mode with GLM 5.2 using Devin model id `glm-5-2`. Do not use Codex CLI for row review. The review lane is the full packet set generated in Stage 1, not only a score band.
 
 For each `review_chunk_XX.json` file, create a prompt file that tells Devin to:
 - read `agent_review_instructions.md`;
@@ -58,7 +58,7 @@ Run each chunk with:
 ```bash
 PROMPT_FILE="/path/to/holistic_output/prompts/review_chunk_XX.prompt.md"
 OUTPUT_JSON="/path/to/holistic_output/agent_judgments_chunk_XX.json"
-devin --model "glm-5.2" --prompt-file "$PROMPT_FILE" -p > "$OUTPUT_JSON"
+devin --model "glm-5-2" --prompt-file "$PROMPT_FILE" -p > "$OUTPUT_JSON"
 python3 -m json.tool "$OUTPUT_JSON" >/dev/null
 ```
 

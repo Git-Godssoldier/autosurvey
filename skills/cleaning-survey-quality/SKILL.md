@@ -118,7 +118,7 @@ Do not mark the run complete until the todo list shows every required item compl
 
 **Do NOT run `run_quality_loop.py` or `survey_pipeline.py` alone.** These are the old scripted pipelines that produce only Keep/Light review with zero discards. They are data-staging tools, not the review pipeline.
 
-**Use Devin CLI print mode for Stage 2 agent runs.** Do not use Codex CLI for row review. Run Devin one chunk at a time with GLM 5.2, capture raw JSON, validate it, and log the command, output path, validation result, and any retry in `workledger.md`.
+**Use Devin CLI print mode for Stage 2 agent runs.** Do not use Codex CLI for row review. Run Devin one chunk at a time with GLM 5.2 using Devin model id `glm-5-2`, capture raw JSON, validate it, and log the command, output path, validation result, and any retry in `workledger.md`.
 
 The production flow is the **holistic agent review** with three stages:
 
@@ -147,7 +147,7 @@ After Stage 1 completes, the output directory contains `review_chunk_00.json` th
 ```bash
 PROMPT_FILE="/path/to/holistic_output/prompts/review_chunk_XX.prompt.md"
 OUTPUT_JSON="/path/to/holistic_output/agent_judgments_chunk_XX.json"
-devin --model "glm-5.2" --prompt-file "$PROMPT_FILE" -p > "$OUTPUT_JSON"
+devin --model "glm-5-2" --prompt-file "$PROMPT_FILE" -p > "$OUTPUT_JSON"
 python3 -m json.tool "$OUTPUT_JSON" >/dev/null
 ```
 
@@ -246,14 +246,14 @@ The script also generates `agent_review_instructions.md` with the evidence-famil
 
 ### Stage 2: Chunk Review Agents
 
-Stage 2 row review is run through Devin CLI print mode with GLM 5.2. Do not use Codex CLI for row review. Process review chunks sequentially unless the run log explicitly allows a higher concurrency.
+Stage 2 row review is run through Devin CLI print mode with GLM 5.2 using Devin model id `glm-5-2`. Do not use Codex CLI for row review. Process review chunks sequentially unless the run log explicitly allows a higher concurrency.
 
 For each `review_chunk_XX.json` file, create a prompt file and run:
 
 ```bash
 PROMPT_FILE="/path/to/holistic_output/prompts/review_chunk_XX.prompt.md"
 OUTPUT_JSON="/path/to/holistic_output/agent_judgments_chunk_XX.json"
-devin --model "glm-5.2" --prompt-file "$PROMPT_FILE" -p > "$OUTPUT_JSON"
+devin --model "glm-5-2" --prompt-file "$PROMPT_FILE" -p > "$OUTPUT_JSON"
 python3 -m json.tool "$OUTPUT_JSON" >/dev/null
 ```
 
