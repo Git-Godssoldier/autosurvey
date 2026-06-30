@@ -1,0 +1,72 @@
+{
+  "avg_bacc": 1.0,
+  "avg_f1": 1.0,
+  "avg_auc": 1.0,
+  "folds": [
+    {
+      "fold": 1,
+      "method": "ensemble",
+      "tp": "111",
+      "fp": "0",
+      "tn": "203",
+      "fn": "0",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "bacc": 1.0,
+      "auc": 1.0
+    },
+    {
+      "fold": 2,
+      "method": "ensemble",
+      "tp": "110",
+      "fp": "0",
+      "tn": "203",
+      "fn": "0",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "bacc": 1.0,
+      "auc": 1.0
+    },
+    {
+      "fold": 3,
+      "method": "ensemble",
+      "tp": "110",
+      "fp": "0",
+      "tn": "203",
+      "fn": "0",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "bacc": 1.0,
+      "auc": 1.0
+    },
+    {
+      "fold": 4,
+      "method": "ensemble",
+      "tp": "111",
+      "fp": "0",
+      "tn": "202",
+      "fn": "0",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "bacc": 1.0,
+      "auc": 1.0
+    },
+    {
+      "fold": 5,
+      "method": "ensemble",
+      "tp": "111",
+      "fp": "0",
+      "tn": "202",
+      "fn": "0",
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "bacc": 1.0,
+      "auc": 1.0
+    }
+  ]
+}

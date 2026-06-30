@@ -353,3 +353,48 @@ requires AUC > 0.95, which needs fundamentally different data sources.
 | V7 error analysis | `autosurvey/scripts/analyze_v7_errors.py`, `autosurvey/scripts/analyze_v7_raw_signals.py` |
 | V7 calibration guardrails | `autosurvey/skills/cleaning-survey-quality/references/production/v7-calibration-and-guardrails.md` |
 | Skill definition | `autosurvey/skills/cleaning-survey-quality/SKILL.md` |
+
+---
+
+## 7. Status Update — 2026-06-30
+
+### Current validated status
+
+The 90% target is still open for production-safe AutoQuality.
+
+The best full Echo self-improvement result from the end-to-end run is:
+
+| Metric | Value |
+|---|---:|
+| Accuracy | 0.803 |
+| Precision | 0.801 |
+| Recall | 0.590 |
+| F1 | 0.679 |
+| AUC | 0.820 |
+| Errors | 308 |
+
+The best global-threshold probe reached 0.809 accuracy with 299 errors. A 90% result on this dataset allows at most 156 errors.
+
+### Diagnostic ceiling
+
+The client label workbook contains post-review marker strings. These strings directly encode the client decision:
+
+- 553 of 553 client discards contain `badopen` and `bad:` markers.
+- 1,013 of 1,013 client keeps start with `qualified,` and do not contain those bad markers.
+
+Using those marker strings can reach the 90% target, but that would be a leakage result. It is useful for diagnosis only. It is not a blind-run AutoQuality result.
+
+### SQLite usefulness
+
+SQLite was helpful because it made the run auditable. It joined raw answers, field roles, client labels, agent judgments, evaluation rows, and loop metrics in one place.
+
+SQLite did not add predictive signal by itself. Its value was repeatability and cleaner false-positive and false-negative analysis.
+
+### Updated next step
+
+Do not keep running score-only model loops as the main path to 90%. The next useful work needs new information:
+
+- client reject reasons,
+- row-level adjudication of the 95 client rejects that AutoQuality kept,
+- another labeled Echo wave for train-on-one and test-on-one validation,
+- or panelist history across surveys.

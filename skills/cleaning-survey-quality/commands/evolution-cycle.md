@@ -23,7 +23,18 @@ Do not promote a change only because it increases recall. A successful change mu
 
 ## Steps
 
-### 1. Compare agent judgments against client decisions
+### 1. Normalize feedback data into SQLite
+
+Read `references/production/dataset-normalization-sqlite.md` and create a run-local SQLite store for the annotated workbook, prior agent judgments, and any comparison outputs:
+- `normalized/survey_quality.sqlite`
+- `normalized/schema_summary.md`
+- `normalized/field_roles.csv`
+- `normalized/import_report.json`
+- `normalized/analysis_queries.sql`
+
+Verify status distribution, respondent matching rate, UUID uniqueness, marker distribution, and any unmapped fields before comparing metrics.
+
+### 2. Compare agent judgments against client decisions
 
 Run the comparison script to measure precision, recall, and F1:
 
@@ -37,7 +48,7 @@ This produces:
 - Per-respondent comparison CSV
 - False positive and false negative samples
 
-### 2. Analyze misses
+### 3. Analyze misses
 
 For each false negative (missed discard):
 - Read the full response chain
@@ -51,7 +62,9 @@ For each false positive (wrong discard):
 - Determine what protective factor should have prevented the discard
 - Compare it to accepted rows with the same surface pattern and document the guardrail
 
-### 3. Update the evidence-family framework
+Use SQLite queries for cohort counts before promoting any rule. Save final SQL in `normalized/analysis_queries.sql`.
+
+### 4. Update the evidence-family framework
 
 Based on the miss analysis:
 - Update `build_agent_instructions()` in `run_holistic_agent_review.py`
@@ -60,7 +73,7 @@ Based on the miss analysis:
 - Update `references/production/v7-calibration-and-guardrails.md` when the new benchmark beats V7
 - Document the changes in the commit message
 
-### 4. Retrain the ML model (optional)
+### 5. Retrain the ML model (optional)
 
 If new annotated data is available:
 
@@ -70,7 +83,7 @@ python3 scripts/training/survey_quality_ml.py train
 
 This runs leave-one-dataset-out CV on all annotated datasets and saves the updated model to `models/survey_quality_model.pkl`.
 
-### 5. Re-run the blind flow to verify improvements
+### 6. Re-run the blind flow to verify improvements
 
 Run `commands/blind-run.md` on the unannotated workbook again and compare the new output against the client annotations to verify the improvements.
 
@@ -82,3 +95,4 @@ Run `commands/blind-run.md` on the unannotated workbook again and compare the ne
 - `references/evolution/ml-pipeline-report.md` — ML building process and per-dataset evaluation results
 - `references/evolution/internal-signal-learning.md` — Internal comments and PM notes learning
 - `references/production/v7-calibration-and-guardrails.md` — Current benchmark and guardrail rules
+- `references/production/dataset-normalization-sqlite.md` — SQLite normalization and SQL analysis standards

@@ -24,3 +24,6 @@ __pycache__/
 node_modules/
 .venv/
 venv/
+
+# Training telemetry
+catboost_info/

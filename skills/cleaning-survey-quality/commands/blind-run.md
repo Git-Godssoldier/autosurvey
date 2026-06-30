@@ -14,7 +14,18 @@ This is the normal production flow. The input is a raw `.xlsx` file with respond
 pip3 install -r skills/cleaning-survey-quality/requirements.txt
 ```
 
-### 2. Stage 1 — Generate review packets
+### 2. Stage 0 — Normalize workbook to SQLite
+
+For production, benchmark, or traceable improvement runs, read `references/production/dataset-normalization-sqlite.md` and create:
+- `{output_dir}/normalized/survey_quality.sqlite`
+- `{output_dir}/normalized/schema_summary.md`
+- `{output_dir}/normalized/field_roles.csv`
+- `{output_dir}/normalized/import_report.json`
+- `{output_dir}/normalized/analysis_queries.sql`
+
+Complete this before scoring. Verify respondent counts, field-role mapping coverage, UUID uniqueness, label distributions when present, timing ranges, and open-end blank rates. Skip this only for quick smoke tests and state the skip in the run log.
+
+### 3. Stage 1 — Generate review packets
 
 ```bash
 python3 skills/cleaning-survey-quality/scripts/run_holistic_agent_review.py /path/to/survey.xlsx \
@@ -32,19 +43,19 @@ Before Stage 2, read the generated instructions and confirm they preserve the cu
 - `thin_on_topic` does not fire `core_oe_quality`.
 - Stage 2 quality failure and badopen severity default to REVIEW unless ML or family convergence supports DISCARD.
 
-### 3. Stage 2 — Subagent review (YOU spawn the subagents)
+### 4. Stage 2 — Chunk review agents
 
-**The agent running this skill performs Stage 2 itself** by spawning subagents using its own subagent/tool infrastructure. Do NOT use external CLI tools (Codex, etc.). No external tool installation is required.
+**The agent running this skill performs Stage 2 itself** by running chunk review agents through its own subagent/tool infrastructure. Do NOT use external CLI tools (Codex, etc.). No external tool installation is required.
 
-For each `review_chunk_XX.json` file, spawn a subagent that:
+For each `review_chunk_XX.json` file, run a chunk review agent that:
 1. Reads the `agent_review_instructions.md` file
 2. Reads the `review_chunk_XX.json` file
 3. Applies the V7 evidence-family framework to each respondent
 4. Writes `agent_judgments_chunk_XX.json` to the same output directory, as a JSON array with `respondent_id`, `agent_score` (-1 to +1), `agent_judgment` (DISCARD/REVIEW/KEEP), and `agent_justification` (2-4 sentences)
 
-**Spawn all chunk subagents in parallel.** Wait for all to complete before proceeding to Stage 3.
+Use the active run concurrency policy. For traceable improvement runs, concurrency is 1: process one chunk, log its start/completion/output path/exception/follow-up action, then move to the next chunk. Only use parallel chunk review when the run log explicitly allows it.
 
-### 4. Stage 3 — Integrate judgments
+### 5. Stage 3 — Integrate judgments
 
 ```bash
 python3 skills/cleaning-survey-quality/scripts/integrate_agent_judgments.py /path/to/survey.xlsx /path/to/holistic_output
@@ -55,8 +66,9 @@ This merges all chunk judgments and writes:
 - `{dataset}_dashboard.html` — Self-contained HTML dashboard
 - `summary.json` — Aggregate statistics
 
-### 5. Verify output
+### 6. Verify output
 
+- Check that the SQLite normalized store exists for production, benchmark, or traceable improvement runs
 - Check that the annotated Excel has the same row count as the source file
 - Check that every row has a `Final_Score` and `Final_Judgment`
 - Check that the dashboard renders correctly
@@ -65,6 +77,7 @@ This merges all chunk judgments and writes:
 ## References to read before running
 
 - `references/production/progressive-chain-filtering.md` — Full four-layer progressive filtering specification
+- `references/production/dataset-normalization-sqlite.md` — SQLite normalization and SQL analysis standards
 - `references/production/decipher-blind-authenticity-review.md` — Blind authenticity review rules
 - `references/production/v7-calibration-and-guardrails.md` — Current calibrated disposition thresholds
 - `references/production/agent-authored-row-review.md` — Prevents the pipeline from becoming a rigid checklist

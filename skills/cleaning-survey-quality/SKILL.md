@@ -1,6 +1,6 @@
 ---
 name: cleaning-survey-quality
-description: Cleans and scores Decipher-style survey quality workbooks for market research datasets. Use when reviewing survey completes, fraud, inattentive respondents, open-end AI suspicion, straightlining, inconsistent brand answers, short completes, duplicate IPs, respondent flags, or survey quality files. The primary flow is a three-layer holistic agent review (semantic remapping + ML analysis + two-stage agent review) that produces DISCARD/REVIEW/KEEP judgments with three-component scoring (authenticity_risk, quality_discard_risk, client_reject_probability), a disposition layer separating removal reasons, badopen audit trails, and evidence-family convergence scoring across 9 independent signal families.
+description: Cleans and scores Decipher-style survey quality workbooks for market research datasets. Use when reviewing survey completes, fraud, inattentive respondents, open-end AI suspicion, straightlining, inconsistent brand answers, short completes, duplicate IPs, respondent flags, survey quality files, normalized survey datasets, or SQLite-backed quality analysis. The primary flow is a three-layer holistic agent review (semantic remapping + ML analysis + two-stage agent review) that produces DISCARD/REVIEW/KEEP judgments with three-component scoring (authenticity_risk, quality_discard_risk, client_reject_probability), a disposition layer separating removal reasons, badopen audit trails, and evidence-family convergence scoring across 9 independent signal families.
 ---
 
 # Cleaning Survey Quality
@@ -68,17 +68,33 @@ The ML triage model is **pre-trained and bundled** (`models/survey_quality_model
 
 Annotated workbooks (`status = 3` accepted, `status = 5` rejected) are used only for **evolution** — improving the model and rules after client feedback is received. See `commands/evolution-cycle.md`.
 
+## Dataset Normalization Store
+
+For full production runs, benchmark runs, residual analysis, or any run where metrics must be reproducible, normalize the workbook into SQLite before scoring. Read `references/production/dataset-normalization-sqlite.md` and write the store under `{output_dir}/normalized/survey_quality.sqlite`.
+
+Do this after semantic field-role mapping and before review-packet generation. The SQLite store must preserve raw workbook values, field roles, Datamap metadata, long-form answers, optional client labels, optional agent judgments, and saved SQL used for metrics or FP/FN analysis. Skip this only for quick smoke tests, and state that SQLite normalization was skipped.
+
+## Run Control: Todo List And Workledger
+
+After reading the task-specific command file and references, create both files before running scripts or reviewing rows:
+- `{output_dir}/run_todolist.md` — checklist of required stages, gates, tests, artifacts, owners, and current status.
+- `{output_dir}/workledger.md` — append-only log of actions, commands, inputs, outputs, metric snapshots, issues, decisions, and next steps.
+
+Use these two files to drive the entire run. Update the todo list when a stage starts, completes, changes scope, or is blocked. Append to the workledger after every meaningful action: field mapping, SQLite normalization, packet generation, each chunk review, integration, metric comparison, FP/FN analysis, rule change, test, and performance check.
+
+Do not mark the run complete until the todo list shows every required item complete and the workledger records the evidence: artifact paths, command results, validation outputs, metrics, remaining risks, and recommended next actions.
+
 ## Critical: Use the Holistic Agent Review Pipeline
 
 **Do NOT run `run_quality_loop.py` or `survey_pipeline.py` alone.** These are the old scripted pipelines that produce only Keep/Light review with zero discards. They are data-staging tools, not the review pipeline.
 
-**Do NOT use external CLI tools (Codex, etc.) for Stage 2.** Stage 2 is performed by the agent itself spawning subagents using its own subagent infrastructure. No external tool installation is required.
+**Do NOT use external CLI tools (Codex, etc.) for Stage 2.** Stage 2 is performed by the agent itself running chunk review agents through its own subagent infrastructure. No external tool installation is required.
 
 The production flow is the **holistic agent review** with three stages:
 
 ```
 Stage 1: scripts/run_holistic_agent_review.py  → generates review packets + agent instructions
-Stage 2: YOU spawn subagents                   → one subagent per chunk reads packets, writes judgments
+Stage 2: YOU run chunk review agents           → one chunk at a time unless the run log allows more
 Stage 3: scripts/integrate_agent_judgments.py  → merges judgments into annotated Excel + dashboard
 ```
 
@@ -96,13 +112,13 @@ python3 skills/cleaning-survey-quality/scripts/run_holistic_agent_review.py /pat
 
 After Stage 1 completes, the output directory contains `review_chunk_00.json` through `review_chunk_XX.json` and `agent_review_instructions.md`.
 
-**Stage 2 — YOU spawn subagents.** For each chunk file, spawn a subagent (using your own subagent/tool infrastructure) that:
+**Stage 2 — YOU run chunk review agents.** For each chunk file, run a review agent (using your own subagent/tool infrastructure) that:
 1. Reads `agent_review_instructions.md`
 2. Reads `review_chunk_XX.json`
 3. Applies the evidence-family framework to each respondent
 4. Writes `agent_judgments_chunk_XX.json` to the same output directory
 
-Spawn all chunk subagents in parallel. Wait for all to complete before proceeding to Stage 3.
+Use the active run concurrency policy. For traceable improvement runs, concurrency is 1: process one chunk, log its start/completion/output path/exception/follow-up action, then move to the next chunk. Only use parallel chunk review when the run log explicitly allows it.
 
 ```bash
 # Stage 3: Integrate judgments into annotated Excel + dashboard
@@ -121,6 +137,7 @@ Read only the references needed for the current task:
 | Improving the pipeline from client feedback | `commands/evolution-cycle.md` |
 | Output format specs (Excel, dashboard, JSON) | `templates/output-format-spec.md` |
 | Full four-layer progressive filtering specification | `references/production/progressive-chain-filtering.md` |
+| Dataset normalization, SQLite store, SQL analysis standards | `references/production/dataset-normalization-sqlite.md` |
 | Blind authenticity review rules | `references/production/decipher-blind-authenticity-review.md` |
 | Signal weighting, semantic similarity, convergence logic | `references/production/semantic-signal-expansion.md` |
 | V7 calibrated disposition rules and benchmark lessons | `references/production/v7-calibration-and-guardrails.md` |
@@ -151,6 +168,18 @@ Read only the references needed for the current task:
 
 ## What Each Stage Does
 
+### Stage -1: Run Control
+
+Complete this stage after reading the command file and required references. It is complete only when `run_todolist.md` and `workledger.md` exist in the output directory and list the expected end-to-end flow, SQLite normalization gate, chunk-review concurrency policy, tests, metric checks, and deliverables.
+
+### Stage 0: Dataset Normalization (`references/production/dataset-normalization-sqlite.md`)
+
+For production, benchmark, and evolution runs, normalize the source workbook into a run-local SQLite store before generating review packets. Complete this stage only when:
+- Field roles are mapped and saved to `normalized/field_roles.csv`.
+- The SQLite database exists at `normalized/survey_quality.sqlite`.
+- `schema_summary.md`, `import_report.json`, and `analysis_queries.sql` exist.
+- Respondent counts, label counts when present, UUID uniqueness, open-end blank rates, timing ranges, and unmapped fields have been sanity checked.
+
 ### Stage 1: Data Staging + Review Packet Generation (`scripts/run_holistic_agent_review.py`)
 
 Scripts parse the Datamap, map response fields to question text and value labels, compute population-level statistics, and build structured JSON review packets. Scripts do NOT make discard decisions.
@@ -175,17 +204,17 @@ Each packet contains:
 
 The script also generates `agent_review_instructions.md` with the evidence-family framework rules (see below).
 
-### Stage 2: Subagent Review (YOU spawn the subagents)
+### Stage 2: Chunk Review Agents
 
-**The agent running this skill performs Stage 2 itself** by spawning subagents using its own subagent infrastructure. No external CLI tool (Codex, etc.) is needed.
+**The agent running this skill performs Stage 2 itself** by running chunk review agents through its own subagent infrastructure. No external CLI tool (Codex, etc.) is needed.
 
-For each `review_chunk_XX.json` file, spawn a subagent that:
+For each `review_chunk_XX.json` file, run a chunk review agent that:
 1. Reads `agent_review_instructions.md` (the evidence-family framework)
 2. Reads `review_chunk_XX.json` (~200 respondent packets)
 3. Applies the framework to each respondent
 4. Writes `agent_judgments_chunk_XX.json` to the same output directory
 
-Spawn all chunk subagents in parallel. Each subagent produces a JSON array with:
+Use the active run concurrency policy. For traceable improvement runs, process chunks sequentially with concurrency = 1. Each chunk review agent produces a JSON array with:
 - `respondent_id`
 - `agent_score` (-1.0 to +1.0)
 - `agent_judgment` (DISCARD / REVIEW / KEEP)
@@ -197,6 +226,15 @@ Merges all chunk judgments, re-runs feature extraction, and writes:
 - **Annotated Excel** with 9 added columns (see `templates/output-format-spec.md`)
 - **Dashboard HTML** with summary cards, score distribution, supplier analysis, and discard table
 - **Summary JSON** with aggregate statistics
+
+### Stage 4: End-To-End And Performance Verification
+
+Test the full flow before reporting completion. At minimum:
+- Verify all expected artifacts exist: todo list, workledger, normalized SQLite store when required, review chunks, chunk judgments, merged judgments, annotated Excel, dashboard, and summary JSON.
+- Run the integration and comparison checks for any run with ground truth labels.
+- Report accuracy, precision, recall, F1, specificity, balanced accuracy, soft recall, review volume, FP count, FN count, and runtime/performance notes.
+- Compare performance against the current benchmark or prior run when one exists.
+- Append the final command outputs, metric table, artifact paths, failures, and next steps to `workledger.md`.
 
 ## The Evidence-Family Framework (v7)
 
@@ -289,6 +327,7 @@ See `references/production/progressive-chain-filtering.md` for the full specific
 
 **Scripts DO:**
 - Parse the Datamap into question text and value labels
+- Normalize workbook data into SQLite for production, benchmark, and evolution runs
 - Look up coded values to get their label meanings
 - Compute timing distributions and percentiles
 - Detect exact duplicate text across respondents
@@ -427,6 +466,7 @@ cleaning-survey-quality/
 │   │   ├── decipher-blind-authenticity-review.md
 │   │   ├── semantic-signal-expansion.md
 │   │   ├── v7-calibration-and-guardrails.md
+│   │   ├── dataset-normalization-sqlite.md
 │   │   ├── agent-authored-row-review.md
 │   │   ├── agentic-escalation-path.md
 │   │   ├── client-terminology-glossary.md

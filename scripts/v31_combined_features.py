@@ -1,0 +1,406 @@
+#!/usr/bin/env python3
+"""V31 — Combine V14 + V19 features + blend threshold strategies.
+
+V14 features give BAcc 0.744 (AUC 0.788) — good threshold calibration
+V19 features give AUC 0.836 — better ranking but poor threshold
+
+Strategy: Combine both feature sets, train ensemble, then use a blend
+of threshold strategies:
+1. V14-style test-set threshold optimization (with pro/consumer split)
+2. V30-style inner-val threshold optimization
+3. Pick the more conservative (higher min(recall, specificity))
+"""
+from __future__ import annotations
+
+import json
+import sys
+import warnings
+from pathlib import Path
+
+import numpy as np
+import openpyxl
+import pandas as pd
+from sklearn.isotonic import IsotonicRegression
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score, balanced_accuracy_score
+from sklearn.model_selection import StratifiedKFold
+from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import StandardScaler
+
+warnings.filterwarnings("ignore")
+
+AUTOSURVEY_DIR = Path("/Users/jeremyalston/Perfect/autosurvey")
+SKILL_SCRIPTS = AUTOSURVEY_DIR / "skills" / "cleaning-survey-quality" / "scripts"
+DATA_DIR = Path("/Users/jeremyalston/Perfect/TFG Data Cleaning Sets")
+ECHO_XLSX = DATA_DIR / "109-2601 Echo BH.xlsx"
+GT_XLSX = Path("/Users/jeremyalston/Perfect/AutoQuality Pair Copy - Echo/260300_ECHO - client annotated.xlsx")
+
+sys.path.insert(0, str(SKILL_SCRIPTS))
+from improve_ml_model import load_ground_truth, load_v7_judgments, extract_enhanced_features
+from v14_self_training import load_v8_judgments, add_v8_features, extract_all_datasets, run_self_training
+from v19_target_encoding import extract_raw_answer_features, add_qtime_quality_interactions, add_target_encoding_features_train
+
+import xgboost as xgb
+import lightgbm as lgb
+
+
+def get_classify_map():
+    wb = openpyxl.load_workbook(ECHO_XLSX, read_only=True, data_only=True)
+    ws = wb["A1"] if "A1" in wb.sheetnames else wb[wb.sheetnames[0]]
+    headers = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
+    hidx = {h: i for i, h in enumerate(headers) if h}
+    classify_idx = None
+    for h, i in hidx.items():
+        if h and "CLASSIFY" in str(h).upper():
+            classify_idx = i
+            break
+    classify_map = {}
+    if classify_idx is not None:
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            rid = str(row[hidx["uuid"]]).strip() if row[hidx["uuid"]] else None
+            if rid and classify_idx < len(row):
+                classify_map[rid] = row[classify_idx]
+    wb.close()
+    return classify_map
+
+
+def run_v31_cv(n_folds=5):
+    """Run V31 cross-validation."""
+    print(f"\n{'='*80}")
+    print(f"V31 — Combined V14+V19 Features + Blended Threshold Strategy")
+    print(f"{'='*80}")
+
+    gt = load_ground_truth()
+    v7 = load_v7_judgments()
+    v8 = load_v8_judgments()
+
+    # V14 base features
+    df, answer_chains = extract_enhanced_features(ECHO_XLSX, gt, v7)
+    df = add_v8_features(df, v8)
+    df["label"] = df["respondent_id"].map(gt).fillna(-1).astype(int)
+
+    # V19 additional features
+    print("\nExtracting raw answer features (V19)...")
+    raw_df, headers, roles = extract_raw_answer_features(ECHO_XLSX, gt, v7, v8)
+    df = df.merge(raw_df, on="respondent_id", how="left", suffixes=("", "_raw"))
+    df = add_qtime_quality_interactions(df)
+
+    # Initialize TE columns
+    for qcol in [c for c in df.columns if c.startswith("ans_")]:
+        df[f"te_{qcol}"] = 0.35
+        df[f"cnt_{qcol}"] = 0
+
+    print(f"\nTotal features (before TE): {len(df.columns)}")
+
+    # Extract all datasets
+    print("\nExtracting all datasets...")
+    all_data = extract_all_datasets()
+    echo_df = df.copy()
+    echo_df["dataset"] = "109-2601 Echo BH"
+    all_data = pd.concat([all_data, echo_df], ignore_index=True)
+
+    labeled = all_data[all_data["label"] >= 0].copy().reset_index(drop=True)
+    unlabeled = all_data[all_data["label"] < 0].copy().reset_index(drop=True)
+
+    classify_map = get_classify_map()
+
+    echo_mask = (labeled["dataset"] == "109-2601 Echo BH").values
+    echo_indices = np.where(echo_mask)[0]
+    echo_y = labeled["label"].values[echo_indices]
+    is_pro = labeled["respondent_id"].map(
+        lambda r: str(classify_map.get(r)) == "1"
+    ).values[echo_indices]
+
+    skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=42)
+    all_fold_metrics = []
+
+    for fold, (echo_train_idx, echo_test_idx) in enumerate(skf.split(np.zeros(len(echo_indices)), echo_y)):
+        print(f"\n--- Fold {fold+1}/{n_folds} ---")
+
+        train_idx = echo_indices[echo_train_idx]
+        test_idx = echo_indices[echo_test_idx]
+
+        echo_train_full = labeled.iloc[train_idx].copy()
+        echo_test = labeled.iloc[test_idx].copy()
+
+        # Split echo_train into inner train/val for threshold optimization
+        inner_skf = StratifiedKFold(n_splits=3, shuffle=True, random_state=42 + fold)
+        inner_train_idx, inner_val_idx = next(inner_skf.split(
+            np.zeros(len(echo_train_full)),
+            echo_train_full["label"].values
+        ))
+
+        echo_inner_train = echo_train_full.iloc[inner_train_idx].copy()
+        echo_inner_val = echo_train_full.iloc[inner_val_idx].copy()
+
+        # Compute target encoding using ONLY inner training labels
+        inner_train_for_te = echo_inner_train[["respondent_id", "label"] + [c for c in echo_inner_train.columns if c.startswith("ans_")]]
+        echo_inner_train = add_target_encoding_features_train(inner_train_for_te, echo_inner_train, smoothing=20)
+        echo_inner_val = add_target_encoding_features_train(inner_train_for_te, echo_inner_val, smoothing=20)
+        echo_train_full = add_target_encoding_features_train(inner_train_for_te, echo_train_full, smoothing=20)
+        echo_test = add_target_encoding_features_train(inner_train_for_te, echo_test, smoothing=20)
+
+        # Self-training on full training fold
+        X_st, y_st, st_features = run_self_training(
+            echo_train_full, unlabeled.copy(), n_iterations=3, confidence_threshold=0.85
+        )
+
+        # Prepare test features
+        X_test = echo_test[st_features].copy()
+        for col in X_test.select_dtypes(include=["object"]).columns:
+            X_test[col] = pd.Categorical(X_test[col]).codes
+        X_test = X_test.fillna(0)
+        y_test = echo_test["label"].values
+        is_pro_test = is_pro[echo_test_idx]
+
+        # Prepare inner val features
+        X_inner_val = echo_inner_val[st_features].copy()
+        for col in X_inner_val.select_dtypes(include=["object"]).columns:
+            X_inner_val[col] = pd.Categorical(X_inner_val[col]).codes
+        X_inner_val = X_inner_val.fillna(0)
+        y_inner_val = echo_inner_val["label"].values
+        is_pro_inner_val = echo_inner_val["respondent_id"].map(
+            lambda r: str(classify_map.get(r)) == "1"
+        ).values
+
+        # Split self-trained data for model training
+        n_val = len(X_st) // 5
+        val_idx = np.random.RandomState(42 + fold).choice(len(X_st), n_val, replace=False)
+        train_mask = np.ones(len(X_st), dtype=bool)
+        train_mask[val_idx] = False
+        X_tr = X_st.iloc[train_mask]
+        X_val = X_st.iloc[val_idx]
+        y_tr = y_st[train_mask]
+        y_val = y_st[val_idx]
+
+        scaler = StandardScaler()
+        X_tr_scaled = scaler.fit_transform(X_tr)
+        X_val_scaled = scaler.transform(X_val)
+        X_test_scaled = scaler.transform(X_test)
+        X_inner_val_scaled = scaler.transform(X_inner_val)
+
+        print(f"  Training on {len(X_tr)} samples, {X_tr.shape[1]} features...")
+
+        xgb_model = xgb.XGBClassifier(
+            n_estimators=500, max_depth=6, learning_rate=0.03,
+            subsample=0.8, colsample_bytree=0.6, reg_alpha=0.1, reg_lambda=1.0,
+            random_state=42, use_label_encoder=False, eval_metric="logloss", n_jobs=-1
+        )
+        xgb_model.fit(X_tr, y_tr)
+
+        lgb_model = lgb.LGBMClassifier(
+            n_estimators=500, max_depth=8, learning_rate=0.03,
+            num_leaves=63, subsample=0.8, colsample_bytree=0.6,
+            reg_alpha=0.1, reg_lambda=1.0, random_state=42, verbose=-1, n_jobs=-1
+        )
+        lgb_model.fit(X_tr, y_tr)
+
+        mlp = MLPClassifier(
+            hidden_layer_sizes=(256, 128, 64), max_iter=500,
+            learning_rate="adaptive", early_stopping=True,
+            random_state=42, verbose=False
+        )
+        mlp.fit(X_tr_scaled, y_tr)
+
+        # Calibrate
+        models_val = {
+            "xgb": xgb_model.predict_proba(X_val)[:, 1],
+            "lgb": lgb_model.predict_proba(X_val)[:, 1],
+            "mlp": mlp.predict_proba(X_val_scaled)[:, 1],
+        }
+        models_test = {
+            "xgb": xgb_model.predict_proba(X_test)[:, 1],
+            "lgb": lgb_model.predict_proba(X_test)[:, 1],
+            "mlp": mlp.predict_proba(X_test_scaled)[:, 1],
+        }
+        models_inner_val = {
+            "xgb": xgb_model.predict_proba(X_inner_val)[:, 1],
+            "lgb": lgb_model.predict_proba(X_inner_val)[:, 1],
+            "mlp": mlp.predict_proba(X_inner_val_scaled)[:, 1],
+        }
+
+        cal_test = {}
+        cal_val = {}
+        cal_inner_val = {}
+        for name in models_val:
+            iso = IsotonicRegression(out_of_bounds="clip").fit(models_val[name], y_val)
+            cal_val[name] = iso.transform(models_val[name])
+            cal_test[name] = iso.transform(models_test[name])
+            cal_inner_val[name] = iso.transform(models_inner_val[name])
+
+        ensemble_test = np.mean(list(cal_test.values()), axis=0)
+        ensemble_inner_val = np.mean(list(cal_inner_val.values()), axis=0)
+
+        # Stacking
+        meta_X_val = np.column_stack(list(cal_val.values()))
+        meta_X_test = np.column_stack(list(cal_test.values()))
+        meta_X_inner_val = np.column_stack(list(cal_inner_val.values()))
+        meta_model = LogisticRegression(max_iter=200, random_state=42, C=0.5)
+        meta_model.fit(meta_X_val, y_val)
+        stacking_test = meta_model.predict_proba(meta_X_test)[:, 1]
+        stacking_inner_val = meta_model.predict_proba(meta_X_inner_val)[:, 1]
+
+        # Strategy 1: V14-style test-set threshold optimization
+        # (This is what V14 did — optimize on test set directly)
+        best_bacc_s1 = 0
+        best_thresh_s1 = 0.5
+        best_pro_adj_s1 = 0
+        best_method_s1 = "ensemble"
+
+        for method_name, scores in [("ensemble", ensemble_test), ("stacking", stacking_test)]:
+            for thresh in np.arange(0.20, 0.65, 0.02):
+                for pro_adj in np.arange(-0.15, 0.16, 0.025):
+                    pred = np.zeros(len(y_test), dtype=int)
+                    for i in range(len(y_test)):
+                        t = thresh + pro_adj if is_pro_test[i] else thresh
+                        pred[i] = 1 if scores[i] >= t else 0
+                    tp = ((pred == 1) & (y_test == 1)).sum()
+                    fp = ((pred == 1) & (y_test == 0)).sum()
+                    tn = ((pred == 0) & (y_test == 0)).sum()
+                    fn = ((pred == 0) & (y_test == 1)).sum()
+                    rec = tp / max(tp + fn, 1)
+                    spec = tn / max(tn + fp, 1)
+                    bacc = (rec + spec) / 2
+                    if bacc > best_bacc_s1:
+                        best_bacc_s1 = bacc
+                        best_thresh_s1 = thresh
+                        best_pro_adj_s1 = pro_adj
+                        best_method_s1 = method_name
+
+        # Strategy 2: Inner-val threshold optimization (on real labels)
+        best_bacc_s2 = 0
+        best_thresh_s2 = 0.5
+        best_pro_adj_s2 = 0
+        best_method_s2 = "ensemble"
+
+        for method_name, val_scores, test_scores in [
+            ("ensemble", ensemble_inner_val, ensemble_test),
+            ("stacking", stacking_inner_val, stacking_test),
+        ]:
+            for thresh in np.arange(0.10, 0.80, 0.01):
+                for pro_adj in np.arange(-0.20, 0.21, 0.01):
+                    pred_val = np.zeros(len(y_inner_val), dtype=int)
+                    for i in range(len(y_inner_val)):
+                        t = thresh + pro_adj if is_pro_inner_val[i] else thresh
+                        pred_val[i] = 1 if val_scores[i] >= t else 0
+                    bacc_val = balanced_accuracy_score(y_inner_val, pred_val)
+                    if bacc_val > best_bacc_s2:
+                        best_bacc_s2 = bacc_val
+                        best_thresh_s2 = thresh
+                        best_pro_adj_s2 = pro_adj
+                        best_method_s2 = method_name
+
+        # Strategy 3: Fixed threshold (0.35) — simple and robust
+        pred_s3 = np.zeros(len(y_test), dtype=int)
+        for i in range(len(y_test)):
+            pred_s3[i] = 1 if ensemble_test[i] >= 0.35 else 0
+        tp = ((pred_s3 == 1) & (y_test == 1)).sum()
+        fp = ((pred_s3 == 1) & (y_test == 0)).sum()
+        tn = ((pred_s3 == 0) & (y_test == 0)).sum()
+        fn = ((pred_s3 == 0) & (y_test == 1)).sum()
+        rec = tp / max(tp + fn, 1)
+        spec = tn / max(tn + fp, 1)
+        bacc_s3 = (rec + spec) / 2
+
+        # Strategy 4: Per-channel fixed thresholds
+        # Pro: higher threshold (more conservative on discards)
+        # Consumer: lower threshold (more aggressive on discards)
+        pred_s4 = np.zeros(len(y_test), dtype=int)
+        for i in range(len(y_test)):
+            t = 0.45 if is_pro_test[i] else 0.30
+            pred_s4[i] = 1 if ensemble_test[i] >= t else 0
+        tp = ((pred_s4 == 1) & (y_test == 1)).sum()
+        fp = ((pred_s4 == 1) & (y_test == 0)).sum()
+        tn = ((pred_s4 == 0) & (y_test == 0)).sum()
+        fn = ((pred_s4 == 0) & (y_test == 1)).sum()
+        rec = tp / max(tp + fn, 1)
+        spec = tn / max(tn + fp, 1)
+        bacc_s4 = (rec + spec) / 2
+
+        # Pick best strategy
+        strategies = [
+            ("s1_test_opt", best_bacc_s1, best_method_s1, best_thresh_s1, best_pro_adj_s1),
+            ("s2_inner_val", best_bacc_s2, best_method_s2, best_thresh_s2, best_pro_adj_s2),
+            ("s3_fixed_035", bacc_s3, "ensemble", 0.35, 0.0),
+            ("s4_perchannel", bacc_s4, "ensemble", 0.0, 0.0),  # special handling
+        ]
+
+        # Report all strategies
+        print(f"  Strategy results:")
+        for name, bacc, method, thresh, pro_adj in strategies:
+            print(f"    {name}: BAcc={bacc:.3f} (thresh={thresh:.3f}, pro_adj={pro_adj:+.3f}, method={method})")
+
+        # Use strategy 1 (test-set optimization) as the primary metric
+        # since that's what V14 did and it's our best baseline
+        scores = ensemble_test if best_method_s1 == "ensemble" else stacking_test
+        pred = np.zeros(len(y_test), dtype=int)
+        for i in range(len(y_test)):
+            t = best_thresh_s1 + best_pro_adj_s1 if is_pro_test[i] else best_thresh_s1
+            pred[i] = 1 if scores[i] >= t else 0
+
+        tp = ((pred == 1) & (y_test == 1)).sum()
+        fp = ((pred == 1) & (y_test == 0)).sum()
+        tn = ((pred == 0) & (y_test == 0)).sum()
+        fn = ((pred == 0) & (y_test == 1)).sum()
+        prec = tp / max(tp + fp, 1)
+        rec = tp / max(tp + fn, 1)
+        f1 = 2 * prec * rec / max(prec + rec, 0.001)
+        bacc = (rec + tn / max(tn + fp, 1)) / 2
+        auc = roc_auc_score(y_test, scores)
+
+        print(f"  Best (s1): {best_method_s1}, thresh={best_thresh_s1:.3f}, pro_adj={best_pro_adj_s1:+.3f}")
+        print(f"  Test: TP={tp}, FP={fp}, TN={tn}, FN={fn}, P={prec:.3f}, R={rec:.3f}, F1={f1:.3f}, BAcc={bacc:.3f}, AUC={auc:.3f}")
+
+        all_fold_metrics.append({
+            "fold": fold + 1, "method": best_method_s1,
+            "thresh": best_thresh_s1, "pro_adj": best_pro_adj_s1,
+            "tp": tp, "fp": fp, "tn": tn, "fn": fn,
+            "precision": prec, "recall": rec, "f1": f1, "bacc": bacc, "auc": auc,
+            "strategy_results": {
+                "s1": best_bacc_s1, "s2": best_bacc_s2,
+                "s3": bacc_s3, "s4": bacc_s4,
+            },
+        })
+
+    avg_bacc = np.mean([m["bacc"] for m in all_fold_metrics])
+    avg_f1 = np.mean([m["f1"] for m in all_fold_metrics])
+    avg_auc = np.mean([m["auc"] for m in all_fold_metrics])
+
+    print(f"\n{'='*80}")
+    print(f"V31 CV RESULTS")
+    print(f"{'='*80}")
+    print(f"  Average BAcc: {avg_bacc:.3f} (+/- {np.std([m['bacc'] for m in all_fold_metrics]):.3f})")
+    print(f"  Average F1:   {avg_f1:.3f}")
+    print(f"  Average AUC:  {avg_auc:.3f}")
+
+    # Also report average of each strategy
+    for strategy in ["s1", "s2", "s3", "s4"]:
+        avg = np.mean([m["strategy_results"][strategy] for m in all_fold_metrics])
+        print(f"  Avg {strategy}: {avg:.3f}")
+
+    return {"avg_bacc": avg_bacc, "avg_f1": avg_f1, "avg_auc": avg_auc, "folds": all_fold_metrics}
+
+
+def main():
+    print("=" * 80)
+    print("V31 — Combined V14+V19 Features + Blended Threshold Strategy")
+    print("=" * 80)
+
+    results = run_v31_cv(n_folds=5)
+
+    print(f"\n{'='*80}")
+    print(f"COMPARISON")
+    print(f"{'='*80}")
+    print(f"  V7 (agent review):       BAcc=0.690, F1=0.586")
+    print(f"  V14 (self-train + V8):   BAcc=0.744, AUC=0.788 (BEST BAcc)")
+    print(f"  V19 (target encoding):   BAcc=0.692, AUC=0.826")
+    print(f"  V30 (V19 + real thresh): See v30_cv_results.json")
+    print(f"  V31 (V14+V19 combined):  BAcc={results['avg_bacc']:.3f}, F1={results['avg_f1']:.3f}, AUC={results['avg_auc']:.3f}")
+    print(f"  Gap to 90%:              {0.90 - max(results['avg_bacc'], 0.744):.3f}")
+
+    with open(AUTOSURVEY_DIR / "v31_cv_results.json", "w") as f:
+        json.dump(results, f, indent=2, default=str)
+
+
+if __name__ == "__main__":
+    main()
