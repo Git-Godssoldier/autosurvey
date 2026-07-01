@@ -87,6 +87,8 @@ Family rollups do not count as additional independent signals when their child s
 
 In the Echo no-ML run, `matrix_near_straightline`, `matrix_many_straightlined_grids`, and `brand_low_awareness_count` were too broad to count toward discard by themselves.
 
+For signal-split evolution loops, a child signal is production-eligible only when it has a reconstructed field meaning, a named survey role, positive criteria, negative criteria, and accepted-row counterexamples. Do not promote a child signal whose only evidence is an opaque coded field/value pair such as `q16r1=55 + q19_2026r14=0`. Keep those as reconstruction candidates until the question contract explains why the pattern is a row-specific quality failure.
+
 ## Historical prior profile
 
 Before row review, read `historical-dataset-priors.md` and create `historical_prior_profile`.

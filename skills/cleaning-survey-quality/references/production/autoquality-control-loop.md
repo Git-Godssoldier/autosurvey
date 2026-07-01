@@ -69,6 +69,8 @@ Default to `auto_keep_holdout` before `discard_candidate_mining`. A holdout move
 
 Once soft false negatives are reduced and strict recall remains low, shift from KEEP-lane holdouts to REVIEW-lane discard candidate mining. Compare REVIEW true positives against REVIEW false positives during evolution, then look for hard row-specific failures that can become DISCARD only after accepted-row counterexamples are documented. Prefer cross-field semantic reconstruction over one-field value rules at this stage.
 
+For `signal_split`, do not promote opaque coded-value correlations. A child signal must be named in survey terms, tied to field roles or question text, and documented with positive examples plus accepted-row counterexamples. If the normalized Datamap cannot explain the field meaning, the output is a candidate for reconstruction, not a DISCARD rule.
+
 ### Actuator
 
 The actuator applies the selected loop.
