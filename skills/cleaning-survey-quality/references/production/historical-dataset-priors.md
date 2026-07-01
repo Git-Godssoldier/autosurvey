@@ -86,6 +86,27 @@ The best surviving holdouts were specific, not broad:
 
 The lesson is procedural: after a broad prior-family holdout works, mine the residual KEEP false negatives for specific field/value or cross-field holdouts and require accepted-row counterexamples. Once soft false negatives are reduced and the remaining gap is strict recall, stop widening REVIEW and switch to REVIEW true-positive versus REVIEW false-positive mining for hard discard candidates.
 
+## V10 signal-split lesson from Echo
+
+This is label-aware evolution evidence from the Echo no-ML V10 run. Use it to guide future signal-split loops. Do not use it as a same-dataset shortcut during blind scoring.
+
+V10 started from V9 and promoted semantically reconstructed REVIEW rows to DISCARD. Strict F1 improved from 49.3 percent to 57.2 percent. From V2 to V10, strict F1 improved from 11.8 percent to 57.2 percent. Soft F1 stayed at 63.9 percent because V10 moved rows from REVIEW to DISCARD, not from KEEP.
+
+Accepted signal-split families:
+
+- Brand rating straightlining across multiple attributes of the same brand. Echo examples include RedMax, ECHO, and Brand 4.
+- Cross-question matrix row matching. Echo example: the same value on row 17 across q21 and q19.
+- Adjacent-row straightlining in ad recall. Echo example: the same value on adjacent q28 rows.
+
+Rejected signal-split families:
+
+- q5 or q16 percentage allocations without survey meaning.
+- q19_2026 coded values without survey meaning.
+- qager1 age correlations.
+- Any field pair whose only support is same-dataset lift.
+
+The next useful step after V10 is cross-dataset validation. If another assessed workbook has brand ratings, matrix rows, or ad recall fields, translate the V10 families into that workbook's field names and test them as evaluation-only probes. If no validation dataset is ready, mine the remaining KEEP-lane false negatives only as REVIEW holdouts.
+
 ## Dataset signal examples
 
 Each row below lists examples from prior assessed data. "Risky example" means that value had a higher discard rate than the dataset base rate. "Keep-leaning counterexample" means that a similar signal area had a lower discard rate than the dataset base rate.

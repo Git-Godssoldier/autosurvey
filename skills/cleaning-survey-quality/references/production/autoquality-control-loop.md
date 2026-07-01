@@ -71,6 +71,8 @@ Once soft false negatives are reduced and strict recall remains low, shift from 
 
 For `signal_split`, do not promote opaque coded-value correlations. A child signal must be named in survey terms, tied to field roles or question text, and documented with positive examples plus accepted-row counterexamples. If the normalized Datamap cannot explain the field meaning, the output is a candidate for reconstruction, not a DISCARD rule.
 
+When `signal_split` keeps returning after a large same-dataset gain, prefer validation on another assessed dataset before adding more rules from the same workbook. Continue same-dataset mining only when the next candidate family has clear survey meaning and a separate accepted-row counterexample set.
+
 ### Actuator
 
 The actuator applies the selected loop.
