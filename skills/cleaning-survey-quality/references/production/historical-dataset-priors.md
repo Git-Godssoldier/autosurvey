@@ -105,9 +105,11 @@ Rejected signal-split families:
 - qager1 age correlations.
 - Any field pair whose only support is same-dataset lift.
 
-The next useful step after V10 is cross-dataset validation. If another assessed workbook has brand ratings, matrix rows, or ad recall fields, translate the V10 families into that workbook's field names and test them as evaluation-only probes. If no validation dataset is ready, mine the remaining KEEP-lane false negatives only as REVIEW holdouts.
+The next useful step after V10 is mining the 83 Echo KEEP-lane false negatives for REVIEW holdout signals. Cross-dataset validation was completed on 2026-07-02 and confirmed that V10 signal families are Echo-specific (negative transfer to SBD, Oldcastle BH, and Oldcastle Canada). New datasets need the full AutoQuality pipeline run from scratch.
 
 2026-07-01 cross-dataset transfer check: a direct SBD brand-rating structural probe fired on 647 of 787 respondents, with 1,040 row-brand-battery hits. That is too broad for standalone routing. It can be stored as a context-only signal column, but it should not move rows to REVIEW or DISCARD until a sharper child criterion is validated against true labels and accepted-row counterexamples.
+
+2026-07-02 cross-dataset validation with true labels: SBD (787 rows, 44.5% discard), Oldcastle BH (2164 rows, 17.3% discard), and Oldcastle Canada (743 rows, 38.4% discard) all have true client labels in "Data Sets with Cleaning Answer.zip". The V10 Echo signal families (brand rating straightlining, cross-question matrix row matching, adjacent-row straightlining) were tested as structural patterns. Result: negative transfer. Brand rating straightlining is negatively correlated with discards on Oldcastle BH (lift 0.55-0.70x — high ratings indicate genuine engagement). Adjacent-row straightlining fires on ~100% of respondents across all datasets. Cross-question matrix matching has marginal lift (1.0-1.1x) at best. The V10 rules are Echo-specific and should not be transferred to new datasets. New datasets need the full AutoQuality pipeline run from scratch.
 
 ## Dataset signal examples
 
