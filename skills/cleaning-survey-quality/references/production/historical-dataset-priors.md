@@ -1,0 +1,90 @@
+# Historical dataset priors for no-ML calibration
+
+Use this reference when a run cannot use model scores and needs historical memory from prior assessed workbooks.
+
+These priors are label-aware evolution evidence. They are not row labels for a new workbook. They are not targets to force. Use them to ask better questions, to spot outlier outputs, and to choose which workbook-derived signals need closer row review.
+
+## How to use these priors
+
+1. Match the current workbook to the closest historical dataset by client, survey topic, field roles, supplier fields, brand funnel, quota structure, and open-end prompts.
+2. Record the closest historical base rate in `workledger.md`.
+3. Use the risky examples as questions to check in the current workbook, not as automatic discard rules.
+4. Use the keep-leaning counterexamples as false-positive guardrails.
+5. After blind scoring, compare the output distribution to the closest historical base rate. A large gap is an audit trigger. It is not a reason to force the output to match the historical rate.
+6. Promote a signal only when it survives accepted-row counterexamples from the same or a similar survey family.
+
+Do not use client `status`, raw client `markers`, `bad:` marker tokens, or label-derived same-dataset fields during blind scoring.
+
+## Base rates across assessed workbooks
+
+The 10 assessed workbooks contain 12,785 labeled respondents. The weighted average discard rate is 24.2 percent. The unweighted average discard rate is 26.3 percent. The range is 6.2 percent to 44.5 percent.
+
+| Dataset | Rows | Kept | Discarded | Discard rate | Calibration note |
+|---|---:|---:|---:|---:|---|
+| 251101_THD-CX | 1,905 | 1,787 | 118 | 6.2% | Low-discard dataset. Accuracy can be reward-hacked by keeping nearly everyone. |
+| 251205_TFG-Contractor-Index-Q1 | 878 | 781 | 97 | 11.0% | Supplier and fielding signals matter. Conservative discard is needed. |
+| 260111_Delta-Water-Filtration | 1,353 | 1,005 | 348 | 25.7% | Fielding, channel, and timing signals matter. Timing is not always intuitive. |
+| 260200_SBD | 787 | 437 | 350 | 44.5% | High-discard dataset. Ownership and product-use signals matter. |
+| 260206_OC-BH | 2,164 | 1,789 | 375 | 17.3% | Fielding source and matrix patterns matter. |
+| 260300_ECHO | 1,566 | 1,013 | 553 | 35.3% | Brand funnel, equipment ownership, classification, and timing matter. |
+| 260306_TFG-Contractor-Index-Q2 | 1,117 | 715 | 402 | 36.0% | Supplier, fielding source, device, classification, and readability matter. |
+| 260401_-OC-CAN | 743 | 458 | 285 | 38.4% | Fielding source and review metadata have strong lift. |
+| 260403_Masterlock-Conjoint | 916 | 710 | 206 | 22.5% | Matrix and demographic patterns matter more than open-end text alone. |
+| 260404_ADDO | 1,356 | 998 | 358 | 26.4% | Readability and very short open-end evidence matter. |
+
+## Cross-dataset signal priors
+
+These signal families showed recurring lift across assessed workbooks:
+
+- Fielding and supplier source. Strong in TFG Q1, TFG Q2, OC-CAN, OC-BH, Delta, and SBD.
+- Brand, product, ownership, or funnel reconstruction. Strong in ECHO, SBD, OC-BH, and Delta.
+- Quota and classification structure. Strong in ECHO, TFG Q2, SBD, OC-CAN, and THD-CX.
+- Readability and language metadata. Strong in THD-CX, TFG Q1, TFG Q2, and ADDO.
+- Timing extremes. Useful in some datasets, but counterexamples exist. Fast completion is not a universal discard rule.
+- Open-end text quality. It is weak as a global signal. It becomes useful only when the field contract is clear.
+
+## Dataset signal examples
+
+Each row below lists examples from prior assessed data. "Risky example" means that value had a higher discard rate than the dataset base rate. "Keep-leaning counterexample" means that a similar signal area had a lower discard rate than the dataset base rate.
+
+| Dataset | Base rate | Candidate signal | Risky example | Keep-leaning counterexample |
+|---|---:|---|---|---|
+| 251101_THD-CX | 6.2% | Fielding source `vlist` | `13`, n=328, discard 27% | `27`, n=1,208, discard 0% |
+| 251101_THD-CX | 6.2% | State verification `qStateVer` | `19`, n=21, discard 62% | Missing, n=1,210, discard 0% |
+| 251101_THD-CX | 6.2% | Income or profile value `q8r1` | `210000`, n=9, discard 33% | `50000`, n=81, discard 0% |
+| 251205_TFG-Contractor-Index-Q1 | 11.0% | Supplier `SUPNAME` | `MIRATSINSIGHTSPRIVATELIMITED-FEED`, n=77, discard 88% | `PrimeInsightsGroupLLC-API`, n=406, discard 3% |
+| 251205_TFG-Contractor-Index-Q1 | 11.0% | Product or ownership `q13r1` | `68`, n=8, discard 62% | `50`, n=101, discard 0% |
+| 251205_TFG-Contractor-Index-Q1 | 11.0% | Demographic profile `q5r1` | `63`, n=5, discard 100% | `90`, n=74, discard 1% |
+| 260111_Delta-Water-Filtration | 25.7% | Device or OS `vos` | `4`, n=588, discard 41% | `12`, n=251, discard 9% |
+| 260111_Delta-Water-Filtration | 25.7% | Fielding technical `dcua` | `..`, n=666, discard 39% | `si`, n=247, discard 9% |
+| 260111_Delta-Water-Filtration | 25.7% | Supplier missingness | missing supplier, n=485, discard 41% | supplier value present with low-risk fielding codes |
+| 260200_SBD | 44.5% | Product-use text `qcoe2r1` | `Bosch`, n=17, discard 82% | `Milwaukee`, n=145, discard 31% |
+| 260200_SBD | 44.5% | Ownership `q13r1` | `Bosch`, n=20, discard 80% | `Craftsman`, n=129, discard 34% |
+| 260200_SBD | 44.5% | Timing | under 5 minutes, n=49, discard 94% | Do not apply to other datasets without checking local timing distribution |
+| 260206_OC-BH | 17.3% | Fielding source `vlist` | `25`, n=113, discard 48% | `3`, n=231, discard 0% |
+| 260206_OC-BH | 17.3% | Product or ownership `q139r9` | `5`, n=350, discard 35% | `99`, n=383, discard 4% |
+| 260206_OC-BH | 17.3% | Term flags | `termflags_nonzero`, n=12, discard 58% | no open text, n=37, discard 0% |
+| 260300_ECHO | 35.3% | Brand funnel `q17r2` | `ECHO`, n=8, discard 75% | `John Deere`, n=40, discard 15% |
+| 260300_ECHO | 35.3% | Equipment ownership `q11othr2` | coded `2`, n=19, discard 100% | `Leaf blower`, n=9, discard 22% |
+| 260300_ECHO | 35.3% | Other brand `q19_2026othr1` | `Ryobi`, n=13, discard 62% | `John Deere`, n=20, discard 20% |
+| 260306_TFG-Contractor-Index-Q2 | 36.0% | Readability `qc6LangAssessReadLevel` | `9.74`, n=14, discard 93% | `9.57`, n=16, discard 6% |
+| 260306_TFG-Contractor-Index-Q2 | 36.0% | Fielding source `vlist` | `23`, n=96, discard 94% | `1`, n=701, discard 13% |
+| 260306_TFG-Contractor-Index-Q2 | 36.0% | Supplier `SUPNAME` | missing, n=416, discard 75% | `MakeOpinionGmbH-API`, n=29, discard 0% |
+| 260401_-OC-CAN | 38.4% | Fielding source `vlist` | `15`, n=190, discard 84% | `3`, n=121, discard 0% |
+| 260401_-OC-CAN | 38.4% | Review metadata `qcoe1R1_RD_Reviewr3` | `0`, n=301, discard 67% | missing, n=121, discard 0% |
+| 260401_-OC-CAN | 38.4% | Demographic profile `q43` | `5`, n=42, discard 88% | `1`, n=31, discard 0% |
+| 260403_Masterlock-Conjoint | 22.5% | Open-end industry text | `Security`, n=5, discard 60% | no broad open-end rule. Check matrix and profile signals first |
+| 260403_Masterlock-Conjoint | 22.5% | Age `qager1` | `62`, n=7, discard 71% | `56`, n=14, discard 7% |
+| 260403_Masterlock-Conjoint | 22.5% | State `qstate` | `22`, n=14, discard 50% | `48`, n=15, discard 0% |
+| 260404_ADDO | 26.4% | Readability syllables `qcoe1LangAssessNumSyl` | `2`, n=17, discard 88% | `33`, n=16, discard 0% |
+| 260404_ADDO | 26.4% | Readability words `qcoe1LangAssessNumWords` | `1`, n=121, discard 52% | `18`, n=26, discard 4% |
+| 260404_ADDO | 26.4% | Review metadata `outroR1_RD_Reviewr3` | `16`, n=37, discard 76% | `0`, n=500, discard 19% |
+
+## Rules for avoiding reward hacking
+
+- Do not set a target discard rate or target REVIEW rate before row review.
+- Do not move rows between KEEP, REVIEW, and DISCARD to match a historical average.
+- Do not treat high historical base rate as proof that a new row is bad.
+- Do not treat low historical base rate as proof that a new row is good.
+- When an output distribution is far from the closest historical base rate, audit the evidence. Then record the reason for the gap in `workledger.md`.
+- Use historical positives and negatives together. A candidate signal without its accepted-row counterexamples is incomplete.

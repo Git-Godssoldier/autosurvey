@@ -96,7 +96,7 @@ Each `REVIEW` row must be reassigned to one of these routing classes:
 - `human_review`: The row has a concrete unresolved question that requires human PM judgment. The output must state that question.
 - `high_conf_discard_candidate`: The row meets a DISCARD gate after the second read, and the output cites the hard signal or independent counted families.
 
-The final `REVIEW` lane should be budgeted. For no-ML production runs, target a final `REVIEW` rate of 25 percent to 35 percent. Treat 40 percent as the default ceiling unless the workledger explains why the dataset needs more human review.
+The final `REVIEW` lane should be audited, not forced into a preset size. Do not target a fixed REVIEW rate. A very large REVIEW lane can mean the agent is avoiding decisions. A very small REVIEW lane can mean the agent is hiding uncertainty. Use the historical prior profile and row evidence to explain the final distribution.
 
 Do not preserve `REVIEW` only because the row is short, thin, common, or mildly uncertain. If the only present signals are weak or context-only and the row has an outdoor task or no row-specific risk, move it to `KEEP`.
 
@@ -267,4 +267,4 @@ Do not accept an agent output if:
 - the row has a final judgment but no `disposition_rule_id`;
 - the justification does not cite the signals that drove the final judgment.
 - review compression is active and `review_reason_code`, `review_priority`, or `review_exit_criteria` is missing;
-- review compression is active and the final `REVIEW` rate exceeds the configured review budget without a workledger exception.
+- review compression is active and the final `REVIEW` distribution is not assessed against the closest historical prior profile in the workledger.

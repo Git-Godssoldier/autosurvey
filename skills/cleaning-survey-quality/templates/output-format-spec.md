@@ -154,6 +154,5 @@ python3 skills/cleaning-survey-quality/scripts/validate_agent_judgments.py \
   /path/to/review_chunk_XX.json /path/to/agent_judgments_chunk_XX.json \
   --signal-dictionary /path/to/signal_dictionary.csv \
   --signal-matrix /path/to/signal_matrix.csv \
-  --require-review-routing \
-  --max-review-rate 0.40
+  --require-review-routing
 ```

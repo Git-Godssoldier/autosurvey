@@ -152,7 +152,7 @@ These rules came before V7 and should be interpreted through the V7 guardrails.
 8. **KEEP**: No TIER 1 or TIER 2 signals AND profile is coherent (regardless of TIER 3 signals)
 9. **KEEP**: Low-risk supplier with coherent profile (even with TIER 3 signals)
 
-**Calibrate per-dataset**: Match the target discard rate from `population_stats.json` `dataset_reject_rate`. If natural rule application gives a different rate, adjust strictness on Rule 4 (semantic coherence).
+**Calibrate per-dataset**: Treat `population_stats.json` `dataset_reject_rate` as an audit prior, not a target. Do not adjust rules only to match a discard rate. If natural rule application gives a very different rate, inspect the row evidence, the signal profile, and accepted-row counterexamples before changing any rule.
 
 ## Signal Definitions
 

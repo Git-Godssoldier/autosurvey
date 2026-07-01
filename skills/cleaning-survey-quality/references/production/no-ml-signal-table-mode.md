@@ -11,11 +11,13 @@ Read `no-ml-row-signal-decision-criteria.md` before building prompts or reviewin
 3. Build `signal_dictionary`.
 4. Build `signal_matrix`.
 5. Build a signal preflight profile from `signal_matrix`.
-6. Review the full dataset using the signal matrix and the raw answer chain.
-7. Run review compression over every first-pass `REVIEW` row.
-8. Write final judgments with per-signal assessments and review routing fields.
-9. Validate final judgments against the chunk, signal dictionary, signal matrix, and review budget.
-10. If labels arrive later, write `signal_lift` and error analysis for evolution.
+6. Build a historical prior profile from `historical-dataset-priors.md`.
+7. Review the full dataset using the signal matrix and the raw answer chain.
+8. Run review compression over every first-pass `REVIEW` row.
+9. Write final judgments with per-signal assessments and review routing fields.
+10. Validate final judgments against the chunk, signal dictionary, and signal matrix.
+11. Audit the final output distribution against the closest historical prior. Do not force the distribution to match it.
+12. If labels arrive later, write `signal_lift` and error analysis for evolution.
 
 ## Signal dictionary
 
@@ -84,6 +86,21 @@ Family rollups do not count as additional independent signals when their child s
 
 In the Echo no-ML run, `matrix_near_straightline`, `matrix_many_straightlined_grids`, and `brand_low_awareness_count` were too broad to count toward discard by themselves.
 
+## Historical prior profile
+
+Before row review, read `historical-dataset-priors.md` and create `historical_prior_profile`.
+
+The profile must include:
+
+- closest historical datasets and why they are similar;
+- historical discard rates for those datasets;
+- risky candidate signal examples from those datasets;
+- keep-leaning counterexamples from those datasets;
+- expected signal families to inspect in the current workbook;
+- a warning that historical rates are not targets.
+
+Use this profile as calibration memory. Do not set a target discard rate or target REVIEW rate. If the final distribution is far from the closest historical prior, audit the row evidence and explain the gap in `workledger.md`.
+
 ## Allowed signal families
 
 - platform risk
@@ -119,7 +136,7 @@ Use REVIEW for mixed signal evidence, but do not let this narrow the production 
 
 Use KEEP when hard failures are absent and the signal table shows no meaningful convergence.
 
-After first-pass review, run a second-read review compression pass over every `REVIEW` row. The final `REVIEW` lane should contain only rows with a named unresolved question. The default target is 25 percent to 35 percent final `REVIEW`, with a 40 percent ceiling unless the workledger explains the exception.
+After first-pass review, run a second-read review compression pass over every `REVIEW` row. The final `REVIEW` lane should contain only rows with a named unresolved question. Do not shrink or expand REVIEW to hit a target rate.
 
 Move weak rows to KEEP when all of these are true:
 
@@ -150,8 +167,7 @@ python3 skills/cleaning-survey-quality/scripts/validate_agent_judgments.py \
   "/path/to/holistic_output/review_chunk_XX.json" "$OUTPUT_JSON" \
   --signal-dictionary "/path/to/holistic_output/signal_dictionary.csv" \
   --signal-matrix "/path/to/holistic_output/signal_matrix.csv" \
-  --require-review-routing \
-  --max-review-rate 0.40
+  --require-review-routing
 ```
 
 Append the command, output path, JSON validation result, retry count, and next action to `workledger.md` before starting the next chunk.
