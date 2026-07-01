@@ -107,6 +107,8 @@ After first-pass no-ML review, run review compression over every `REVIEW` row. F
 
 Before no-ML row review, read `references/production/historical-dataset-priors.md` and create `historical_prior_profile`. This profile should list the closest prior datasets, their discard rates, candidate risky signal examples, and keep-leaning counterexamples. Use it to ask better row-level questions. Do not force judgments to match the historical average.
 
+When review compression considers moving a row to KEEP, check `historical_prior_profile` first. If a closest-prior family such as brand funnel, source risk, or survey structure is present and unresolved, keep the row in REVIEW with `review_reason_code: prior_family_holdout`. This blocks weak auto-KEEP decisions without making the signal an auto-DISCARD rule.
+
 ## Dataset Normalization Store
 
 For full production runs, benchmark runs, residual analysis, or any run where metrics must be reproducible, normalize the workbook into SQLite before scoring. Read `references/production/dataset-normalization-sqlite.md` and write the store under `{output_dir}/normalized/survey_quality.sqlite`.
@@ -313,6 +315,7 @@ Test the full flow before reporting completion. At minimum:
 - Run the integration and comparison checks for any run with ground truth labels.
 - Report accuracy, precision, recall, F1, specificity, balanced accuracy, soft recall, review volume, FP count, FN count, and runtime/performance notes.
 - Compare performance against the current benchmark or prior run when one exists.
+- For no-ML runs with labels, compare auto-KEEP false negatives against true keeps. Promote residual signals first as auto-KEEP holdouts or deeper-review questions, not as direct DISCARD rules.
 - Append the final command outputs, metric table, artifact paths, failures, and next steps to `workledger.md`.
 
 ## The Evidence-Family Framework (v7)

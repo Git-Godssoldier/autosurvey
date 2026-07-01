@@ -10,8 +10,9 @@ These priors are label-aware evolution evidence. They are not row labels for a n
 2. Record the closest historical base rate in `workledger.md`.
 3. Use the risky examples as questions to check in the current workbook, not as automatic discard rules.
 4. Use the keep-leaning counterexamples as false-positive guardrails.
-5. After blind scoring, compare the output distribution to the closest historical base rate. A large gap is an audit trigger. It is not a reason to force the output to match the historical rate.
-6. Promote a signal only when it survives accepted-row counterexamples from the same or a similar survey family.
+5. Before auto-KEEP, use unresolved closest-prior families as holdouts. A holdout keeps the row in REVIEW with a named question. It does not create DISCARD.
+6. After blind scoring, compare the output distribution to the closest historical base rate. A large gap is an audit trigger. It is not a reason to force the output to match the historical rate.
+7. Promote a signal only when it survives accepted-row counterexamples from the same or a similar survey family.
 
 Do not use client `status`, raw client `markers`, `bad:` marker tokens, or label-derived same-dataset fields during blind scoring.
 
@@ -42,6 +43,30 @@ These signal families showed recurring lift across assessed workbooks:
 - Readability and language metadata. Strong in THD-CX, TFG Q1, TFG Q2, and ADDO.
 - Timing extremes. Useful in some datasets, but counterexamples exist. Fast completion is not a universal discard rule.
 - Open-end text quality. It is weak as a global signal. It becomes useful only when the field contract is clear.
+
+## V3 residual lesson from Echo
+
+This is label-aware evolution evidence from the Echo no-ML V3 run. Use it after reading the current workbook. Do not use it as a same-dataset label shortcut.
+
+V3 moved many weak REVIEW rows to KEEP and improved the human-review queue. The remaining weakness was auto-KEEP false negatives. Among V3 KEEP rows, 172 were client discards and 649 were client keeps.
+
+The strongest differences between auto-KEEP false negatives and true keeps were family-level signals:
+
+| Signal family | Auto-KEEP false negatives | True keeps | Difference |
+|---|---:|---:|---:|
+| `family_brand_funnel` | 56 of 172, 32.6% | 100 of 649, 15.4% | +17.1 points |
+| `family_source_risk` | 43 of 172, 25.0% | 100 of 649, 15.4% | +9.6 points |
+| `family_survey_structure` | 34 of 172, 19.8% | 70 of 649, 10.8% | +9.0 points |
+
+A simulated V4 holdout rule showed the direction:
+
+| Holdout rule for V3 KEEP rows | Rows moved back to REVIEW | Discarded rows recovered | Kept rows moved to review | Soft F1 |
+|---|---:|---:|---:|---:|
+| `family_brand_funnel` present | 156 | 56 | 100 | 60.1% |
+| any of brand, source, or structure family present | 274 | 81 | 193 | 58.8% |
+| at least two of brand, source, or structure present | 104 | 38 | 66 | 59.8% |
+
+This does not justify more auto-DISCARD. It justifies a prior-family holdout before auto-KEEP. If a closest-prior family is present and unresolved, keep the row in REVIEW with `review_reason_code: prior_family_holdout`.
 
 ## Dataset signal examples
 

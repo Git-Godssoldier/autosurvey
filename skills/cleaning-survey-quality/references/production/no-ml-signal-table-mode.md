@@ -97,6 +97,7 @@ The profile must include:
 - risky candidate signal examples from those datasets;
 - keep-leaning counterexamples from those datasets;
 - expected signal families to inspect in the current workbook;
+- prior-family holdout rules that can block auto-KEEP without creating auto-DISCARD;
 - a warning that historical rates are not targets.
 
 Use this profile as calibration memory. Do not set a target discard rate or target REVIEW rate. If the final distribution is far from the closest historical prior, audit the row evidence and explain the gap in `workledger.md`.
@@ -144,6 +145,7 @@ Move weak rows to KEEP when all of these are true:
 - there is no strong semantic failure;
 - only weak or context-only signals are present;
 - the answer is substantive, outdoor-adjacent, or thin but on topic;
+- no unresolved historical-prior family holdout is present;
 - no row-specific contradiction is found in the raw answer chain.
 
 Move rows to DISCARD only when a hard signal fires or independent counted families meet the DISCARD gate in `no-ml-row-signal-decision-criteria.md`.
@@ -178,6 +180,8 @@ When labels are available after the run, evaluate three metrics separately:
 
 - fully automated DISCARD versus KEEP accuracy;
 - REVIEW workflow accuracy, assuming reviewed rows are resolved by a human;
-- review volume needed to reach a target such as 90% final workflow accuracy.
+- final workflow accuracy under a stated human-review assumption, including how much review volume that assumption requires.
+
+Also run residual mining on auto-KEEP false negatives versus true keeps. The purpose is to find signals that should block auto-KEEP or trigger deeper review in the next pass. Do not promote a residual signal to auto-DISCARD unless it has row-specific evidence and accepted-row counterexamples have been checked.
 
 Do not report a label-tuned review threshold as a proven production rule until it has been tested on another dataset.

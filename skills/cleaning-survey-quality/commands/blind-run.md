@@ -55,6 +55,7 @@ For each `review_chunk_XX.json` file, create a prompt file that tells Devin to:
 - when no-ML signal-table mode is active, read `references/production/historical-dataset-priors.md` and write a `historical_prior_profile`;
 - when no-ML signal-table mode is active, include `signal_assessments` with one entry per production-safe signal for every respondent;
 - when no-ML signal-table mode is active, run a second-read review compression pass over first-pass REVIEW rows;
+- when no-ML signal-table mode is active, block auto-KEEP when an unresolved closest-prior family is present, and use `review_reason_code: prior_family_holdout`;
 - when no-ML signal-table mode is active, include `second_read_action`, `review_routing_class`, `review_reason_code`, `review_priority`, and `review_exit_criteria`;
 - write raw JSON only to `agent_judgments_chunk_XX.json`, as an array with `respondent_id`, `agent_score` (-1 to +1), `agent_judgment` (DISCARD/REVIEW/KEEP), `agent_justification` (2-4 sentences), and any required signal-table fields.
 
@@ -83,6 +84,8 @@ For no-ML runs, do not accept a final output where most rows remain REVIEW. The 
 - `high_conf_discard_candidate`
 
 The final REVIEW lane should only contain rows with a named unresolved question. Do not target a fixed REVIEW rate or discard rate. Compare the final distribution to the closest historical prior only as an audit check, then explain any large gap in the workledger.
+
+Before moving a REVIEW row to KEEP, check `historical_prior_profile`. If a closest-prior family is present and the row has no accepted-row counterexample that resolves it, keep the row in REVIEW with `prior_family_holdout`. This is a review holdout only. It is not a DISCARD rule.
 
 Validate compressed no-ML outputs with:
 

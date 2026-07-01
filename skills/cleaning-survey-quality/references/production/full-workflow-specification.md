@@ -44,12 +44,13 @@ Before writing or running scoring scripts:
 12. In no-ML production mode, build a signal preflight profile. Signals present in more than 85 percent of rows are context only unless the row has separate row-specific evidence.
 13. In no-ML production mode, build a historical prior profile from prior assessed datasets. Include base rates, candidate risky signals, and keep-leaning counterexamples. Do not use it to force a distribution.
 14. In no-ML production mode, plan for review compression before chunk review starts. The first pass may mark uncertainty as REVIEW. The second pass must move weak, protected, or no-risk rows to KEEP and hard or convergent failures to DISCARD.
-15. Build an agent-authored question-set authenticity map before scoring text quality. For every major question set, state the intended respondent universe, the field role, what an authentic answer should sound like, what a fabricated or bot-like answer might sound like, what learned guardrails apply, and which source fields support that interpretation.
-16. Build a Question Contract and question-relation graph before respondent analysis.
-17. Build a semantic signal expansion plan before final weighting.
-18. Decide which fields can be scored in the first pass, which fields need PM mapping, and which fields should only produce review notes.
-19. Do not run topic mismatch or low-effort scoring until the field role is clear.
-20. Build a project-specific topic and answer map from the Datamap, prompt wording, value labels, and sampled open ends before topic or answer-depth scoring.
+15. In no-ML production mode, do not auto-KEEP a row when a closest-prior family is present and unresolved. Use `prior_family_holdout` as a REVIEW reason. Do not treat the holdout as DISCARD evidence by itself.
+16. Build an agent-authored question-set authenticity map before scoring text quality. For every major question set, state the intended respondent universe, the field role, what an authentic answer should sound like, what a fabricated or bot-like answer might sound like, what learned guardrails apply, and which source fields support that interpretation.
+17. Build a Question Contract and question-relation graph before respondent analysis.
+18. Build a semantic signal expansion plan before final weighting.
+19. Decide which fields can be scored in the first pass, which fields need PM mapping, and which fields should only produce review notes.
+20. Do not run topic mismatch or low-effort scoring until the field role is clear.
+21. Build a project-specific topic and answer map from the Datamap, prompt wording, value labels, and sampled open ends before topic or answer-depth scoring.
 
 ## Quality Hypothesis Building
 

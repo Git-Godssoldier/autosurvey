@@ -100,11 +100,20 @@ The final `REVIEW` lane should be audited, not forced into a preset size. Do not
 
 Do not preserve `REVIEW` only because the row is short, thin, common, or mildly uncertain. If the only present signals are weak or context-only and the row has an outdoor task or no row-specific risk, move it to `KEEP`.
 
+Do not auto-KEEP a row when the historical prior profile identifies an unresolved family-level risk that is present in the row. Family rollups still do not count toward DISCARD convergence, but they can block auto-KEEP and create a `prior_family_holdout` review reason when all of these are true:
+
+- the family is named in `historical_prior_profile` as important for the closest prior dataset;
+- the row has the family rollup or a child signal present;
+- the raw answer chain has not resolved the risk using a keep-leaning counterexample from the prior profile;
+- no hard or strong DISCARD gate fires.
+
+Use `prior_family_holdout` to keep the row in REVIEW with a specific exit question, e.g. "Does the brand-funnel pattern match the risky prior example or the accepted counterexample?" Do not use prior-family holdout as a DISCARD reason by itself.
+
 Every row after review compression must include:
 
 - `second_read_action`, one of `keep`, `review`, or `discard`;
 - `review_routing_class`, one of the four classes above;
-- `review_reason_code`, e.g. `thin_on_topic_only`, `weak_source_timing`, `brand_chain_uncertain`, `possible_wrong_topic`, `possible_nonanswer`, `quota_or_source_context`, `conflicting_evidence`, or `human_pm_judgment`;
+- `review_reason_code`, e.g. `thin_on_topic_only`, `weak_source_timing`, `brand_chain_uncertain`, `prior_family_holdout`, `possible_wrong_topic`, `possible_nonanswer`, `quota_or_source_context`, `conflicting_evidence`, or `human_pm_judgment`;
 - `review_priority`, one of `low`, `medium`, `high`, or `urgent`;
 - `review_exit_criteria`, stating what would move the row to KEEP or DISCARD;
 - `auto_keep_reason` for KEEP rows;
