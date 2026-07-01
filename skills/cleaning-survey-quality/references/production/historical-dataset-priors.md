@@ -105,11 +105,28 @@ Rejected signal-split families:
 - qager1 age correlations.
 - Any field pair whose only support is same-dataset lift.
 
-The next useful step after V10 is mining the 83 Echo KEEP-lane false negatives for REVIEW holdout signals. Cross-dataset validation was completed on 2026-07-02 and confirmed that V10 signal families are Echo-specific (negative transfer to SBD, Oldcastle BH, and Oldcastle Canada). New datasets need the full AutoQuality pipeline run from scratch.
+The next useful step after V10 is mining the 83 Echo KEEP-lane false negatives for REVIEW holdout signals. Cross-dataset validation was completed on 2026-07-01 and confirmed that V10 signal families are Echo-specific (negative transfer to SBD, Oldcastle BH, and Oldcastle Canada). New datasets need the full AutoQuality pipeline run from scratch.
 
 2026-07-01 cross-dataset transfer check: a direct SBD brand-rating structural probe fired on 647 of 787 respondents, with 1,040 row-brand-battery hits. That is too broad for standalone routing. It can be stored as a context-only signal column, but it should not move rows to REVIEW or DISCARD until a sharper child criterion is validated against true labels and accepted-row counterexamples.
 
-2026-07-02 cross-dataset validation with true labels: SBD (787 rows, 44.5% discard), Oldcastle BH (2164 rows, 17.3% discard), and Oldcastle Canada (743 rows, 38.4% discard) all have true client labels in "Data Sets with Cleaning Answer.zip". The V10 Echo signal families (brand rating straightlining, cross-question matrix row matching, adjacent-row straightlining) were tested as structural patterns. Result: negative transfer. Brand rating straightlining is negatively correlated with discards on Oldcastle BH (lift 0.55-0.70x — high ratings indicate genuine engagement). Adjacent-row straightlining fires on ~100% of respondents across all datasets. Cross-question matrix matching has marginal lift (1.0-1.1x) at best. The V10 rules are Echo-specific and should not be transferred to new datasets. New datasets need the full AutoQuality pipeline run from scratch.
+2026-07-01 cross-dataset validation with true labels: SBD (787 rows, 44.5% discard), Oldcastle BH (2164 rows, 17.3% discard), and Oldcastle Canada (743 rows, 38.4% discard) all have true client labels in "Data Sets with Cleaning Answer.zip". The V10 Echo signal families (brand rating straightlining, cross-question matrix row matching, adjacent-row straightlining) were tested as structural patterns. Result: negative transfer. Brand rating straightlining is negatively correlated with discards on Oldcastle BH (lift 0.55-0.70x — high ratings indicate genuine engagement). Adjacent-row straightlining fires on ~100% of respondents across all datasets. Cross-question matrix matching has marginal lift (1.0-1.1x) at best. The V10 rules are Echo-specific and should not be transferred to new datasets. New datasets need the full AutoQuality pipeline run from scratch.
+
+## V11 KEEP-lane holdout lesson from Echo
+
+This is label-aware evolution evidence from the Echo no-ML V11 run. Use it to guide future KEEP-lane holdout mining. Do not use it as a same-dataset shortcut during blind scoring.
+
+V11 started from V10 and moved only KEEP rows to REVIEW. It added no DISCARD rules. Soft recall improved from 85.0 percent to 91.0 percent. Soft F1 improved from 63.9 percent to 66.5 percent. Strict metrics were unchanged.
+
+Accepted REVIEW holdout families:
+
+- Invalid q11 other-specify equipment text. Numeric-only, placeholder, or non-equipment answers in q11 other-specify fields recovered 22 KEEP-lane client discards and moved 3 accepted rows to REVIEW. The false-negative rate was 88.0 percent inside matching V10 KEEP rows.
+- Hard invalid q17 unaided brand recall text. Retailers, stores, categories, or non-brand answers in q17 brand recall fields recovered 14 KEEP-lane client discards and moved 4 accepted rows to REVIEW. The false-negative rate was 77.8 percent inside matching V10 KEEP rows.
+
+Rejected V11 family:
+
+- Ordinary q17 brand misspellings. They found 9 KEEP-lane client discards, but also 12 accepted-row counterexamples. Keep them as context only unless another signal makes the row unresolved.
+
+Routing lesson: these are REVIEW holdouts, not DISCARD rules. The exit question is concrete: does q11 name real outdoor power equipment, and does q17 name actual outdoor power equipment brands rather than stores, categories, or placeholders?
 
 ## Dataset signal examples
 
@@ -135,6 +152,8 @@ Each row below lists examples from prior assessed data. "Risky example" means th
 | 260300_ECHO | 35.3% | Brand funnel `q17r2` | `ECHO`, n=8, discard 75% | `John Deere`, n=40, discard 15% |
 | 260300_ECHO | 35.3% | Equipment ownership `q11othr2` | coded `2`, n=19, discard 100% | `Leaf blower`, n=9, discard 22% |
 | 260300_ECHO | 35.3% | Other brand `q19_2026othr1` | `Ryobi`, n=13, discard 62% | `John Deere`, n=20, discard 20% |
+| 260300_ECHO | 35.3% | Other-specify equipment text `q11othr*` | V11 invalid text, n=25, discard 88% | 3 accepted rows with similar invalid text. REVIEW only |
+| 260300_ECHO | 35.3% | Unaided brand recall text `q17r*` | V11 retailer or non-brand text, n=18, discard 78% | 4 accepted rows with similar hard-invalid text. REVIEW only |
 | 260306_TFG-Contractor-Index-Q2 | 36.0% | Readability `qc6LangAssessReadLevel` | `9.74`, n=14, discard 93% | `9.57`, n=16, discard 6% |
 | 260306_TFG-Contractor-Index-Q2 | 36.0% | Fielding source `vlist` | `23`, n=96, discard 94% | `1`, n=701, discard 13% |
 | 260306_TFG-Contractor-Index-Q2 | 36.0% | Supplier `SUPNAME` | missing, n=416, discard 75% | `MakeOpinionGmbH-API`, n=29, discard 0% |
