@@ -73,6 +73,8 @@ For `signal_split`, do not promote opaque coded-value correlations. A child sign
 
 When `signal_split` keeps returning after a large same-dataset gain, prefer validation on another assessed dataset before adding more rules from the same workbook. Continue same-dataset mining only when the next candidate family has clear survey meaning and a separate accepted-row counterexample set.
 
+For cross-dataset transfer, run a coverage check before promotion. The transferred signal must report how many target rows it fires on, positive examples, signal-absent examples, and accepted-row counterexamples when labels exist. If an unlabeled structural probe fires on a broad share of the workbook, keep it as context-only until a sharper child criterion is found. Do not claim accuracy, precision, recall, or F1 from an unlabeled structural probe.
+
 ### Actuator
 
 The actuator applies the selected loop.
@@ -96,6 +98,7 @@ Every loop must keep these dampeners active:
 - no client labels during blind scoring;
 - no raw `markers`, `bad:` marker tokens, or status-derived fields during scoring;
 - no fixed output-rate targets;
+- no promotion from structural transfer without a coverage check;
 - every new holdout needs a named exit question;
 - every new DISCARD rule needs hard row evidence and accepted-row counterexamples;
 - every chunk must pass `validate_agent_judgments.py`;

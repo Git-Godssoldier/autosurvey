@@ -107,6 +107,8 @@ Rejected signal-split families:
 
 The next useful step after V10 is cross-dataset validation. If another assessed workbook has brand ratings, matrix rows, or ad recall fields, translate the V10 families into that workbook's field names and test them as evaluation-only probes. If no validation dataset is ready, mine the remaining KEEP-lane false negatives only as REVIEW holdouts.
 
+2026-07-01 cross-dataset transfer check: a direct SBD brand-rating structural probe fired on 647 of 787 respondents, with 1,040 row-brand-battery hits. That is too broad for standalone routing. It can be stored as a context-only signal column, but it should not move rows to REVIEW or DISCARD until a sharper child criterion is validated against true labels and accepted-row counterexamples.
+
 ## Dataset signal examples
 
 Each row below lists examples from prior assessed data. "Risky example" means that value had a higher discard rate than the dataset base rate. "Keep-leaning counterexample" means that a similar signal area had a lower discard rate than the dataset base rate.
@@ -152,3 +154,4 @@ Each row below lists examples from prior assessed data. "Risky example" means th
 - Do not treat low historical base rate as proof that a new row is good.
 - When an output distribution is far from the closest historical base rate, audit the evidence. Then record the reason for the gap in `workledger.md`.
 - Use historical positives and negatives together. A candidate signal without its accepted-row counterexamples is incomplete.
+- Before promoting a transferred signal, record its coverage on the target workbook. A high-coverage structural hit is context, not a routing rule, unless it still separates labeled discards from labeled keeps after counterexample review.
