@@ -77,6 +77,8 @@ When `signal_split` keeps returning after a large same-dataset gain, prefer vali
 
 For cross-dataset transfer, run a coverage check before promotion. The transferred signal must report how many target rows it fires on, positive examples, signal-absent examples, and accepted-row counterexamples when labels exist. If an unlabeled structural probe fires on a broad share of the workbook, keep it as context-only until a sharper child criterion is found. Do not claim accuracy, precision, recall, or F1 from an unlabeled structural probe.
 
+Before implementing a complex controller action, send the proposed loop to Oracle for guidance. Keep the bundle narrow. Include the current control loop report, current and prior performance reports, the candidate plan, and only the scripts or references needed to review the plan. Run Oracle's safety preflight first. Do not send secrets, private data, broad repo globs, raw workbooks, or ambiguous context. Treat the Oracle answer as advisory. Verify it against local artifacts and tests before changing the workflow.
+
 ### Actuator
 
 The actuator applies the selected loop.
@@ -111,12 +113,13 @@ Every loop must keep these dampeners active:
 1. Sense the current state with `autoquality_control_loop.py`.
 2. Identify the largest remaining error bucket.
 3. Select one controller action.
-4. Simulate the action on the previous run when possible.
-5. Apply the action to create V_next artifacts.
-6. Validate every chunk.
-7. Merge and compare metrics.
-8. Update SQLite, `workledger.md`, and `run_todolist.md`.
-9. Promote only durable learnings into the skill.
+4. Package the proposed action for Oracle review when the plan is complex. Record the prompt, file scope, response summary, and any adopted guidance in `workledger.md`.
+5. Simulate the action on the previous run when possible.
+6. Apply the action to create V_next artifacts.
+7. Validate every chunk.
+8. Merge and compare metrics.
+9. Update SQLite, `workledger.md`, and `run_todolist.md`.
+10. Promote only durable learnings into the skill.
 
 ## Promotion rule
 
