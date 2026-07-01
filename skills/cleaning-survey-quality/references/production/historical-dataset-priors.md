@@ -68,6 +68,24 @@ A simulated V4 holdout rule showed the direction:
 
 This does not justify more auto-DISCARD. It justifies a prior-family holdout before auto-KEEP. If a closest-prior family is present and unresolved, keep the row in REVIEW with `review_reason_code: prior_family_holdout`.
 
+## V5 residual holdout lesson from Echo
+
+This is label-aware evolution evidence from the Echo no-ML V5 run. Use it to guide the shape of future loops, not as a same-dataset shortcut during blind scoring.
+
+V4's broad brand-family holdout moved 100 KEEP rows back to REVIEW and recovered 43 client discards. V5 then mined the remaining V4 KEEP false negatives against true keeps across raw field/value pairs and selected only holdouts with enough support and accepted-row counterexamples.
+
+V5 moved 74 additional KEEP rows to REVIEW, recovering 46 client discards and moving 28 client keeps. Soft F1 improved from 60.7 percent to 63.9 percent. Soft recall improved from 76.7 percent to 85.0 percent. Strict precision and strict recall were unchanged because V5 added REVIEW holdouts, not DISCARD rules.
+
+The best surviving holdouts were specific, not broad:
+
+- misspelled brand or brand-funnel anomalies, such as `q17r1 = John deer`;
+- low-awareness brand recommendation patterns, such as the RedMax recommendation field;
+- extreme or inconsistent brand rating positions;
+- classification and ownership anomalies;
+- readability extremes.
+
+The lesson is procedural: after a broad prior-family holdout works, mine the residual KEEP false negatives for specific field/value or cross-field holdouts and require accepted-row counterexamples. Once soft false negatives are reduced and the remaining gap is strict recall, stop widening REVIEW and switch to REVIEW true-positive versus REVIEW false-positive mining for hard discard candidates.
+
 ## Dataset signal examples
 
 Each row below lists examples from prior assessed data. "Risky example" means that value had a higher discard rate than the dataset base rate. "Keep-leaning counterexample" means that a similar signal area had a lower discard rate than the dataset base rate.

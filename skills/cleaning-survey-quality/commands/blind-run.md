@@ -116,6 +116,19 @@ This merges all chunk judgments and writes:
 - Check that the dashboard renders correctly
 - Check that discard rows in the Excel match the discard table in the dashboard
 
+### 7. Run the control loop for iterative improvement runs
+
+When labels are available for evaluation or this is a traceable improvement pass, run the artifact sensor/controller after comparison:
+
+```bash
+python3 skills/cleaning-survey-quality/scripts/autoquality_control_loop.py \
+  --run-dir /path/to/holistic_output \
+  --output-md /path/to/holistic_output/control_loop_report.md \
+  --output-json /path/to/holistic_output/control_loop_state.json
+```
+
+Use the selected controller action to plan exactly one next loop. Do not convert the metric target into a target REVIEW rate or discard rate. If soft false negatives are already reduced and strict recall remains low, the next loop should mine REVIEW true positives against REVIEW false positives for hard row-specific discard candidates with accepted-row counterexamples.
+
 ## References to read before running
 
 - `references/production/progressive-chain-filtering.md` — Full four-layer progressive filtering specification
@@ -125,4 +138,5 @@ This merges all chunk judgments and writes:
 - `references/production/agent-authored-row-review.md` — Prevents the pipeline from becoming a rigid checklist
 - `references/production/no-ml-row-signal-decision-criteria.md` — Required per-signal criteria for no-ML signal-table mode
 - `references/production/historical-dataset-priors.md` — Historical base rates, risky examples, and keep-leaning counterexamples
+- `references/production/autoquality-control-loop.md` — Artifact-driven control loop for iterative improvement passes
 - `references/production/discard-exemplar-library.md` — Calibrated exemplars of true positives, false positives, true negatives, and false negatives

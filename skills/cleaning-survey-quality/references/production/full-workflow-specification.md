@@ -14,17 +14,19 @@ Before writing or running scoring scripts:
 6. Read `references/production/semantic-signal-expansion.md` before evaluating straightlining, speed, open ends, duplicate technical signals, semantic similarity, topic fit, bot suspicion, LLM suspicion, or fabricated-response detection.
 7. **[EVOLUTION]** Read `references/evolution/tfg-status-derived-detection-methodology.md` when TFG status-labeled training workbooks, status-derived rules, bot suspicion, LLM suspicion, or fabricated-response detection are part of the task.
 8. **[EVOLUTION]** Read `references/evolution/dataset-cycle-loop.md` when the run is part of an improvement cycle, a rerun, a multi-dataset pass, or a workflow-hardening request.
-9. State the definition of done for this dataset in plain words.
-10. Identify the source files, expected final artifacts, and what would block final delivery.
-11. **[EVOLUTION]** If the run includes internal comments, PM notes, client annotations, or prior criteria, read `references/evolution/internal-signal-learning.md`.
-12. Start a short decision trail for non-obvious choices.
-13. **[EVOLUTION]** If a client annotated workbook exists, treat it as methodology-development data. In TFG cleaning-answer workbooks, `status = 3` means accepted, `status = 5` means rejected.
-14. **[EVOLUTION]** Separate client rejection probability from fabrication or authenticity risk. A `status = 5` row is an observed client rejection, not proof of bot behavior, LLM use, or fraud.
-15. **[EVOLUTION]** In annotated methodology runs, exclude leakage before feature extraction. Treat marker or quota fields, client action fields, final decision fields, review helper fields, condition assignment fields, no-answer helper fields, QC helper fields, channel tracking fields, token fields, hidden cleaning fields, and formulas or formatting that reveal cleaning decisions as unavailable to the blind reviewer.
-16. For Stage 2 agent review runs, use Devin CLI print mode with GLM 5.2 using Devin model id `glm-5-2`. Process one chunk at a time unless the run log explicitly allows more concurrency, and record the command, output path, validation result, and next action in `workledger.md`.
-17. In no-ML signal-table mode, validate each judgment chunk with `scripts/validate_agent_judgments.py`. Do not accept a chunk unless it includes one `signal_assessments` entry per production-safe signal for every respondent.
-18. In no-ML signal-table mode, read `references/production/historical-dataset-priors.md` and build a historical prior profile before row review. Use prior rates and examples as calibration memory, not as targets.
-19. In no-ML signal-table mode, run a second-read review compression pass over every first-pass REVIEW row. Do not accept a final output where REVIEW is used as a default uncertainty bucket. Each remaining REVIEW row must state a concrete unresolved question.
+9. **[EVOLUTION]** Read `references/production/autoquality-control-loop.md` for iterative performance loops. Use the artifact-driven sensor/controller and skip any human interview step from the source design-control-loop pattern.
+10. State the definition of done for this dataset in plain words.
+11. Identify the source files, expected final artifacts, and what would block final delivery.
+12. **[EVOLUTION]** If the run includes internal comments, PM notes, client annotations, or prior criteria, read `references/evolution/internal-signal-learning.md`.
+13. Start a short decision trail for non-obvious choices.
+14. **[EVOLUTION]** If a client annotated workbook exists, treat it as methodology-development data. In TFG cleaning-answer workbooks, `status = 3` means accepted, `status = 5` means rejected.
+15. **[EVOLUTION]** Separate client rejection probability from fabrication or authenticity risk. A `status = 5` row is an observed client rejection, not proof of bot behavior, LLM use, or fraud.
+16. **[EVOLUTION]** In annotated methodology runs, exclude leakage before feature extraction. Treat marker or quota fields, client action fields, final decision fields, review helper fields, condition assignment fields, no-answer helper fields, QC helper fields, channel tracking fields, token fields, hidden cleaning fields, and formulas or formatting that reveal cleaning decisions as unavailable to the blind reviewer.
+17. For Stage 2 agent review runs, use Devin CLI print mode with GLM 5.2 using Devin model id `glm-5-2`. Process one chunk at a time unless the run log explicitly allows more concurrency, and record the command, output path, validation result, and next action in `workledger.md`.
+18. In no-ML signal-table mode, validate each judgment chunk with `scripts/validate_agent_judgments.py`. Do not accept a chunk unless it includes one `signal_assessments` entry per production-safe signal for every respondent.
+19. In no-ML signal-table mode, read `references/production/historical-dataset-priors.md` and build a historical prior profile before row review. Use prior rates and examples as calibration memory, not as targets.
+20. In no-ML signal-table mode, run a second-read review compression pass over every first-pass REVIEW row. Do not accept a final output where REVIEW is used as a default uncertainty bucket. Each remaining REVIEW row must state a concrete unresolved question.
+21. **[EVOLUTION]** After each comparison report, run `scripts/autoquality_control_loop.py`, follow exactly one controller action, and record the metric gap, dampeners, and next pass in `workledger.md`.
 
 ## Workbook Exploration
 

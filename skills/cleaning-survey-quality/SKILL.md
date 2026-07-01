@@ -80,6 +80,7 @@ Required tables or artifacts:
 - `signal_profile` — one row per signal with present count, absent count, present rate, and decision weight. Near-universal signals must be marked `context_only`.
 - `review_compression_report` — second-read summary for first-pass REVIEW rows, with routing class counts, final REVIEW rate, rows moved to KEEP, rows moved to DISCARD, and remaining human questions.
 - `historical_prior_profile` — closest historical assessed datasets, base discard rates, candidate signal examples, and accepted-row counterexamples from `references/production/historical-dataset-priors.md`.
+- `control_loop_state` — artifact-driven sensor/controller output from `scripts/autoquality_control_loop.py` for iterative improvement runs.
 - `signal_lift` — optional when labels exist after the run. Use it only for evaluation and evolution, never during blind scoring.
 
 No-ML production mode must not use:
@@ -108,6 +109,8 @@ After first-pass no-ML review, run review compression over every `REVIEW` row. F
 Before no-ML row review, read `references/production/historical-dataset-priors.md` and create `historical_prior_profile`. This profile should list the closest prior datasets, their discard rates, candidate risky signal examples, and keep-leaning counterexamples. Use it to ask better row-level questions. Do not force judgments to match the historical average.
 
 When review compression considers moving a row to KEEP, check `historical_prior_profile` first. If a closest-prior family such as brand funnel, source risk, or survey structure is present and unresolved, keep the row in REVIEW with `review_reason_code: prior_family_holdout`. This blocks weak auto-KEEP decisions without making the signal an auto-DISCARD rule.
+
+For iterative no-ML improvement runs with labels, read `references/production/autoquality-control-loop.md` and run `scripts/autoquality_control_loop.py` after each comparison report. Use its controller action to choose the next small loop. Do not treat metric targets as output-rate targets, and do not widen REVIEW indefinitely. Once soft false negatives are reduced and strict recall remains low, mine REVIEW true positives against REVIEW false positives for hard discard candidates with accepted-row counterexamples.
 
 ## Dataset Normalization Store
 
@@ -206,6 +209,7 @@ Read only the references needed for the current task:
 | No-ML production signal table and Boolean row-signal matrix | `references/production/no-ml-signal-table-mode.md` |
 | No-ML per-row signal criteria and discard gates | `references/production/no-ml-row-signal-decision-criteria.md` |
 | Historical dataset priors, base rates, and signal counterexamples | `references/production/historical-dataset-priors.md` |
+| Artifact-driven iterative improvement loop | `references/production/autoquality-control-loop.md` |
 | Blind authenticity review rules | `references/production/decipher-blind-authenticity-review.md` |
 | Signal weighting, semantic similarity, convergence logic | `references/production/semantic-signal-expansion.md` |
 | V7 calibrated disposition rules and benchmark lessons | `references/production/v7-calibration-and-guardrails.md` |
@@ -316,6 +320,7 @@ Test the full flow before reporting completion. At minimum:
 - Report accuracy, precision, recall, F1, specificity, balanced accuracy, soft recall, review volume, FP count, FN count, and runtime/performance notes.
 - Compare performance against the current benchmark or prior run when one exists.
 - For no-ML runs with labels, compare auto-KEEP false negatives against true keeps. Promote residual signals first as auto-KEEP holdouts or deeper-review questions, not as direct DISCARD rules.
+- For iterative no-ML runs with labels, run `scripts/autoquality_control_loop.py` after comparison. Follow one controller action at a time and record the selected action, metric gap, dampeners, and next pass in `workledger.md`.
 - Append the final command outputs, metric table, artifact paths, failures, and next steps to `workledger.md`.
 
 ## The Evidence-Family Framework (v7)

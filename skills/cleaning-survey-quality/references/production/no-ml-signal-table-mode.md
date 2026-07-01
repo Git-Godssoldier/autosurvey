@@ -18,6 +18,7 @@ Read `no-ml-row-signal-decision-criteria.md` before building prompts or reviewin
 10. Validate final judgments against the chunk, signal dictionary, and signal matrix.
 11. Audit the final output distribution against the closest historical prior. Do not force the distribution to match it.
 12. If labels arrive later, write `signal_lift` and error analysis for evolution.
+13. In iterative improvement runs, run `scripts/autoquality_control_loop.py` and follow one controller action at a time.
 
 ## Signal dictionary
 
@@ -147,6 +148,8 @@ Move weak rows to KEEP when all of these are true:
 - the answer is substantive, outdoor-adjacent, or thin but on topic;
 - no unresolved historical-prior family holdout is present;
 - no row-specific contradiction is found in the raw answer chain.
+
+After labels are available, use the control loop to choose the next evolution pass. If KEEP false negatives remain high, mine KEEP false negatives against true keeps and add REVIEW holdouts only when accepted-row counterexamples are documented. If soft false negatives are reduced but strict recall remains low, mine REVIEW true positives against REVIEW false positives for hard row-specific discard candidates. Do not keep widening REVIEW when the largest remaining gap is strict recall.
 
 Move rows to DISCARD only when a hard signal fires or independent counted families meet the DISCARD gate in `no-ml-row-signal-decision-criteria.md`.
 
